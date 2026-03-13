@@ -113,14 +113,15 @@ async def _run_generator(type_devis: str, params: dict) -> str:
 
 async def _generer_direct(type_devis: str, params: dict,
                            client_prenom: str, client_nom: str) -> str:
-    """Génère un devis en appelant directement les fonctions de génération.
+    """Lance la génération d'un devis en arrière-plan et retourne immédiatement.
 
-    Avantages vs subprocess :
-    - Pas de délai de démarrage de processus Python
-    - Pas de sérialisation/parsing stdout
-    - Pas de retry FS pour le fichier (filepath retourné directement)
-    - Chrome visible : même session macOS WindowServer
-    - asyncio.shield : le task continue en arrière-plan si timeout 55s
+    Le devis se génère en tâche de fond pendant que Claude rédige le mail.
+    Le commercial glisse ensuite le PDF dans le mail une fois prêt.
+
+    Avantages :
+    - Pas de blocage : retour immédiat → Claude rédige le mail tout de suite
+    - Chrome continue en arrière-plan, le PDF apparaît dans ~/Downloads
+    - Appeler lister_devis_generes pour vérifier quand c'est prêt
     """
     global _bg_task_counter
 
@@ -132,41 +133,39 @@ async def _generer_direct(type_devis: str, params: dict,
 
     task = asyncio.create_task(_run_generator(type_devis, params))
 
-    # Stocker la référence pour éviter le GC si timeout
+    # Stocker la référence pour éviter le GC
     _bg_task_counter += 1
     task_id = f"{type_devis}_{client_prenom}_{client_nom}_{_bg_task_counter}"
     _background_tasks[task_id] = task
-    task.add_done_callback(lambda t: _background_tasks.pop(task_id, None))
 
-    try:
-        # asyncio.shield empêche l'annulation du task interne quand wait_for expire
-        filepath = await asyncio.wait_for(asyncio.shield(task), timeout=55)
+    def _on_done(t: asyncio.Task) -> None:
+        """Callback exécuté quand la génération se termine."""
+        _background_tasks.pop(task_id, None)
+        try:
+            filepath = t.result()
+            if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
+                _log_devis(filepath, type_devis, client_prenom, client_nom)
+                print(f"✅ Devis {type_devis} prêt : {os.path.basename(filepath)}", file=sys.stderr)
+            else:
+                print(f"⚠ Devis {type_devis} : PDF non trouvé ({filepath!r})", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Devis {type_devis} échoué : {e}", file=sys.stderr)
 
-        if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
-            size_kb = os.path.getsize(filepath) / 1024
-            _log_devis(filepath, type_devis, client_prenom, client_nom)
-            return json.dumps({
-                "success": True,
-                "filepath": filepath,
-                "filename": os.path.basename(filepath),
-                "size_kb": round(size_kb, 1),
-                "message": f"Devis {type_devis} généré pour {client_prenom} {client_nom}",
-            })
-        return json.dumps({"success": False, "error": f"PDF non trouvé : {filepath!r}"})
+    task.add_done_callback(_on_done)
 
-    except asyncio.TimeoutError:
-        # Le task continue en arrière-plan — retourner "en_cours"
-        nom = f"{client_prenom}_{client_nom}".replace(" ", "_")
-        return json.dumps({
-            "success": True,
-            "status": "en_cours",
-            "message": (
-                f"Génération démarrée en arrière-plan (prend ~2 min). "
-                f"Appelez lister_devis_generes dans 1-2 minutes pour récupérer le PDF de {nom}."
-            ),
-        })
-    except Exception as e:
-        return json.dumps({"success": False, "error": str(e)})
+    # Retour immédiat — ne pas attendre la fin de la génération
+    nom = f"{client_prenom} {client_nom}".strip()
+    return json.dumps({
+        "success": True,
+        "status": "en_cours",
+        "task_id": task_id,
+        "message": (
+            f"Génération du devis {type_devis} lancée en arrière-plan pour {nom}. "
+            f"Tu peux rédiger le mail maintenant — le commercial glissera le PDF "
+            f"(~/Downloads/) dans le mail une fois prêt. "
+            f"Appelle lister_devis_generes pour vérifier l'avancement."
+        ),
+    })
 
 
 mcp = FastMCP(

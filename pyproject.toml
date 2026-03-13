@@ -1,0 +1,20 @@
+[project]
+name = "projet-mail-ia"
+version = "1.0.0"
+description = "Système IA de génération automatique de devis PDF — Groupe Abri Français"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
