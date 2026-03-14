@@ -56,7 +56,8 @@ Pipeline : [Marque]
 |-----------|--------|
 | Config complète (dimensions + options) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
-| Client veut 2 abris accolés sur le même devis | ✅ `generer_devis` pour le 1er + `rechercher_produits_detail` pour le 2ème → `produits_complementaires` |
+| Client veut 2+ produits configurés sur le même devis | ✅ `generer_devis` avec `configurations_supplementaires` (multi-config sur 1 PDF) — fonctionne sur les 5 sites |
+| Client veut 1 abri configuré + 1 modèle préconçu sur le même devis | ✅ `generer_devis` pour le configuré + `rechercher_produits_detail` pour le préconçu → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes) → `generer_devis_terrasse_bois_detail` |
@@ -734,16 +735,39 @@ Quand `poteau_lamelle_colle=True`, le script calcule automatiquement le nombre d
 
 **Si le comptage échoue** → fournir explicitement : `nb_poteaux_lamelle_colle=4` (lire depuis le PDF d'un devis précédent ou depuis la description produit sur le site). Exemples : 9m×5m adossée → 4 (2 angle + 2 muralière).
 
-### Cas spécial : 2 abris
+### Multi-configuration sur un même devis (`configurations_supplementaires`)
 
-**Si le 2ème abri est un modèle préconçu** → tout sur 1 seul devis :
-1. `generer_devis(site="abri", largeur="Xm", ...)` pour le 1er abri
-2. `rechercher_produits_detail(site="abri", recherche="[dimensions 2ème abri]")` → trouver le modèle préconçu
-3. Ajouter via `produits_complementaires` dans le même appel `generer_devis`
-→ Les 2 abris apparaissent comme 2 lignes sur le même devis PDF.
+Tous les outils de génération (`generer_devis`, `generer_devis_pergola_bois`, `generer_devis_terrasse_bois`, `generer_devis_cloture_bois`) acceptent le paramètre `configurations_supplementaires` : une liste JSON de configurations supplémentaires à ajouter au même panier WooCommerce → **1 seul PDF avec plusieurs produits configurés**.
 
-**Si les 2 abris sont des configs personnalisées (Gamme Origine)** → **2 devis séparés** obligatoires.
-Le configurateur ne peut traiter qu'un seul abri personnalisé à la fois.
+**Exemple — 2 abris Gamme Origine sur le même devis :**
+```
+generer_devis(
+    site="abri",
+    largeur="5,50M", profondeur="3,30m",
+    ouvertures='[{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}]',
+    plancher="Avec plancher",
+    client_nom="Dupont", client_prenom="Jean", ...,
+    configurations_supplementaires='[{
+        "largeur": "4,35M", "profondeur": "2,00m",
+        "ouvertures": [{"type": "Porte Pleine", "face": "Face 1", "position": "Centre"}],
+        "plancher": "Avec plancher", "bac_acier": false, "extension_toiture": ""
+    }]'
+)
+```
+
+**Paramètres disponibles par site :**
+| Site | Champs de chaque config supplémentaire |
+|------|---------------------------------------|
+| Abri | `largeur`, `profondeur`, `ouvertures`, `plancher`, `bac_acier`, `extension_toiture` |
+| Studio | `largeur`, `profondeur`, `menuiseries`, `bardage_exterieur`, `isolation`, `rehausse`, `bardage_interieur`, `finition_plancher`, `terrasse`, `pergola` |
+| Pergola | `largeur`, `profondeur`, `fixation`, `ventelle`, `option`, `poteau_lamelle_colle`, `nb_poteaux_lamelle_colle`, `claustra_type`, `nb_claustra`, `sur_mesure`, `largeur_hors_tout`, `profondeur_hors_tout`, `hauteur_hors_tout` |
+| Terrasse | `essence`, `longueur`, `quantite`, `lambourdes`, `lambourdes_longueur`, `plots`, `visserie`, `densite_lambourdes`, `nb_lames`, `nb_lambourdes` |
+| Clôture | `modele`, `longeur`, `hauteur`, `bardage`, `fixation_sol`, `type_poteaux`, `longueur_lames`, `sens_bardage`, `recto_verso` |
+
+**Cas spécial abri — 1 configuré + 1 préconçu :**
+Si le 2ème abri est un modèle préconçu (Essentiel/Haut de Gamme), utiliser `produits_complementaires` au lieu de `configurations_supplementaires` :
+1. `rechercher_produits_detail(site="abri", recherche="[modèle préconçu]")` → trouver `url`, `variation_id`
+2. Ajouter via `produits_complementaires` dans le même appel `generer_devis`
 
 ### Gamme Essentiel / Haut de Gamme — Modèles préconçus (devis via produits_complementaires)
 
