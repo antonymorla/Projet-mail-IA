@@ -75,7 +75,8 @@ Corps: …
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` → `generer_devis_terrasse_bois_detail` (quantités exactes) |
-| Client avec budget serré pour un abri | ✉ Proposer Gamme Essentiel (renvoyer vers le site — non génératable) |
+| **Client demande un modèle préconçu (Essentiel ou Haut de Gamme)** | ✅ `rechercher_produits_detail(site="abri", recherche="essentiel …")` → trouver url + variation_id → `generer_devis` avec `produits_complementaires` |
+| Client avec budget serré sans modèle précis | ✉ Proposer Gamme Essentiel — lister les modèles via `rechercher_produits_detail` + email A |
 | Infos manquantes | ✉ Email B — demander les compléments |
 | Demande d'info générale | ✉ Email A — informatif + questions qualificatives |
 | Suivi devis déjà envoyé | ✉ Email M4 — répondre aux questions |
@@ -428,7 +429,7 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
 | **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement (configs porte+fenêtre fixes) |
-| **Générateur de devis** | ✅ `generer_devis(site="abri")` | ❌ Non génératable → renvoyer vers le site ou `rechercher_produits_detail` |
+| **Générateur de devis** | ✅ `generer_devis(site="abri")` | ✅ Via `produits_complementaires` — voir workflow préconçus ci-dessous |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Fondations** | Pas de dalle nécessaire — plots béton ou réglables | Pas de dalle nécessaire — plots béton ou réglables |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
@@ -436,6 +437,25 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 > ⚠ **RÈGLE ABSOLUE** : ne jamais inventer de différences techniques entre les 2 gammes. Les 2 utilisent le **même bois** (pin autoclave 28mm), la **même méthode de construction** (madriers emboîtables). La seule différence fondamentale est le **type de toit** et la **personnalisation**.
 
 > Prix → générer le devis ou `rechercher_produits_detail`. Promos → `verifier_promotions_actives`.
+
+#### Modèles préconçus (Essentiel + Haut de Gamme) — workflow devis
+
+**Structure du catalogue préconçu sur abri-francais.fr :**
+- Catégorie Essentiel : https://www.abri-français.fr/product-category/nos-produits/modeles-preconcus/abris-de-jardin-essentiel/
+- Catégorie Haut de Gamme : https://www.abri-français.fr/product-category/nos-produits/modeles-preconcus/abri-de-jardin-haut-de-gamme/
+
+**Organisation :** Chaque modèle préconçu est un produit WooCommerce distinct, classé par :
+1. **Modèle** = combinaison d'options fixes (ex : porte vitrée + fenêtre verticale, ou porte pleine + plancher, ou avec extension toiture…)
+2. **Variations** = toutes les dimensions disponibles pour ce modèle (ex : 2,14×2,14m, 3,28×2,14m, 4,35×2,14m…)
+
+**Workflow pour générer un devis préconçu :**
+1. `rechercher_produits_detail(site="abri", recherche="essentiel porte vitrée")` → trouver le bon modèle
+2. Identifier la variation correspondant aux dimensions souhaitées → noter `url`, `variation_id`, `attribut_selects`
+3. `generer_devis(site="abri", ..., produits_complementaires='[{"url": "<url>", "variation_id": <id>, "quantite": 1, "attribut_selects": {...}, "description": "Abri Essentiel 2,14×2,14m porte vitrée"}]')`
+
+> ⚠ Le produit préconçu est ajouté via `produits_complementaires` — il apparaît dans le PDF.
+> ⚠ Si le client veut UNIQUEMENT un préconçu (pas de produit configuré en principal), utiliser des dimensions minimales pour le produit principal et ne conserver que le produit complémentaire dans l'email. Alternative : utiliser `generer_devis` avec un petit abri Origine comme « principal » uniquement pour déclencher la génération PDF.
+> ⚠ **Toujours appeler `rechercher_produits_detail` EN PREMIER** — ne jamais deviner les `variation_id` ou `url`.
 
 ### Pergolas bois (Ma Pergola Bois)
 

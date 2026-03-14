@@ -61,7 +61,8 @@ Pipeline : [Marque]
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes) → `generer_devis_terrasse_bois_detail` |
 | **Terrasse — devis comparatif essences différentes** | ✅ Recalculer nb_lames selon longueurs dispo de chaque essence (longueurs ≠ entre Pin et exotiques) |
-| Client avec budget serré pour un abri | ✉ Proposer Gamme Essentiel (renvoyer vers le site — non génératable par `generer_devis`) |
+| **Client demande un modèle préconçu (Essentiel ou Haut de Gamme)** | ✅ `rechercher_produits_detail(site="abri", recherche="essentiel …")` → trouver url + variation_id → `generer_devis` avec `produits_complementaires` |
+| Client avec budget serré sans modèle précis | ✉ Proposer Gamme Essentiel — lister les modèles via `rechercher_produits_detail` + email A |
 | Infos manquantes | Email B (demander dimensions/options) |
 | Info générale | Email A (questions qualificatives + configurateur en ligne) |
 | Suivi devis existant | Email M4 (répondre aux questions du client) |
@@ -129,7 +130,8 @@ Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (De
 | **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
-| **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement |
+| **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement (configs fixes) |
+| **Générateur de devis** | ✅ `generer_devis(site="abri")` | ✅ Via `produits_complementaires` — voir workflow préconçus |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
 
@@ -152,7 +154,7 @@ Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, 
 Code promo **LEROYMERLIN5** (vérifier remise via `verifier_promotions_actives`).
 Hauteur faîtage : 2,27m HT.
 ⚠ **Pas dans le configurateur WPC** — modèles préconçus uniquement (configurations porte+fenêtre prédéfinies).
-→ Pour un devis Essentiel : renvoyer vers le site ou `rechercher_produits_detail(site="abri", recherche="essentiel")`.
+→ Pour un devis Essentiel : `rechercher_produits_detail(site="abri", recherche="essentiel [options voulues]")` → trouver `url` + `variation_id` + `attribut_selects` → passer en `produits_complementaires` de `generer_devis`.
 
 **Dimensions disponibles (Gamme Essentiel) — 16 combinaisons :**
 
@@ -743,10 +745,19 @@ Quand `poteau_lamelle_colle=True`, le script calcule automatiquement le nombre d
 **Si les 2 abris sont des configs personnalisées (Gamme Origine)** → **2 devis séparés** obligatoires.
 Le configurateur ne peut traiter qu'un seul abri personnalisé à la fois.
 
-### Gamme Essentiel — Pas génératable par le configurateur
+### Gamme Essentiel / Haut de Gamme — Modèles préconçus (devis via produits_complementaires)
 
-`generer_devis(site="abri")` utilise le configurateur WPC → **Gamme Origine uniquement**.
-Pour un devis Essentiel : renvoyer vers le site ou `rechercher_produits_detail(site="abri", recherche="essentiel")` → lien produit direct au client.
+`generer_devis(site="abri")` utilise le configurateur WPC → **Gamme Origine uniquement** pour le produit principal.
+Pour un devis préconçu (Essentiel ou Haut de Gamme) :
+1. `rechercher_produits_detail(site="abri", recherche="essentiel porte vitrée")` → trouver le bon modèle
+2. Identifier la variation aux dimensions souhaitées → noter `url`, `variation_id`, `attribut_selects`
+3. Passer le produit en `produits_complementaires` de `generer_devis` → le produit préconçu apparaît dans le PDF
+
+**Structure du catalogue préconçu :**
+- Chaque modèle = combinaison d'options fixes (porte vitrée, porte pleine, avec plancher, avec extension toiture…)
+- Chaque modèle est décliné en toutes les dimensions disponibles (variations WooCommerce)
+- Catégorie Essentiel : https://www.abri-français.fr/product-category/nos-produits/modeles-preconcus/abris-de-jardin-essentiel/
+- Catégorie Haut de Gamme : https://www.abri-français.fr/product-category/nos-produits/modeles-preconcus/abri-de-jardin-haut-de-gamme/
 
 ### Planches pour obstruer le fond d'une extension toiture
 
