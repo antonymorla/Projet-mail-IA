@@ -72,6 +72,8 @@ Corps: …
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
 | Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** `generer_devis` avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
+| Client veut obstruer/fermer le fond des extensions | ✅ `generer_devis` avec `obstruer_extensions=True` — planches calculées et ajoutées automatiquement |
+| Client veut du bois en plus (jardinières, étagères…) | ✅ `generer_devis` avec `bois_supplementaire_m2=10` — planches calculées et ajoutées automatiquement |
 | Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
@@ -172,6 +174,14 @@ generer_devis(
     configurations_supplementaires='[{"largeur": "4,70M", "profondeur": "3,45m",
       "ouvertures": [{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}],
       "extension_toiture": "Gauche 3,5 M", "plancher": false, "bac_acier": true}]',
+
+    # ── Auto-calcul planches (ABRI uniquement) ──
+    obstruer_extensions=False,    # True = ajouter auto les planches 27×130 pour fermer les extensions
+                                  # Détecte TOUTES les extensions (principale + configs supplémentaires)
+                                  # Calcule : 16 planches/face × nb extensions, bonne longueur auto
+                                  # → Plus besoin de rechercher_produits_detail ni de calculer !
+    bois_supplementaire_m2=0,     # Surface en m² de bois supplémentaire (jardinières, étagères…)
+                                  # Ex: 10 → ~19 planches 27×130 de 4,2m ajoutées automatiquement
 )
 ```
 

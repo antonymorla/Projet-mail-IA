@@ -57,6 +57,8 @@ Pipeline : [Marque]
 | Config complète (dimensions + options) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
 | Client veut 2+ produits configurés sur le même devis | ✅ **UN SEUL appel** `generer_devis` avec `configurations_supplementaires` (multi-config sur 1 PDF) — ⚠ INTERDIT de faire 2 appels séparés |
+| Client veut obstruer/fermer le fond des extensions | ✅ `generer_devis` avec `obstruer_extensions=True` — planches 27×130 calculées et ajoutées **automatiquement** |
+| Client veut du bois en plus (jardinières, étagères…) | ✅ `generer_devis` avec `bois_supplementaire_m2=10` — planches calculées et ajoutées **automatiquement** |
 | Client veut 1 abri configuré + 1 modèle préconçu sur le même devis | ✅ `generer_devis` pour le configuré + `rechercher_produits_detail` pour le préconçu → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
@@ -722,6 +724,8 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 - **Studio — Cloison intérieure** : `rechercher_produits_detail(site="studio", recherche="cloison")`
 - **Abri — Bac acier anti-condensation** : option directe dans `generer_devis` (`bac_acier=True`)
 - **Abri — Plancher** : option directe dans `generer_devis` (`plancher="true"`)
+- **Abri — Obstruer les extensions** : option directe (`obstruer_extensions=True`) — planches 27×130 calculées et ajoutées **automatiquement** (16 planches/face, longueur adaptée)
+- **Abri — Bois supplémentaire** : option directe (`bois_supplementaire_m2=10`) — planches 27×130 calculées automatiquement pour la surface demandée
 - **Pergola — Poteau Rive** : `rechercher_produits_detail(site="pergola", recherche="poteau rive")`
 - **Pergola — Pied de poteau** : `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
 - **Pergola — Poteaux lamellé-collé** : option directe (`poteau_lamelle_colle=True`) + `nb_poteaux_lamelle_colle=N`
@@ -757,7 +761,7 @@ generer_devis(
 )
 ```
 
-**Exemple complet — 2 abris + planches en produits complémentaires (1 seul appel) :**
+**Exemple complet — 2 abris accolés + bois jardinières (1 seul appel, tout automatique) :**
 ```
 generer_devis(
     site="abri",
@@ -774,12 +778,11 @@ generer_devis(
                        {"type": "Porte double Vitrée", "face": "Face 2", "position": "Centre"}],
         "extension_toiture": "Gauche 3,5 M", "bac_acier": true, "plancher": false
     }]',
-    produits_complementaires='[{"url": "https://...", "variation_id": 53608,
-      "quantite": 51, "attribut_selects": {"attribute_pa_longueur-de-lame": "4-2-m"},
-      "description": "51 planches 27x130 autoclave 4,2m (32 pour obstruer extensions + 19 pour jardinières)"}]'
+    obstruer_extensions=True,       # ← AUTO : 32 planches 27×130 (16/face × 2 extensions)
+    bois_supplementaire_m2=10,      # ← AUTO : ~19 planches supplémentaires pour jardinières
 )
 ```
-> ☝ **Tout dans UN SEUL appel** : abri principal + 2ème abri en `configurations_supplementaires` + planches en `produits_complementaires`.
+> ☝ **Tout dans UN SEUL appel** : 2 abris + planches calculées automatiquement. Plus besoin de `rechercher_produits_detail` ni de calculer les quantités de planches !
 
 **Paramètres disponibles par site :**
 | Site | Champs de chaque config supplémentaire |

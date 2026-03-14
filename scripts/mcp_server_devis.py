@@ -215,6 +215,182 @@ def _woo_api_get(base_url: str, path: str, params: dict = None) -> list | dict:
 
 
 # ═══════════════════════════════════════════════════════════════
+# HELPER : AUTO-CALCUL PLANCHES POUR EXTENSIONS (abri)
+# ═══════════════════════════════════════════════════════════════
+
+import math as _math
+import re as _re_mod
+
+
+def _extraire_largeur_extension(extension_toiture: str) -> float:
+    """Extrait la largeur en mètres d'une extension_toiture.
+    Ex: 'Droite 3,5 M' → 3.5, 'Gauche 1 M' → 1.0, '' → 0.0
+    """
+    if not extension_toiture:
+        return 0.0
+    # Pattern : "Droite 3,5 M" ou "Gauche 1 M" ou "Droite 1,5 M"
+    m = _re_mod.search(r'(\d+[,.]?\d*)\s*M', extension_toiture, _re_mod.IGNORECASE)
+    if m:
+        return float(m.group(1).replace(',', '.'))
+    return 0.0
+
+
+def _chercher_planches_27x130(base_url: str) -> list:
+    """Cherche les planches 27×130mm sur le site abri via l'API WooCommerce.
+    Retourne la liste des variations avec leur longueur, variation_id, prix, etc.
+    """
+    try:
+        products = _woo_api_get(base_url, "products", {"search": "planche", "per_page": 20})
+        # Chercher le produit "planche 27x130" ou "planche 27×130"
+        for p in products:
+            name = p.get("name", "").lower()
+            if "27" in name and ("130" in name or "×130" in name or "x130" in name):
+                variations = []
+                for v in p.get("variations", []):
+                    # Extraire la longueur depuis les attributs
+                    longueur = None
+                    attr_selects = {}
+                    for a in v.get("attributes", []):
+                        attr_slug = "attribute_pa_" + a["name"].lower().replace(" ", "_").replace("-", "_")
+                        attr_selects[attr_slug] = a["value"]
+                        # Décoder la valeur pour extraire la longueur
+                        val_decoded = urllib.parse.unquote(a["value"])
+                        # "4-2-m" → 4.2, "2-m" → 2.0, "3-m" → 3.0
+                        m = _re_mod.match(r'^(\d+)(?:-(\d+))?-m', val_decoded)
+                        if m:
+                            if m.group(2):
+                                longueur = float(f"{m.group(1)}.{m.group(2)}")
+                            else:
+                                longueur = float(m.group(1))
+
+                    if longueur is not None:
+                        minor = int(p.get("prices", {}).get("currency_minor_unit", 2))
+                        divisor = 10 ** minor
+                        if "prices" in v:
+                            prix = int(v["prices"].get("price", 0)) / divisor
+                        else:
+                            prix = int(p.get("prices", {}).get("price", 0)) / divisor
+
+                        variations.append({
+                            "variation_id": v["id"],
+                            "longueur_m": longueur,
+                            "prix": round(prix, 2),
+                            "en_stock": v.get("is_in_stock", True),
+                            "attr_selects": attr_selects,
+                        })
+
+                url = f"{base_url}/produit/{p['slug']}/"
+                return sorted(variations, key=lambda x: x["longueur_m"]), url
+    except Exception:
+        pass
+    return [], ""
+
+
+def _auto_planches_pour_extensions(
+    extension_principale: str,
+    configs_sup: list,
+    bois_supplementaire_m2: float,
+    site_base_url: str,
+) -> list:
+    """Calcule automatiquement les planches nécessaires pour obstruer les extensions
+    et/ou ajouter du bois supplémentaire (jardinières, etc.).
+
+    Retourne une liste de dicts produits_complementaires prêts à l'emploi.
+    """
+    # Collecter toutes les extensions à obstruer
+    extensions = []
+    largeur_main = _extraire_largeur_extension(extension_principale)
+    if largeur_main > 0:
+        extensions.append(largeur_main)
+    for cfg in (configs_sup or []):
+        l = _extraire_largeur_extension(cfg.get("extension_toiture", ""))
+        if l > 0:
+            extensions.append(l)
+
+    if not extensions and bois_supplementaire_m2 <= 0:
+        return []
+
+    # Chercher les planches 27×130 disponibles
+    variations, product_url = _chercher_planches_27x130(site_base_url)
+    if not variations or not product_url:
+        return []
+
+    # Hauteur intérieure abri Gamme Origine : ~2050mm
+    # nb_planches par face = ceil(2050 / 130) = 16
+    NB_PLANCHES_PAR_FACE = _math.ceil(2050 / 130)  # = 16
+
+    # Pour chaque extension, trouver la longueur de planche nécessaire
+    # (prendre la plus petite longueur standard ≥ largeur extension)
+    # Regrouper par longueur de planche pour optimiser (1 seul produit complémentaire)
+    besoin_par_longueur = {}  # {longueur_m: nb_planches}
+
+    for ext_largeur in extensions:
+        # Trouver la variation avec longueur ≥ ext_largeur
+        variation_ok = None
+        for var in variations:
+            if var["longueur_m"] >= ext_largeur and var.get("en_stock", True):
+                variation_ok = var
+                break
+        if not variation_ok:
+            # Prendre la plus longue disponible
+            en_stock = [v for v in variations if v.get("en_stock", True)]
+            if en_stock:
+                variation_ok = en_stock[-1]
+            else:
+                continue
+
+        longueur = variation_ok["longueur_m"]
+        besoin_par_longueur.setdefault(longueur, {"nb": 0, "var": variation_ok})
+        besoin_par_longueur[longueur]["nb"] += NB_PLANCHES_PAR_FACE
+
+    # Bois supplémentaire en m²
+    if bois_supplementaire_m2 > 0:
+        # Prendre la longueur la plus longue disponible en stock
+        en_stock = [v for v in variations if v.get("en_stock", True)]
+        if en_stock:
+            var_longue = en_stock[-1]
+            longueur = var_longue["longueur_m"]
+            nb_planches_sup = _math.ceil(bois_supplementaire_m2 / (0.130 * longueur))
+            besoin_par_longueur.setdefault(longueur, {"nb": 0, "var": var_longue})
+            besoin_par_longueur[longueur]["nb"] += nb_planches_sup
+
+    # Construire les produits_complementaires
+    result = []
+    for longueur, data in besoin_par_longueur.items():
+        var = data["var"]
+        nb = data["nb"]
+        # Description lisible
+        parts = []
+        # Combien viennent des extensions ?
+        nb_ext = 0
+        for ext_l in extensions:
+            # Vérifier si cette longueur couvre cette extension
+            couvertes = [v for v in variations if v["longueur_m"] >= ext_l and v.get("en_stock", True)]
+            if couvertes and couvertes[0]["longueur_m"] == longueur:
+                nb_ext += NB_PLANCHES_PAR_FACE
+        if nb_ext > 0:
+            nb_faces = nb_ext // NB_PLANCHES_PAR_FACE
+            parts.append(f"{nb_ext} pour obstruer {nb_faces} extension{'s' if nb_faces > 1 else ''}")
+        nb_sup = nb - nb_ext
+        if nb_sup > 0:
+            m2_couvert = round(nb_sup * 0.130 * longueur, 1)
+            parts.append(f"{nb_sup} pour bois supplémentaire (~{m2_couvert} m²)")
+        desc = f"{nb} planches 27×130 autoclave {longueur}m"
+        if parts:
+            desc += f" ({' + '.join(parts)})"
+
+        result.append({
+            "url": product_url,
+            "variation_id": var["variation_id"],
+            "quantite": nb,
+            "attribut_selects": var["attr_selects"],
+            "description": desc,
+        })
+
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════
 # OUTIL : RECHERCHER DES PRODUITS AU DÉTAIL (API LIVE)
 # ═══════════════════════════════════════════════════════════════
 
@@ -843,6 +1019,8 @@ async def generer_devis(
     code_promo: str = "",
     produits_uniquement: bool = False,
     configurations_supplementaires: str = "[]",
+    obstruer_extensions: bool = False,
+    bois_supplementaire_m2: float = 0,
 ) -> str:
     """Génère un devis PDF complet pour un produit configuré sur le site web.
 
@@ -932,6 +1110,17 @@ async def generer_devis(
             Le script configure le premier produit, l'ajoute au panier, puis navigue à nouveau
             vers le configurateur pour chaque config supplémentaire. Les produits_complementaires
             sont ajoutés après tous les produits configurés.
+        obstruer_extensions: (ABRI) True pour ajouter automatiquement les planches 27×130mm
+            nécessaires pour fermer le fond des extensions toiture. Le script :
+            1. Détecte toutes les extensions (config principale + configurations_supplementaires)
+            2. Cherche les planches sur le catalogue via l'API WooCommerce
+            3. Calcule la quantité (16 planches/face × nb extensions) et la bonne longueur
+            4. Ajoute automatiquement aux produits_complementaires
+            → Plus besoin d'appeler rechercher_produits_detail ni de calculer manuellement.
+        bois_supplementaire_m2: (ABRI) Surface en m² de bois supplémentaire à ajouter
+            (ex: jardinières, étagères). Utilise les mêmes planches 27×130mm.
+            Le script calcule automatiquement le nombre de planches nécessaires.
+            Ex: 10 m² → ~19 planches de 4,2m. Mettre 0 pour ne rien ajouter.
 
     Returns:
         JSON avec le chemin du PDF généré et les métadonnées.
@@ -951,6 +1140,20 @@ async def generer_devis(
             configs_sup = []
     except (json.JSONDecodeError, TypeError):
         configs_sup = []
+
+    # ── Auto-calcul planches pour extensions + bois supplémentaire ──
+    if site == "abri" and (obstruer_extensions or bois_supplementaire_m2 > 0):
+        try:
+            planches_auto = _auto_planches_pour_extensions(
+                extension_principale=extension_toiture if obstruer_extensions else "",
+                configs_sup=configs_sup if obstruer_extensions else [],
+                bois_supplementaire_m2=bois_supplementaire_m2,
+                site_base_url=SITES_BASE_URL["abri"],
+            )
+            if planches_auto:
+                produits_list.extend(planches_auto)
+        except Exception:
+            pass  # En cas d'erreur API, on continue sans les planches auto
 
     try:
         if site == "studio":
