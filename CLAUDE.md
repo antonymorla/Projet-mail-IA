@@ -71,7 +71,7 @@ Corps: …
 |-----------|--------|
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
-| Client veut 2 produits personnalisés sur le même devis | ✅ `generer_devis` avec `configurations_supplementaires` (2ème produit configuré automatiquement) |
+| Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** `generer_devis` avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
 | Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
@@ -566,6 +566,8 @@ Cordialement,
 - Produit : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → variation à la longueur voulue
 
 ### Plusieurs produits personnalisés sur le même devis (`configurations_supplementaires`)
+
+> ⚠ **RÈGLE ABSOLUE** : quand un client veut 2+ produits configurés sur le même devis, faire **UN SEUL appel** à `generer_devis` avec le 2ème produit dans `configurations_supplementaires`. **INTERDIT de faire 2 appels séparés** — cela crée 2 devis au lieu d'un seul PDF combiné. Les `produits_complementaires` doivent aussi être dans ce même appel unique.
 
 - **Tous les outils** supportent `configurations_supplementaires` : un JSON array de configurations supplémentaires
 - Chaque élément utilise les mêmes clés que la configuration principale du produit

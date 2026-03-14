@@ -56,7 +56,7 @@ Pipeline : [Marque]
 |-----------|--------|
 | Config complète (dimensions + options) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
-| Client veut 2+ produits configurés sur le même devis | ✅ `generer_devis` avec `configurations_supplementaires` (multi-config sur 1 PDF) — fonctionne sur les 5 sites |
+| Client veut 2+ produits configurés sur le même devis | ✅ **UN SEUL appel** `generer_devis` avec `configurations_supplementaires` (multi-config sur 1 PDF) — ⚠ INTERDIT de faire 2 appels séparés |
 | Client veut 1 abri configuré + 1 modèle préconçu sur le même devis | ✅ `generer_devis` pour le configuré + `rechercher_produits_detail` pour le préconçu → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
@@ -737,6 +737,8 @@ Quand `poteau_lamelle_colle=True`, le script calcule automatiquement le nombre d
 
 ### Multi-configuration sur un même devis (`configurations_supplementaires`)
 
+> ⚠ **RÈGLE ABSOLUE — MULTI-PRODUITS** : quand un client veut **2+ produits configurés** sur le même devis, tu dois faire **UN SEUL appel** à `generer_devis` (ou `generer_devis_pergola_bois`, etc.) en passant le 2ème produit dans `configurations_supplementaires`. **INTERDIT de faire 2 appels séparés** — cela crée 2 devis distincts au lieu d'un seul PDF combiné. Les `produits_complementaires` (planches, accessoires) doivent aussi être dans ce même appel unique.
+
 Tous les outils de génération (`generer_devis`, `generer_devis_pergola_bois`, `generer_devis_terrasse_bois`, `generer_devis_cloture_bois`) acceptent le paramètre `configurations_supplementaires` : une liste JSON de configurations supplémentaires à ajouter au même panier WooCommerce → **1 seul PDF avec plusieurs produits configurés**.
 
 **Exemple — 2 abris Gamme Origine sur le même devis :**
@@ -754,6 +756,30 @@ generer_devis(
     }]'
 )
 ```
+
+**Exemple complet — 2 abris + planches en produits complémentaires (1 seul appel) :**
+```
+generer_devis(
+    site="abri",
+    largeur="5,50M", profondeur="3,45m",
+    ouvertures='[{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"},
+                 {"type": "Fenêtre Horizontale", "face": "Face 2", "position": "Centre"}]',
+    extension_toiture="Droite 3,5 M", bac_acier=True, plancher="",
+    client_nom="Dupont", client_prenom="Jean", client_email="jean@example.com",
+    client_telephone="0600000000", client_adresse="1 Rue Test, 75001 Paris",
+    code_promo="LEROYMERLIN10",
+    configurations_supplementaires='[{
+        "largeur": "4,70M", "profondeur": "3,45m",
+        "ouvertures": [{"type": "Fenêtre Horizontale", "face": "Face 1", "position": "Centre"},
+                       {"type": "Porte double Vitrée", "face": "Face 2", "position": "Centre"}],
+        "extension_toiture": "Gauche 3,5 M", "bac_acier": true, "plancher": false
+    }]',
+    produits_complementaires='[{"url": "https://...", "variation_id": 53608,
+      "quantite": 51, "attribut_selects": {"attribute_pa_longueur-de-lame": "4-2-m"},
+      "description": "51 planches 27x130 autoclave 4,2m (32 pour obstruer extensions + 19 pour jardinières)"}]'
+)
+```
+> ☝ **Tout dans UN SEUL appel** : abri principal + 2ème abri en `configurations_supplementaires` + planches en `produits_complementaires`.
 
 **Paramètres disponibles par site :**
 | Site | Champs de chaque config supplémentaire |
