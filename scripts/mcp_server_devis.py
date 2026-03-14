@@ -699,8 +699,8 @@ def verifier_promotions_actives() -> str:
         "erreurs": erreurs,
         "aucune_promo": len(codes_uniques) == 0,
         "conseil": (
-            "Passer le code approprié dans code_promo de generer_devis / "
-            "generer_devis_pergola_bois / generer_devis_terrasse_bois / "
+            "Passer le code approprié dans code_promo de generer_devis_abri / "
+            "generer_devis_studio / generer_devis_pergola_bois / generer_devis_terrasse_bois / "
             "generer_devis_cloture_bois pour l'appliquer automatiquement dans le panier."
         ),
     }, ensure_ascii=False, indent=2)
@@ -994,8 +994,7 @@ async def generer_devis_cloture_bois(
 
 
 @mcp.tool()
-async def generer_devis(
-    site: str,
+async def generer_devis_abri(
     largeur: str,
     profondeur: str,
     client_nom: str,
@@ -1007,14 +1006,6 @@ async def generer_devis(
     extension_toiture: str = "",
     plancher: str = "",
     bac_acier: bool = False,
-    menuiseries: str = "[]",
-    bardage_exterieur: str = "",
-    isolation: str = "",
-    rehausse: bool = False,
-    bardage_interieur: str = "",
-    finition_plancher: bool = False,
-    terrasse: str = "",
-    pergola: str = "",
     produits_complementaires: str = "[]",
     code_promo: str = "",
     produits_uniquement: bool = False,
@@ -1022,108 +1013,24 @@ async def generer_devis(
     obstruer_extensions: bool = False,
     bois_supplementaire_m2: float = 0,
 ) -> str:
-    """Génère un devis PDF complet pour un produit configuré sur le site web.
-
-    Le script Playwright ouvre un navigateur Chrome, configure le produit
-    sur le configurateur web, ajoute au panier avec les images de configuration,
-    puis génère et télécharge le devis PDF.
+    """Génère un devis PDF abri de jardin sur abri-francais.fr. 18 paramètres.
 
     Args:
-        site: Site configurateur. Valeurs :
-            - "abri" — Abri de jardin bois (abri-français.fr)
-            - "studio" — Studio de jardin (studio-français.fr)
-        largeur: Largeur du produit.
-            Abri : "4,35M", "5,50M", etc. (texte après "Largeur ")
-            Studio : "4,4", "5,5", "6,6", etc. (mètres sans unité)
-        profondeur: Profondeur du produit.
-            Abri : "4,35m", "2,15m", etc. (texte après "Profondeur ", m minuscule)
-            Studio : "3,5", "4,6", "5,7", etc. (mètres sans unité)
-        client_nom: Nom de famille du client
-        client_prenom: Prénom du client
-        client_email: Adresse email du client
-        client_telephone: Numéro de téléphone du client
-        client_adresse: Adresse postale complète du client
-        ouvertures: (ABRI uniquement) JSON array des ouvertures. Chaque élément :
-            {"type": "...", "face": "...", "position": "..."}
-            Types : "Porte Vitrée", "Porte Pleine", "Porte double Vitrée",
-                    "Porte double Pleine", "Fenêtre Horizontale", "Fenêtre Verticale"
-            Faces : "Face 1", "Face 2", "Droite", "Gauche", "Fond 1", "Fond 2"
-            Positions : "Centre", "Gauche", "Droite"
-            IMPORTANT : ne pas superposer plusieurs ouvertures sur le même mur.
-        extension_toiture: (ABRI) "" ou "Droite 1 M", "Gauche 2 M", etc.
-        plancher: (ABRI) "true"/"false" pour plancher. (STUDIO) "Sans plancher",
-            "Plancher standard", "Plancher RE2020", "Plancher porteur"
-        bac_acier: (ABRI) True pour bac acier anti-condensation
-        menuiseries: (STUDIO uniquement) JSON array des menuiseries. Chaque élément :
-            {"type": "...", "materiau": "...", "mur": "...", "position": "..."}
-            Types : "PORTE VITREE", "FENETRE SIMPLE", "FENETRE DOUBLE",
-                    "BAIE VITREE", "PORTE DOUBLE VITREE"
-            Matériaux : "PVC", "ALU"
-            Murs : "MUR DE FACE", "MUR DE GAUCHE", "MUR DE DROITE", "MUR DU FOND"
-            Positions : valeurs numériques d'offset (ex: "0,24", "1,1", "2,2", "3,3")
-        bardage_exterieur: (STUDIO) "Gris", "Brun", "Noir", "Vert"
-        isolation: (STUDIO) "60mm" ou "100 mm (RE2020)"
-        rehausse: (STUDIO) True pour rehausse hauteur 3,20m
-        bardage_interieur: (STUDIO) "OSB" ou "Panneaux bois massif (3 plis épicéa)"
-        finition_plancher: (STUDIO) True pour finition plancher
-        terrasse: (STUDIO) "" (aucune), "2m (11m2)", "4m (22m2)"
-        pergola: (STUDIO) "" (aucune), "4x2m (8m2)", "4x4m (16m2)"
-        produits_complementaires: JSON array de produits supplémentaires à ajouter au MÊME panier.
-            Utilise d'abord rechercher_produits_detail pour trouver les ids et urls.
-            Format : [
-                {
-                    "url": "https://www.xn--abri-franais-sdb.fr/produit/planche.../",
-                    "variation_id": 53609,
-                    "quantite": 16,
-                    "attribut_selects": {"attribute_pa_longueur": "2"},
-                    "description": "16 planches 27×130mm 2m"
-                }
-            ]
-            Les produits sont ajoutés après le configurateur principal (abri/studio).
-            ⚠ Les "url" doivent correspondre au même domaine que "site" (ex: abri → abri-francais.fr).
-
-            CAS FRÉQUENTS :
-            - Cloison studio     : rechercher_produits_detail(site="studio", recherche="cloison") → ID=5766, 60€/ml
-            - Bac acier abri     : option directe bac_acier=True (pas besoin de produits_complementaires)
-            - 2 abris accolés    : configurer le 1er abri normalement, puis rechercher_produits_detail(site="abri",
-                                   recherche="[dimensions 2ème abri]") pour trouver le modèle préconçu du 2ème
-                                   et l'ajouter ici → les 2 abris apparaissent sur le même devis PDF
-            - Gamme Essentiel    : utiliser produits_uniquement=True + rechercher_produits_detail(site="abri",
-                                   recherche="essentiel [options]") → trouver url + variation_id → passer
-                                   en produits_complementaires. Le PDF ne contiendra QUE le modèle préconçu.
-        produits_uniquement: (ABRI uniquement) True pour générer un devis avec UNIQUEMENT les
-            produits_complementaires, SANS passer par le configurateur WPC. Utilisé pour les
-            modèles préconçus (Gamme Essentiel, Haut de Gamme) qui sont des produits WooCommerce
-            simples. Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
-            ⚠ Nécessite au moins 1 produit dans produits_complementaires.
-        configurations_supplementaires: JSON array de configurations supplémentaires à ajouter
-            au MÊME devis PDF. Chaque élément est un dict avec les mêmes clés que la config
-            principale. Permet de mettre plusieurs produits personnalisés (ex: 2 abris Gamme Origine)
-            sur le même devis.
-
-            ABRI : [{"largeur": "4,70M", "profondeur": "3,45m",
-                     "ouvertures": [{"type": "...", "face": "...", "position": "..."}],
-                     "extension_toiture": "Gauche 3,5 M", "plancher": false, "bac_acier": true}]
-            STUDIO : [{"largeur": "3,3", "profondeur": "3,5",
-                       "menuiseries": [...], "bardage_exterieur": "Gris", ...}]
-
-            Le script configure le premier produit, l'ajoute au panier, puis navigue à nouveau
-            vers le configurateur pour chaque config supplémentaire. Les produits_complementaires
-            sont ajoutés après tous les produits configurés.
-        obstruer_extensions: (ABRI) True pour ajouter automatiquement les planches 27×130mm
-            nécessaires pour fermer le fond des extensions toiture. Le script :
-            1. Détecte toutes les extensions (config principale + configurations_supplementaires)
-            2. Cherche les planches sur le catalogue via l'API WooCommerce
-            3. Calcule la quantité (16 planches/face × nb extensions) et la bonne longueur
-            4. Ajoute automatiquement aux produits_complementaires
-            → Plus besoin d'appeler rechercher_produits_detail ni de calculer manuellement.
-        bois_supplementaire_m2: (ABRI) Surface en m² de bois supplémentaire à ajouter
-            (ex: jardinières, étagères). Utilise les mêmes planches 27×130mm.
-            Le script calcule automatiquement le nombre de planches nécessaires.
-            Ex: 10 m² → ~19 planches de 4,2m. Mettre 0 pour ne rien ajouter.
-
-    Returns:
-        JSON avec le chemin du PDF généré et les métadonnées.
+        largeur: "4,35M", "4,70M", "5,50M", etc.
+        profondeur: "2,00m", "2,15m", "3,30m", "3,45m", etc.
+        ouvertures: JSON array. Ex: [{"type":"Porte double Vitrée","face":"Face 1","position":"Centre"}]
+            Types: Porte Vitrée|Porte Pleine|Porte double Vitrée|Porte double Pleine|Fenêtre Horizontale|Fenêtre Verticale
+            Faces: Face 1|Face 2|Droite|Gauche|Fond 1|Fond 2. Positions: Centre|Gauche|Droite
+        extension_toiture: "" ou "Droite 1 M"|"Gauche 2 M"|"Droite 3,5 M" etc.
+        plancher: "true" ou "false"
+        bac_acier: True pour bac acier anti-condensation
+        produits_complementaires: JSON array produits au même panier. Utiliser rechercher_produits_detail d'abord.
+            Format: [{"url":"...","variation_id":123,"quantite":N,"attribut_selects":{},"description":"..."}]
+        produits_uniquement: True = skip configurateur, ajouter UNIQUEMENT produits_complementaires (Gamme Essentiel)
+        configurations_supplementaires: JSON array de configs supplémentaires pour multi-abri sur 1 PDF.
+            Ex: [{"largeur":"4,70M","profondeur":"3,45m","ouvertures":[...],"extension_toiture":"Gauche 3,5 M","bac_acier":true,"plancher":false}]
+        obstruer_extensions: True = ajouter auto planches 27×130 pour fermer extensions (16/face, longueur auto)
+        bois_supplementaire_m2: m² de bois extra (jardinières…). Ex: 10 → ~19 planches 4,2m auto.
     """
     # Parser produits_complementaires
     try:
@@ -1142,7 +1049,7 @@ async def generer_devis(
         configs_sup = []
 
     # ── Auto-calcul planches pour extensions + bois supplémentaire ──
-    if site == "abri" and (obstruer_extensions or bois_supplementaire_m2 > 0):
+    if obstruer_extensions or bois_supplementaire_m2 > 0:
         try:
             planches_auto = _auto_planches_pour_extensions(
                 extension_principale=extension_toiture if obstruer_extensions else "",
@@ -1156,76 +1063,143 @@ async def generer_devis(
             pass  # En cas d'erreur API, on continue sans les planches auto
 
     try:
-        if site == "studio":
-            # Parser les menuiseries
-            try:
-                menuiseries_list = json.loads(menuiseries) if isinstance(menuiseries, str) else menuiseries
-            except json.JSONDecodeError:
-                return json.dumps({
-                    "success": False,
-                    "error": f"Format menuiseries invalide. Attendu : JSON array. Reçu : {menuiseries[:100]}"
-                })
+        # Parser les ouvertures (JSON string → list)
+        try:
+            ouvertures_list = json.loads(ouvertures) if isinstance(ouvertures, str) else ouvertures
+        except json.JSONDecodeError:
+            return json.dumps({
+                "success": False,
+                "error": f"Format ouvertures invalide. Attendu : JSON array. Reçu : {ouvertures[:100]}"
+            })
 
-            params = {
-                "largeur": largeur,
-                "profondeur": profondeur,
-                "menuiseries": menuiseries_list,
-                "client_nom": client_nom,
-                "client_prenom": client_prenom,
-                "client_email": client_email,
-                "client_telephone": client_telephone,
-                "client_adresse": client_adresse,
-                "bardage_exterieur": bardage_exterieur or "Gris",
-                "isolation": isolation or "60mm",
-                "rehausse": rehausse,
-                "bardage_interieur": bardage_interieur or "OSB",
-                "plancher": plancher or "Sans plancher",
-                "finition_plancher": finition_plancher,
-                "terrasse": terrasse,
-                "pergola": pergola,
-                "produits_complementaires": produits_list,
-                "code_promo": code_promo,
-                "configurations_supplementaires": configs_sup,
-            }
+        # Convertir plancher string → bool pour abri
+        plancher_bool = plancher.lower() in ("true", "oui", "1") if isinstance(plancher, str) else bool(plancher)
 
-        else:  # abri
-            # Parser les ouvertures (JSON string → list)
-            try:
-                ouvertures_list = json.loads(ouvertures) if isinstance(ouvertures, str) else ouvertures
-            except json.JSONDecodeError:
-                return json.dumps({
-                    "success": False,
-                    "error": f"Format ouvertures invalide. Attendu : JSON array. Reçu : {ouvertures[:100]}"
-                })
+        params = {
+            "largeur": largeur,
+            "profondeur": profondeur,
+            "ouvertures": ouvertures_list,
+            "client_nom": client_nom,
+            "client_prenom": client_prenom,
+            "client_email": client_email,
+            "client_telephone": client_telephone,
+            "client_adresse": client_adresse,
+            "extension_toiture": extension_toiture,
+            "plancher": plancher_bool,
+            "bac_acier": bac_acier,
+            "produits_complementaires": produits_list,
+            "code_promo": code_promo,
+            "produits_uniquement": produits_uniquement,
+            "configurations_supplementaires": configs_sup,
+        }
 
-            # Convertir plancher string → bool pour abri
-            plancher_bool = plancher.lower() in ("true", "oui", "1") if isinstance(plancher, str) else bool(plancher)
-
-            params = {
-                "largeur": largeur,
-                "profondeur": profondeur,
-                "ouvertures": ouvertures_list,
-                "client_nom": client_nom,
-                "client_prenom": client_prenom,
-                "client_email": client_email,
-                "client_telephone": client_telephone,
-                "client_adresse": client_adresse,
-                "extension_toiture": extension_toiture,
-                "plancher": plancher_bool,
-                "bac_acier": bac_acier,
-                "produits_complementaires": produits_list,
-                "code_promo": code_promo,
-                "produits_uniquement": produits_uniquement,
-                "configurations_supplementaires": configs_sup,
-            }
-
-        return await _generer_direct(site, params, client_prenom, client_nom)
+        return await _generer_direct("abri", params, client_prenom, client_nom)
 
     except Exception as e:
         return json.dumps({
             "success": False,
             "error": str(e),
-            "message": f"Échec de la génération du devis : {e}",
+            "message": f"Échec de la génération du devis abri : {e}",
+        })
+
+
+@mcp.tool()
+async def generer_devis_studio(
+    largeur: str,
+    profondeur: str,
+    client_nom: str,
+    client_prenom: str,
+    client_email: str,
+    client_telephone: str,
+    client_adresse: str,
+    menuiseries: str = "[]",
+    bardage_exterieur: str = "",
+    isolation: str = "",
+    rehausse: bool = False,
+    bardage_interieur: str = "",
+    plancher: str = "",
+    finition_plancher: bool = False,
+    terrasse: str = "",
+    pergola: str = "",
+    produits_complementaires: str = "[]",
+    code_promo: str = "",
+    configurations_supplementaires: str = "[]",
+) -> str:
+    """Génère un devis PDF studio de jardin sur studio-francais.fr. 19 paramètres.
+
+    Args:
+        largeur: "2,2"|"3,3"|"4,4"|"5,5"|"6,6"|"7,7"|"8,8"
+        profondeur: "2,4"|"3,5"|"4,6"|"5,7"
+        menuiseries: JSON array. Ex: [{"type":"PORTE VITREE","mur":"MUR DE FACE","materiau":"PVC"}]
+            Types: PORTE VITREE|FENETRE SIMPLE|FENETRE DOUBLE|BAIE VITREE|PORTE DOUBLE VITREE
+            Murs: MUR DE FACE|MUR DE GAUCHE|MUR DE DROITE|MUR DU FOND
+            Matériaux: PVC|ALU (BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement)
+        bardage_exterieur: "Gris"|"Brun"|"Noir"|"Vert"
+        isolation: "60mm"|"100 mm (RE2020)"
+        rehausse: True pour rehausse 3,20m
+        bardage_interieur: "OSB"|"Panneaux bois massif (3 plis épicéa)"
+        plancher: "Sans plancher"|"Plancher standard"|"Plancher RE2020"|"Plancher porteur"
+        terrasse: ""|"2m (11m2)"|"4m (22m2)"
+        pergola: ""|"4x2m (8m2)"|"4x4m (16m2)"
+        produits_complementaires: JSON array produits au même panier. Utiliser rechercher_produits_detail d'abord.
+        configurations_supplementaires: JSON array de configs pour multi-studio sur 1 PDF.
+            Ex: [{"largeur":"3,3","profondeur":"3,5","menuiseries":[...],"bardage_exterieur":"Gris",...}]
+    """
+    # Parser produits_complementaires
+    try:
+        produits_list = json.loads(produits_complementaires) if isinstance(produits_complementaires, str) else produits_complementaires
+        if not isinstance(produits_list, list):
+            produits_list = []
+    except (json.JSONDecodeError, TypeError):
+        produits_list = []
+
+    # Parser configurations_supplementaires
+    try:
+        configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) else configurations_supplementaires
+        if not isinstance(configs_sup, list):
+            configs_sup = []
+    except (json.JSONDecodeError, TypeError):
+        configs_sup = []
+
+    try:
+        # Parser les menuiseries
+        try:
+            menuiseries_list = json.loads(menuiseries) if isinstance(menuiseries, str) else menuiseries
+        except json.JSONDecodeError:
+            return json.dumps({
+                "success": False,
+                "error": f"Format menuiseries invalide. Attendu : JSON array. Reçu : {menuiseries[:100]}"
+            })
+
+        params = {
+            "largeur": largeur,
+            "profondeur": profondeur,
+            "menuiseries": menuiseries_list,
+            "client_nom": client_nom,
+            "client_prenom": client_prenom,
+            "client_email": client_email,
+            "client_telephone": client_telephone,
+            "client_adresse": client_adresse,
+            "bardage_exterieur": bardage_exterieur or "Gris",
+            "isolation": isolation or "60mm",
+            "rehausse": rehausse,
+            "bardage_interieur": bardage_interieur or "OSB",
+            "plancher": plancher or "Sans plancher",
+            "finition_plancher": finition_plancher,
+            "terrasse": terrasse,
+            "pergola": pergola,
+            "produits_complementaires": produits_list,
+            "code_promo": code_promo,
+            "configurations_supplementaires": configs_sup,
+        }
+
+        return await _generer_direct("studio", params, client_prenom, client_nom)
+
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "message": f"Échec de la génération du devis studio : {e}",
         })
 
 

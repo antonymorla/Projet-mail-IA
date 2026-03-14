@@ -69,16 +69,16 @@ Corps: …
 
 | Situation | Action |
 |-----------|--------|
-| Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
-| Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
-| Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** `generer_devis` avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
-| Client veut obstruer/fermer le fond des extensions | ✅ `generer_devis` avec `obstruer_extensions=True` — planches calculées et ajoutées automatiquement |
-| Client veut du bois en plus (jardinières, étagères…) | ✅ `generer_devis` avec `bois_supplementaire_m2=10` — planches calculées et ajoutées automatiquement |
-| Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
+| Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
+| Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
+| Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** `generer_devis_abri` avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
+| Client veut obstruer/fermer le fond des extensions | ✅ `generer_devis_abri` avec `obstruer_extensions=True` — planches calculées et ajoutées automatiquement |
+| Client veut du bois en plus (jardinières, étagères…) | ✅ `generer_devis_abri` avec `bois_supplementaire_m2=10` — planches calculées et ajoutées automatiquement |
+| Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis_abri` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` → `generer_devis_terrasse_bois_detail` (quantités exactes) |
-| **Client demande un modèle préconçu (Essentiel ou Haut de Gamme)** | ✅ `rechercher_produits_detail(site="abri", recherche="essentiel …")` → trouver url + variation_id → `generer_devis` avec `produits_complementaires` |
+| **Client demande un modèle préconçu (Essentiel ou Haut de Gamme)** | ✅ `rechercher_produits_detail(site="abri", recherche="essentiel …")` → trouver url + variation_id → `generer_devis_abri` avec `produits_complementaires` |
 | Client avec budget serré sans modèle précis | ✉ Proposer Gamme Essentiel — lister les modèles via `rechercher_produits_detail` + email A |
 | Infos manquantes | ✉ Email B — demander les compléments |
 | Demande d'info générale | ✉ Email A — informatif + questions qualificatives |
@@ -100,7 +100,8 @@ Corps: …
 |-------|-------|
 | `verifier_promotions_actives` | **Appeler EN PREMIER** — scrape les 5 sites, retourne codes promo + remises actives |
 | `rechercher_produits_detail` | **Catalogue live** — trouver produit par nom, obtenir variation_id + stock |
-| `generer_devis` | Abri ou Studio (WPC Booster, images de config dans PDF) |
+| `generer_devis_abri` | Abri de jardin (WPC Booster, images de config, auto-planches extensions) |
+| `generer_devis_studio` | Studio de jardin (WPC Booster, images de config dans PDF) |
 | `generer_devis_pergola_bois` | Pergola bois (mapergolabois.fr) |
 | `generer_devis_terrasse_bois` | Terrasse bois — mode surface m² ou nb_lames/nb_lambourdes (configurateur WAPF) |
 | `generer_devis_terrasse_bois_detail` | Terrasse bois — **quantités EXACTES** (au détail, sans configurateur) |
@@ -129,65 +130,55 @@ verifier_promotions_actives()
 
 ---
 
-### `generer_devis` — Abri de jardin ou Studio
+### `generer_devis_abri` — Abri de jardin
 
 ```python
-generer_devis(
-    site="abri",           # "abri" | "studio"
-    largeur="5,50M",       # Abri : "4,35M", "5,50M"… | Studio : "4,4", "5,5"…
-    profondeur="3,30m",    # Abri : "2,00m", "3,30m"… | Studio : "3,5", "4,6"…
-    client_nom="Dupont",
-    client_prenom="Jean",
-    client_email="jean@example.com",
-    client_telephone="0600000000",
+generer_devis_abri(
+    largeur="5,50M",       # "4,35M", "5,50M", "4,70M"…
+    profondeur="3,45m",    # "2,00m", "2,15m", "3,30m", "3,45m"…
+    client_nom="Dupont", client_prenom="Jean",
+    client_email="jean@example.com", client_telephone="0600000000",
     client_adresse="1 Rue Test, 75001 Paris",
-    code_promo="",         # ex: "LEROYMERLIN10" — appliquer si promo en cours
-
-    # Options abri
+    code_promo="",         # ex: "LEROYMERLIN10"
     ouvertures='[{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}]',
-    plancher="",            # "" | "Avec plancher"
+    plancher="",           # "true" | "false"
     bac_acier=False,
-    extension_toiture="",  # "" | "Droite 1 M" | "Gauche 2 M" | etc.
+    extension_toiture="",  # "" | "Droite 1 M" | "Gauche 2 M" | "Droite 3,5 M" | etc.
+    produits_complementaires='[]',      # JSON array — utiliser rechercher_produits_detail d'abord
+    produits_uniquement=False,          # True = Gamme Essentiel (skip configurateur)
+    configurations_supplementaires='[]', # Multi-abri sur 1 PDF
+    obstruer_extensions=False,          # True = auto-ajout planches 27×130 pour fermer extensions
+    bois_supplementaire_m2=0,           # m² de bois extra (jardinières…)
+)
+```
 
-    # Options studio
+### `generer_devis_studio` — Studio de jardin
+
+```python
+generer_devis_studio(
+    largeur="5,5",         # "2,2"|"3,3"|"4,4"|"5,5"|"6,6"|"7,7"|"8,8"
+    profondeur="3,5",      # "2,4"|"3,5"|"4,6"|"5,7"
+    client_nom="Dupont", client_prenom="Jean",
+    client_email="jean@example.com", client_telephone="0600000000",
+    client_adresse="1 Rue Test, 75001 Paris",
+    code_promo="",
     menuiseries='[{"type": "PORTE VITREE", "mur": "MUR DE FACE", "materiau": "PVC"}]',
-    bardage_exterieur="",  # "Brun" | "Gris" | "Noir"
-    isolation="",          # "" | "60mm" | "100 mm (RE2020)"
+    bardage_exterieur="Gris",   # "Gris"|"Brun"|"Noir"|"Vert"
+    isolation="60mm",           # "60mm"|"100 mm (RE2020)"
     rehausse=False,
-    bardage_interieur="",  # "OSB" | "Panneaux bois massif (3 plis épicéa)"
+    bardage_interieur="OSB",    # "OSB"|"Panneaux bois massif (3 plis épicéa)"
+    plancher="Sans plancher",   # "Sans plancher"|"Plancher standard"|"Plancher RE2020"|"Plancher porteur"
     finition_plancher=False,
-    terrasse="",           # "" | "2m (11m2)" | "4m (22m2)"
-    pergola="",            # "" | "4x2m (8m2)" | "4x4m (16m2)"
-
-    # Produits supplémentaires dans le MÊME panier (abri + studio) ✅
-    # ⚠ Utiliser d'abord rechercher_produits_detail pour trouver url, variation_id et attribut_selects
-    produits_complementaires='[{"url": "https://...produit/cloison.../", "variation_id": 5766,
-      "quantite": 3, "attribut_selects": {}, "description": "Cloison 60€/ml"}]',
-
-    # Mode produits uniquement (ABRI uniquement) — pour modèles préconçus
-    produits_uniquement=False,  # True = sauter le configurateur, ajouter UNIQUEMENT les produits_complementaires
-                                # Utile pour Gamme Essentiel / Haut de Gamme (produits WooCommerce simples)
-                                # Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode
-
-    # Configurations supplémentaires — multi-produits sur le MÊME devis (abri + studio) ✅
-    # Chaque élément est un dict avec les mêmes clés que la config principale
-    configurations_supplementaires='[{"largeur": "4,70M", "profondeur": "3,45m",
-      "ouvertures": [{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}],
-      "extension_toiture": "Gauche 3,5 M", "plancher": false, "bac_acier": true}]',
-
-    # ── Auto-calcul planches (ABRI uniquement) ──
-    obstruer_extensions=False,    # True = ajouter auto les planches 27×130 pour fermer les extensions
-                                  # Détecte TOUTES les extensions (principale + configs supplémentaires)
-                                  # Calcule : 16 planches/face × nb extensions, bonne longueur auto
-                                  # → Plus besoin de rechercher_produits_detail ni de calculer !
-    bois_supplementaire_m2=0,     # Surface en m² de bois supplémentaire (jardinières, étagères…)
-                                  # Ex: 10 → ~19 planches 27×130 de 4,2m ajoutées automatiquement
+    terrasse="",                # ""|"2m (11m2)"|"4m (22m2)"
+    pergola="",                 # ""|"4x2m (8m2)"|"4x4m (16m2)"
+    produits_complementaires='[]',      # JSON array — utiliser rechercher_produits_detail d'abord
+    configurations_supplementaires='[]', # Multi-studio sur 1 PDF
 )
 ```
 
 > **Workflow produits complémentaires :**
 > 1. Appeler `rechercher_produits_detail(site="abri", recherche="bac acier")` pour trouver l'URL et `variation_id`
-> 2. Passer le résultat dans `produits_complementaires` de `generer_devis`
+> 2. Passer le résultat dans `produits_complementaires` de `generer_devis_abri` ou `generer_devis_studio`
 
 **Abri — ouvertures :**
 - Types : `Porte Vitrée`, `Porte Pleine`, `Porte double Vitrée`, `Porte double Pleine`, `Fenêtre Horizontale`, `Fenêtre Verticale`
@@ -227,7 +218,7 @@ rechercher_produits_detail(
 
 > Retourne : `id`, `name`, `prix_min`, `url`, `en_stock`, `stock_status`, `variations`
 > Chaque variation inclut : `variation_id`, `attribut_selects`, `prix`, `en_stock`, `stock_status`
-> Utiliser **avant** `generer_devis` pour trouver les bons identifiants de produits complémentaires.
+> Utiliser **avant** `generer_devis_abri`/`generer_devis_studio` pour trouver les bons identifiants de produits complémentaires.
 > ⚠ Studio : pour ajouter une cloison intérieure → rechercher `"cloison"` via `rechercher_produits_detail(site="studio")`.
 
 ---
@@ -453,7 +444,7 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
 | **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement (configs porte+fenêtre fixes) |
-| **Générateur de devis** | ✅ `generer_devis(site="abri")` | ✅ Via `produits_complementaires` — voir workflow préconçus ci-dessous |
+| **Générateur de devis** | ✅ `generer_devis_abri` | ✅ Via `produits_complementaires` — voir workflow préconçus ci-dessous |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Fondations** | Pas de dalle nécessaire — plots béton ou réglables | Pas de dalle nécessaire — plots béton ou réglables |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
@@ -475,7 +466,7 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 **Workflow pour générer un devis préconçu :**
 1. `rechercher_produits_detail(site="abri", recherche="essentiel porte vitrée")` → trouver le bon modèle
 2. Identifier la variation correspondant aux dimensions souhaitées → noter `url`, `variation_id`, `attribut_selects`
-3. `generer_devis(site="abri", produits_uniquement=True, produits_complementaires='[{"url": "<url>", "variation_id": <id>, "quantite": 1, "attribut_selects": {...}, "description": "Abri Essentiel 2,14×2,14m porte vitrée"}]', client_nom=..., ...)`
+3. `generer_devis_abri(produits_uniquement=True, produits_complementaires='[{"url": "<url>", "variation_id": <id>, "quantite": 1, "attribut_selects": {...}, "description": "Abri Essentiel 2,14×2,14m porte vitrée"}]', client_nom=..., ...)`
 
 > ⚠ **`produits_uniquement=True`** = saute le configurateur WPC, ajoute UNIQUEMENT les `produits_complementaires` au panier. Le PDF ne contiendra que le(s) modèle(s) préconçu(s), sans produit Origine parasite.
 > ⚠ Les paramètres `largeur`, `profondeur`, `ouvertures` sont ignorés en mode `produits_uniquement` (passer des valeurs vides : `largeur=""`, `profondeur=""`, `ouvertures="[]"`).
@@ -577,17 +568,16 @@ Cordialement,
 
 ### Plusieurs produits personnalisés sur le même devis (`configurations_supplementaires`)
 
-> ⚠ **RÈGLE ABSOLUE** : quand un client veut 2+ produits configurés sur le même devis, faire **UN SEUL appel** à `generer_devis` avec le 2ème produit dans `configurations_supplementaires`. **INTERDIT de faire 2 appels séparés** — cela crée 2 devis au lieu d'un seul PDF combiné. Les `produits_complementaires` doivent aussi être dans ce même appel unique.
+> ⚠ **RÈGLE ABSOLUE** : quand un client veut 2+ produits configurés sur le même devis, faire **UN SEUL appel** à `generer_devis_abri` (ou `generer_devis_studio`, etc.) avec le 2ème produit dans `configurations_supplementaires`. **INTERDIT de faire 2 appels séparés** — cela crée 2 devis au lieu d'un seul PDF combiné. Les `produits_complementaires` doivent aussi être dans ce même appel unique.
 
 - **Tous les outils** supportent `configurations_supplementaires` : un JSON array de configurations supplémentaires
 - Chaque élément utilise les mêmes clés que la configuration principale du produit
 - Le script configure le 1er produit, l'ajoute au panier, puis navigue à nouveau vers le configurateur pour chaque config supplémentaire
 - Les `produits_complementaires` sont ajoutés après tous les produits configurés
 
-**Exemple — 2 abris Gamme Origine sur le même devis :**
+**Exemple — 2 abris Gamme Origine + planches auto sur le même devis :**
 ```python
-generer_devis(
-    site="abri",
+generer_devis_abri(
     largeur="5,50M", profondeur="3,45m",
     ouvertures='[{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}]',
     extension_toiture="Droite 3,5 M", bac_acier=True,
@@ -596,7 +586,8 @@ generer_devis(
         "ouvertures": [{"type": "Porte double Vitrée", "face": "Face 2", "position": "Centre"}],
         "extension_toiture": "Gauche 3,5 M", "bac_acier": true
     }]',
-    produits_complementaires='[...]',  # planches, etc.
+    obstruer_extensions=True,       # AUTO : planches pour fermer les 2 extensions
+    bois_supplementaire_m2=10,      # AUTO : bois jardinières
     client_nom="Dupont", ...
 )
 ```
@@ -617,10 +608,11 @@ scripts/
 │                                 # Délègue la génération PDF à _generer_devis_via_generateur (3sites.py)
 ├── generateur_devis_3sites.py    # Pergola + Terrasse + Clôture + PDF de tous les sites
 │                                 # _generer_devis_via_generateur(devis_path=...) : commun Abri/Studio/Pergola/Terrasse/Clôture
-└── mcp_server_devis.py           # Serveur MCP exposant 8 outils à Claude :
+└── mcp_server_devis.py           # Serveur MCP exposant 9 outils à Claude :
                                   #   verifier_promotions_actives (scrape 5 sites en parallèle via ThreadPoolExecutor)
                                   #   rechercher_produits_detail (API live + cache 5min)
-                                  #   generer_devis (abri + studio)
+                                  #   generer_devis_abri (auto-planches extensions + bois supplémentaire)
+                                  #   generer_devis_studio
                                   #   generer_devis_pergola_bois
                                   #   generer_devis_terrasse_bois
                                   #   generer_devis_terrasse_bois_detail (quantités exactes)
