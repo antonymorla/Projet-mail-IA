@@ -823,6 +823,7 @@ async def generer_devis(
     pergola: str = "",
     produits_complementaires: str = "[]",
     code_promo: str = "",
+    produits_uniquement: bool = False,
 ) -> str:
     """Génère un devis PDF complet pour un produit configuré sur le site web.
 
@@ -890,8 +891,14 @@ async def generer_devis(
             - 2 abris accolés    : configurer le 1er abri normalement, puis rechercher_produits_detail(site="abri",
                                    recherche="[dimensions 2ème abri]") pour trouver le modèle préconçu du 2ème
                                    et l'ajouter ici → les 2 abris apparaissent sur le même devis PDF
-            - Gamme Essentiel    : NON génératable par ce configurateur. Utiliser rechercher_produits_detail(
-                                   site="abri", recherche="essentiel") → renvoyer le lien produit au client
+            - Gamme Essentiel    : utiliser produits_uniquement=True + rechercher_produits_detail(site="abri",
+                                   recherche="essentiel [options]") → trouver url + variation_id → passer
+                                   en produits_complementaires. Le PDF ne contiendra QUE le modèle préconçu.
+        produits_uniquement: (ABRI uniquement) True pour générer un devis avec UNIQUEMENT les
+            produits_complementaires, SANS passer par le configurateur WPC. Utilisé pour les
+            modèles préconçus (Gamme Essentiel, Haut de Gamme) qui sont des produits WooCommerce
+            simples. Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
+            ⚠ Nécessite au moins 1 produit dans produits_complementaires.
 
     Returns:
         JSON avec le chemin du PDF généré et les métadonnées.
@@ -963,6 +970,7 @@ async def generer_devis(
                 "bac_acier": bac_acier,
                 "produits_complementaires": produits_list,
                 "code_promo": code_promo,
+                "produits_uniquement": produits_uniquement,
             }
 
         return await _generer_direct(site, params, client_prenom, client_nom)
@@ -993,7 +1001,7 @@ def lister_sites() -> str:
             "nom": "Abri de jardin bois — Gamme Origine (toit plat)",
             "url": "https://www.xn--abri-franais-sdb.fr",
             "statut": "fonctionnel",
-            "note_gammes": "⚠ Ce configurateur génère UNIQUEMENT la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). La Gamme Essentiel (toit 2 pentes, 1190-2120€, promo LEROYMERLIN5 -5%) est UNIQUEMENT en modèles préconçus — utiliser rechercher_produits_detail(site='abri', recherche='essentiel') pour trouver ces modèles.",
+            "note_gammes": "Ce configurateur génère la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). Pour la Gamme Essentiel (toit 2 pentes, 1190-2120€, promo LEROYMERLIN5 -5%) : utiliser produits_uniquement=True + rechercher_produits_detail(site='abri', recherche='essentiel [options]') → passer le résultat en produits_complementaires. Le PDF ne contiendra que le modèle préconçu.",
             "dimensions": {
                 "largeurs": ["2,15M", "2,65M", "3,45M", "4,20M", "4,35M",
                              "4,70M", "5,20M", "5,50M", "6,00M", "6,80M",

@@ -160,6 +160,11 @@ generer_devis(
     # ⚠ Utiliser d'abord rechercher_produits_detail pour trouver url, variation_id et attribut_selects
     produits_complementaires='[{"url": "https://...produit/cloison.../", "variation_id": 5766,
       "quantite": 3, "attribut_selects": {}, "description": "Cloison 60€/ml"}]',
+
+    # Mode produits uniquement (ABRI uniquement) — pour modèles préconçus
+    produits_uniquement=False,  # True = sauter le configurateur, ajouter UNIQUEMENT les produits_complementaires
+                                # Utile pour Gamme Essentiel / Haut de Gamme (produits WooCommerce simples)
+                                # Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode
 )
 ```
 
@@ -451,10 +456,10 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 **Workflow pour générer un devis préconçu :**
 1. `rechercher_produits_detail(site="abri", recherche="essentiel porte vitrée")` → trouver le bon modèle
 2. Identifier la variation correspondant aux dimensions souhaitées → noter `url`, `variation_id`, `attribut_selects`
-3. `generer_devis(site="abri", ..., produits_complementaires='[{"url": "<url>", "variation_id": <id>, "quantite": 1, "attribut_selects": {...}, "description": "Abri Essentiel 2,14×2,14m porte vitrée"}]')`
+3. `generer_devis(site="abri", produits_uniquement=True, produits_complementaires='[{"url": "<url>", "variation_id": <id>, "quantite": 1, "attribut_selects": {...}, "description": "Abri Essentiel 2,14×2,14m porte vitrée"}]', client_nom=..., ...)`
 
-> ⚠ Le produit préconçu est ajouté via `produits_complementaires` — il apparaît dans le PDF.
-> ⚠ Si le client veut UNIQUEMENT un préconçu (pas de produit configuré en principal), utiliser des dimensions minimales pour le produit principal et ne conserver que le produit complémentaire dans l'email. Alternative : utiliser `generer_devis` avec un petit abri Origine comme « principal » uniquement pour déclencher la génération PDF.
+> ⚠ **`produits_uniquement=True`** = saute le configurateur WPC, ajoute UNIQUEMENT les `produits_complementaires` au panier. Le PDF ne contiendra que le(s) modèle(s) préconçu(s), sans produit Origine parasite.
+> ⚠ Les paramètres `largeur`, `profondeur`, `ouvertures` sont ignorés en mode `produits_uniquement` (passer des valeurs vides : `largeur=""`, `profondeur=""`, `ouvertures="[]"`).
 > ⚠ **Toujours appeler `rechercher_produits_detail` EN PREMIER** — ne jamais deviner les `variation_id` ou `url`.
 
 ### Pergolas bois (Ma Pergola Bois)

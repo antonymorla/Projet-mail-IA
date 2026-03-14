@@ -748,10 +748,11 @@ Le configurateur ne peut traiter qu'un seul abri personnalisé à la fois.
 ### Gamme Essentiel / Haut de Gamme — Modèles préconçus (devis via produits_complementaires)
 
 `generer_devis(site="abri")` utilise le configurateur WPC → **Gamme Origine uniquement** pour le produit principal.
-Pour un devis préconçu (Essentiel ou Haut de Gamme) :
+Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniquement=True`** :
 1. `rechercher_produits_detail(site="abri", recherche="essentiel porte vitrée")` → trouver le bon modèle
 2. Identifier la variation aux dimensions souhaitées → noter `url`, `variation_id`, `attribut_selects`
-3. Passer le produit en `produits_complementaires` de `generer_devis` → le produit préconçu apparaît dans le PDF
+3. `generer_devis(site="abri", produits_uniquement=True, largeur="", profondeur="", produits_complementaires='[{"url": "...", "variation_id": ..., "quantite": 1, "attribut_selects": {...}, "description": "..."}]', client_nom=..., ...)`
+→ Le PDF ne contiendra QUE le modèle préconçu (pas de produit Origine parasite)
 
 **Structure du catalogue préconçu :**
 - Chaque modèle = combinaison d'options fixes (porte vitrée, porte pleine, avec plancher, avec extension toiture…)

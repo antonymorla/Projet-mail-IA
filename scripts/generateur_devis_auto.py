@@ -1506,6 +1506,7 @@ async def generer_devis_abri(
     bac_acier: bool = False,
     produits_complementaires: list = None,
     code_promo: str = "",
+    produits_uniquement: bool = False,
 ) -> str:
     """
     Fonction principale — génère un devis abri complet.
@@ -1526,6 +1527,10 @@ async def generer_devis_abri(
             },
             "description": "Planches 27×130mm 2m"  # Pour le log
         }]
+        produits_uniquement: True = sauter le configurateur, ajouter UNIQUEMENT
+            les produits_complementaires au panier. Utile pour les modèles préconçus
+            (Gamme Essentiel, Haut de Gamme) qui ne passent pas par le configurateur WPC.
+            Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
 
     Retourne : chemin vers le fichier PDF du devis
 
@@ -1537,9 +1542,13 @@ async def generer_devis_abri(
     print(f"\n{'='*60}")
     print(f"  GÉNÉRATION DE DEVIS AUTOMATIQUE")
     print(f"  Client : {client_prenom} {client_nom}")
-    print(f"  Abri : Largeur {largeur} / Profondeur {profondeur}")
-    if produits_complementaires:
-        print(f"  + {len(produits_complementaires)} produit(s) complémentaire(s)")
+    if produits_uniquement:
+        print(f"  Mode : produits_uniquement (sans configurateur)")
+        print(f"  {len(produits_complementaires)} produit(s) à ajouter")
+    else:
+        print(f"  Abri : Largeur {largeur} / Profondeur {profondeur}")
+        if produits_complementaires:
+            print(f"  + {len(produits_complementaires)} produit(s) complémentaire(s)")
     print(f"{'='*60}\n")
 
     gen = GenerateurDevis(site="abri", headless=headless)
@@ -1547,23 +1556,26 @@ async def generer_devis_abri(
     try:
         await gen.start()
 
-        config = ConfigAbri(
-            largeur=largeur,
-            profondeur=profondeur,
-            ouvertures=ouvertures,
-            extension_toiture=extension_toiture,
-            plancher=plancher,
-            bac_acier=bac_acier,
-        )
-        prix = await gen.configurer_abri(config)
+        # --- Mode produits_uniquement : sauter le configurateur ---
+        if not produits_uniquement:
+            config = ConfigAbri(
+                largeur=largeur,
+                profondeur=profondeur,
+                ouvertures=ouvertures,
+                extension_toiture=extension_toiture,
+                plancher=plancher,
+                bac_acier=bac_acier,
+            )
+            prix = await gen.configurer_abri(config)
 
-        await gen.ajouter_au_panier()
-        # Page est maintenant sur /votre-panier/ après ajout
-        await gen.verifier_panier(nb_attendu=1)
+            await gen.ajouter_au_panier()
+            # Page est maintenant sur /votre-panier/ après ajout
+            await gen.verifier_panier(nb_attendu=1)
 
         # Ajouter les produits complémentaires au même panier
         if produits_complementaires:
-            print(f"\n  ─── Produits complémentaires ({len(produits_complementaires)}) ───")
+            label = "Produits" if produits_uniquement else "Produits complémentaires"
+            print(f"\n  ─── {label} ({len(produits_complementaires)}) ───")
             confirmed_count = 0
             for prod in produits_complementaires:
                 desc = prod.get("description", prod.get("url", "?").split("/produit/")[-1].strip("/"))
