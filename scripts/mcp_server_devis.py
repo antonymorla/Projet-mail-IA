@@ -557,6 +557,7 @@ async def generer_devis_pergola_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis pergola bois sur mapergolabois.fr.
 
@@ -590,6 +591,10 @@ async def generer_devis_pergola_bois(
                                Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                                Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                           "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                               est un dict avec les mêmes clés : {"largeur": "5m", "profondeur": "3m",
+                               "fixation": "independante", "ventelle": "largeur", "option": "non", ...}
+                               Permet de mettre plusieurs pergolas sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -606,6 +611,7 @@ async def generer_devis_pergola_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -629,6 +635,7 @@ async def generer_devis_terrasse_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis terrasse bois sur terrasseenbois.fr (formulaire WAPF).
 
@@ -668,6 +675,10 @@ async def generer_devis_terrasse_bois(
                            Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                            Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                       "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                           est un dict avec les mêmes clés : {"essence": "...", "longueur": "...",
+                           "quantite": N, "lambourdes": "...", ...}
+                           Permet de mettre plusieurs terrasses sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -681,6 +692,7 @@ async def generer_devis_terrasse_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -753,6 +765,7 @@ async def generer_devis_cloture_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis kit clôture bois sur cloturebois.fr.
 
@@ -783,6 +796,10 @@ async def generer_devis_cloture_bois(
                          Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                          Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                     "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                         est un dict avec les mêmes clés : {"modele": "moderne", "longeur": "10",
+                         "hauteur": "1-9", "bardage": "21x145", ...}
+                         Permet de mettre plusieurs clôtures sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -796,6 +813,7 @@ async def generer_devis_cloture_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -824,6 +842,7 @@ async def generer_devis(
     produits_complementaires: str = "[]",
     code_promo: str = "",
     produits_uniquement: bool = False,
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis PDF complet pour un produit configuré sur le site web.
 
@@ -899,6 +918,20 @@ async def generer_devis(
             modèles préconçus (Gamme Essentiel, Haut de Gamme) qui sont des produits WooCommerce
             simples. Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
             ⚠ Nécessite au moins 1 produit dans produits_complementaires.
+        configurations_supplementaires: JSON array de configurations supplémentaires à ajouter
+            au MÊME devis PDF. Chaque élément est un dict avec les mêmes clés que la config
+            principale. Permet de mettre plusieurs produits personnalisés (ex: 2 abris Gamme Origine)
+            sur le même devis.
+
+            ABRI : [{"largeur": "4,70M", "profondeur": "3,45m",
+                     "ouvertures": [{"type": "...", "face": "...", "position": "..."}],
+                     "extension_toiture": "Gauche 3,5 M", "plancher": false, "bac_acier": true}]
+            STUDIO : [{"largeur": "3,3", "profondeur": "3,5",
+                       "menuiseries": [...], "bardage_exterieur": "Gris", ...}]
+
+            Le script configure le premier produit, l'ajoute au panier, puis navigue à nouveau
+            vers le configurateur pour chaque config supplémentaire. Les produits_complementaires
+            sont ajoutés après tous les produits configurés.
 
     Returns:
         JSON avec le chemin du PDF généré et les métadonnées.
@@ -910,6 +943,14 @@ async def generer_devis(
             produits_list = []
     except (json.JSONDecodeError, TypeError):
         produits_list = []
+
+    # Parser configurations_supplementaires
+    try:
+        configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) else configurations_supplementaires
+        if not isinstance(configs_sup, list):
+            configs_sup = []
+    except (json.JSONDecodeError, TypeError):
+        configs_sup = []
 
     try:
         if site == "studio":
@@ -941,6 +982,7 @@ async def generer_devis(
                 "pergola": pergola,
                 "produits_complementaires": produits_list,
                 "code_promo": code_promo,
+                "configurations_supplementaires": configs_sup,
             }
 
         else:  # abri
@@ -971,6 +1013,7 @@ async def generer_devis(
                 "produits_complementaires": produits_list,
                 "code_promo": code_promo,
                 "produits_uniquement": produits_uniquement,
+                "configurations_supplementaires": configs_sup,
             }
 
         return await _generer_direct(site, params, client_prenom, client_nom)

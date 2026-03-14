@@ -745,6 +745,238 @@ async def _ajouter_produits_complementaires(page, produits_list: list, site_url:
 #   ventelle   : "largeur","profondeur","retro","sans"
 #   option     : "non","platelage","voilage","bioclimatique","carport","lattage","polycarbonate"
 
+
+async def _configurer_et_ajouter_pergola(
+    page, product_url: str,
+    largeur: str, profondeur: str, fixation: str, ventelle: str, option: str,
+    poteau_lamelle_colle: bool, nb_poteaux_lamelle_colle: int,
+    claustra_type: str, nb_claustra: int,
+    sur_mesure: bool, largeur_hors_tout: str, profondeur_hors_tout: str, hauteur_hors_tout: str,
+    nb_attendu: int,
+    site_url: str = "https://mapergolabois.fr",
+):
+    """Configure une pergola sur la page produit et l'ajoute au panier.
+
+    Encapsule toute la logique de configuration WAPF + ajout panier en une seule
+    fonction réutilisable, pour supporter les configurations supplémentaires.
+    """
+    print(f"  ➜ {product_url}")
+    try:
+        await page.goto(product_url, wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        print("    ⚠ Timeout domcontentloaded, on attend...")
+    await page.wait_for_timeout(3000)
+    await _fermer_popups(page)
+
+    # Attendre le formulaire WooCommerce + chargement du JSON des variations
+    await page.wait_for_selector('form.variations_form', timeout=15000)
+    await page.wait_for_timeout(1500)
+
+    # Sélection directe via le JSON des variations embarqué dans la page
+    attrs_target = {
+        "attribute_pa_largeur":    largeur,
+        "attribute_pa_profondeur": profondeur,
+        "attribute_pa_fixation":   fixation,
+        "attribute_pa_ventelle":   ventelle,
+        "attribute_pa_option":     option,
+    }
+    print(f"  ➜ {largeur} × {profondeur} | {fixation} | ventelle={ventelle} | option={option}")
+    variation_id = await _match_wc_variation(page, attrs_target)
+    if variation_id:
+        print(f"    ✓ Variation trouvée : ID={variation_id}")
+    else:
+        print(f"    ⚠ Variation non trouvée dans JSON, fallback jQuery tout-en-un")
+        result = await page.evaluate("""
+            (attrs) => {
+                var log = [];
+                for (var key in attrs) {
+                    var val = attrs[key];
+                    var sel = document.querySelector('select[name="' + key + '"]');
+                    if (sel && typeof jQuery !== 'undefined') {
+                        jQuery(sel).val(val);
+                        log.push(key + '=' + val);
+                    }
+                    var container = document.querySelector(
+                        '.wcboost-variation-swatches[data-attribute_name="' + key + '"]'
+                    );
+                    if (container) {
+                        container.querySelectorAll('.wcboost-variation-swatches-item').forEach(function(item) {
+                            item.classList.toggle(
+                                'wcboost-variation-swatches-item--selected',
+                                item.getAttribute('data-value') === val
+                            );
+                        });
+                    }
+                }
+                var keys = Object.keys(attrs);
+                var lastSel = document.querySelector('select[name="' + keys[keys.length - 1] + '"]');
+                if (lastSel && typeof jQuery !== 'undefined') jQuery(lastSel).trigger('change');
+                return log;
+            }
+        """, attrs_target)
+        print(f"      ✓ {result}")
+
+    await page.wait_for_timeout(1500)
+    prix = await page.evaluate("""
+        () => {
+            var p = document.querySelector('.woocommerce-variation-price .woocommerce-Price-amount');
+            return p ? p.textContent.trim() : null;
+        }
+    """)
+    print(f"  ✓ Prix variation : {prix or '—'}")
+
+    # ── Option Sur-mesure ─────────────────────────────────────────
+    if sur_mesure and largeur_hors_tout:
+        await _fermer_popups(page)
+        await page.click(
+            '.wapf-field-container.field-de3be54 div.wapf-swatch label[aria-label="Oui"]',
+            timeout=5000,
+        )
+        print(f"    ✓ Pergola sur-mesure activée (+199,90€)")
+        try:
+            await page.wait_for_function(
+                "!document.querySelector('.wapf-field-container.field-fe25811')?.classList.contains('wapf-hide')",
+                timeout=6000,
+            )
+        except Exception:
+            pass
+        await page.wait_for_timeout(500)
+
+        inp_l = page.locator('input[name="wapf[field_fe25811]"]').first
+        await inp_l.fill(largeur_hors_tout.replace(",", "."))
+        await inp_l.dispatch_event("change")
+        await inp_l.dispatch_event("input")
+        print(f"  ➜ Largeur HT : {largeur_hors_tout} m")
+
+        if profondeur_hors_tout:
+            inp_p = page.locator('input[name="wapf[field_eb3cd46]"]').first
+            await inp_p.fill(profondeur_hors_tout.replace(",", "."))
+            await inp_p.dispatch_event("change")
+            await inp_p.dispatch_event("input")
+            print(f"  ➜ Profondeur HT : {profondeur_hors_tout} m")
+
+        if hauteur_hors_tout:
+            inp_h = page.locator('input[name="wapf[field_c6c5dea]"]').first
+            await inp_h.fill(hauteur_hors_tout.replace(",", "."))
+            await inp_h.dispatch_event("change")
+            await inp_h.dispatch_event("input")
+            print(f"  ➜ Hauteur HT : {hauteur_hors_tout} m")
+
+        await page.wait_for_timeout(800)
+
+    # ── Option Poteau lamellé-collé ──────────────────────────────
+    if poteau_lamelle_colle:
+        import re as _re
+        if nb_poteaux_lamelle_colle > 0:
+            total_poteaux = nb_poteaux_lamelle_colle
+            print(f"  ➜ Poteau lamellé-collé : {total_poteaux} poteaux (fourni explicitement)")
+        else:
+            try:
+                await page.wait_for_selector(
+                    '.woocommerce-variation-description, .woocommerce-variation__availability',
+                    timeout=3000,
+                )
+            except Exception:
+                pass
+            desc = await page.evaluate("""
+                () => {
+                    var el = document.querySelector('.woocommerce-variation-description');
+                    if (el && el.innerText) return el.innerText;
+                    try {
+                        var form = document.querySelector('form.variations_form');
+                        var raw = form && form.getAttribute('data-product_variations');
+                        if (raw && raw.length > 10) {
+                            var vars = JSON.parse(raw);
+                            var vid = document.querySelector('input.variation_id')?.value;
+                            if (vid) {
+                                var v = vars.find(v => String(v.variation_id) === String(vid));
+                                if (v && v.variation_description) return v.variation_description;
+                            }
+                        }
+                    } catch(e) {}
+                    return '';
+                }
+            """)
+            desc = _re.sub(r'<[^>]+>', ' ', desc)
+            desc = desc.replace('&rsquo;', "'").replace('&#8217;', "'").replace('&nbsp;', ' ')
+            desc = _re.sub(r'\s+', ' ', desc)
+
+            m_angle = _re.search(r"Poteau d.{0,10}angle\s*:\s*(\d+)", desc)
+            m_mur   = _re.search(r"Poteau mural\w*\s*:\s*(\d+)", desc)
+            n_angle = int(m_angle.group(1)) if m_angle else 0
+            n_mur   = int(m_mur.group(1)) if m_mur else 0
+            total_poteaux = n_angle + n_mur
+            print(f"  ➜ Poteau lamellé-collé : {n_angle} angle + {n_mur} muralière = {total_poteaux} poteaux")
+
+            if total_poteaux == 0:
+                print("    ⚠ Poteaux non trouvés dans la description (description vide ou absente)")
+
+        await _fermer_popups(page)
+        await page.click(
+            '.wapf-field-container.field-60120c1 div.wapf-swatch label[aria-label="Oui"]',
+            timeout=5000,
+        )
+        print(f"    ✓ Lamellé-collé sélectionné")
+
+        try:
+            await page.wait_for_function(
+                "!document.querySelector('.wapf-field-container.field-a7fc76f')?.classList.contains('wapf-hide')",
+                timeout=6000,
+            )
+        except Exception:
+            pass
+
+        await page.wait_for_timeout(500)
+
+        qty_inp = page.locator('input[name="wapf[field_a7fc76f]"]').first
+        await qty_inp.evaluate("el => el.removeAttribute('disabled')")
+        await qty_inp.fill(str(total_poteaux))
+        await qty_inp.dispatch_event("change")
+        await qty_inp.dispatch_event("input")
+        print(f"    ✓ Quantité poteaux = {total_poteaux}")
+        await page.wait_for_timeout(800)
+
+    # ── Option Claustra ─────────────────────────────────────────
+    if claustra_type and nb_claustra > 0:
+        await _fermer_popups(page)
+        CLAUSTRA_LABEL_MAP = {
+            "vertical": "Claustra vertical",
+            "horizontal": "Claustra horizontal",
+            "lattage": "Claustra lattage",
+        }
+        label = CLAUSTRA_LABEL_MAP.get(claustra_type, claustra_type)
+
+        try:
+            await page.click(
+                f'.wapf-field-container.field-5219ffc div.wapf-swatch label[aria-label="{label}"]',
+                timeout=5000,
+            )
+            print(f"    ✓ Claustra type sélectionné : {label}")
+        except Exception as e:
+            print(f"    ⚠ Claustra swatch non trouvé ({label}): {e}")
+
+        try:
+            await page.wait_for_function(
+                "!document.querySelector('.wapf-field-container.field-6bf3105')?.classList.contains('wapf-hide')",
+                timeout=6000,
+            )
+        except Exception:
+            pass
+        await page.wait_for_timeout(500)
+
+        qty_inp = page.locator('input[name="wapf[field_6bf3105]"]').first
+        await qty_inp.evaluate("el => el.removeAttribute('disabled')")
+        await qty_inp.fill(str(nb_claustra))
+        await qty_inp.dispatch_event("change")
+        await qty_inp.dispatch_event("input")
+        print(f"    ✓ Quantité claustra = {nb_claustra}")
+        await page.wait_for_timeout(800)
+
+    # ── Ajouter au panier ────────────────────────────────────────
+    await _ajouter_au_panier_wc(page)
+    await _verifier_panier(page, site_url, nb_attendu=nb_attendu)
+
+
 async def generer_devis_pergola(
     largeur: str,
     profondeur: str,
@@ -767,6 +999,7 @@ async def generer_devis_pergola(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
     headless: bool = False,
 ) -> tuple:
     """
@@ -786,10 +1019,18 @@ async def generer_devis_pergola(
         profondeur_hors_tout  : ex. "3.42"  — dimension réelle souhaitée en profondeur
         hauteur_hors_tout     : ex. "2.40"  — hauteur souhaitée (optionnel, max 3.07m)
         client_*              : coordonnées client pour le PDF
+        configurations_supplementaires : JSON array de configs supplémentaires.
+            Chaque élément est un dict avec les mêmes clés que la config principale :
+            {"largeur": "5m", "profondeur": "3m", "fixation": "independante",
+            "ventelle": "largeur", "option": "non", ...}
+            Permet de mettre plusieurs pergolas sur le même devis PDF.
 
     Retourne : chemin vers le PDF
     """
     start_time = time.time()
+    configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) and configurations_supplementaires != "[]" else []
+    if isinstance(configurations_supplementaires, list):
+        configs_sup = configurations_supplementaires
     print(f"\n{'='*60}")
     print(f"  DEVIS PERGOLA — mapergolabois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
@@ -802,6 +1043,8 @@ async def generer_devis_pergola(
             sm += f" h={hauteur_hors_tout}m"
         extra += sm
     print(f"  {largeur} × {profondeur} | {fixation} | ventelle={ventelle} | option={option}{extra}")
+    if configs_sup:
+        print(f"  + {len(configs_sup)} configuration(s) supplémentaire(s)")
     print(f"{'='*60}\n")
 
     SITE_URL = "https://mapergolabois.fr"
@@ -816,255 +1059,43 @@ async def generer_devis_pergola(
         )
         page = await context.new_page()
         try:
-            print(f"  ➜ {PRODUCT_URL}")
-            try:
-                await page.goto(PRODUCT_URL, wait_until="domcontentloaded", timeout=30000)
-            except Exception:
-                print("    ⚠ Timeout domcontentloaded, on attend...")
-            await page.wait_for_timeout(3000)
-            await _fermer_popups(page)
+            nb_items_panier = 0
 
-            # Attendre le formulaire WooCommerce + chargement du JSON des variations
-            await page.wait_for_selector('form.variations_form', timeout=15000)
-            await page.wait_for_timeout(1500)
+            # ── Configuration principale ───────────────────────────────
+            await _configurer_et_ajouter_pergola(
+                page, PRODUCT_URL,
+                largeur=largeur, profondeur=profondeur, fixation=fixation,
+                ventelle=ventelle, option=option,
+                poteau_lamelle_colle=poteau_lamelle_colle,
+                nb_poteaux_lamelle_colle=nb_poteaux_lamelle_colle,
+                claustra_type=claustra_type, nb_claustra=nb_claustra,
+                sur_mesure=sur_mesure, largeur_hors_tout=largeur_hors_tout,
+                profondeur_hors_tout=profondeur_hors_tout, hauteur_hors_tout=hauteur_hors_tout,
+                nb_attendu=1, site_url=SITE_URL,
+            )
+            nb_items_panier = 1
 
-            # Sélection directe via le JSON des variations embarqué dans la page
-            attrs_target = {
-                "attribute_pa_largeur":    largeur,
-                "attribute_pa_profondeur": profondeur,
-                "attribute_pa_fixation":   fixation,
-                "attribute_pa_ventelle":   ventelle,
-                "attribute_pa_option":     option,
-            }
-            print(f"  ➜ {largeur} × {profondeur} | {fixation} | ventelle={ventelle} | option={option}")
-            variation_id = await _match_wc_variation(page, attrs_target)
-            if variation_id:
-                print(f"    ✓ Variation trouvée : ID={variation_id}")
-            else:
-                # Fallback : setter tous les selects en une seule passe JS,
-                # puis déclencher un seul trigger('change') à la fin.
-                # (un trigger par attribut ferait recalculer WooCommerce à chaque étape
-                #  ce qui peut désélectionner les options déjà choisies)
-                print(f"    ⚠ Variation non trouvée dans JSON, fallback jQuery tout-en-un")
-                result = await page.evaluate("""
-                    (attrs) => {
-                        var log = [];
-                        // 1. Setter tous les selects sans déclencher change
-                        for (var key in attrs) {
-                            var val = attrs[key];
-                            var sel = document.querySelector('select[name="' + key + '"]');
-                            if (sel && typeof jQuery !== 'undefined') {
-                                jQuery(sel).val(val);
-                                log.push(key + '=' + val);
-                            }
-                            // Mettre à jour l'état visuel des swatches wcboost
-                            var container = document.querySelector(
-                                '.wcboost-variation-swatches[data-attribute_name="' + key + '"]'
-                            );
-                            if (container) {
-                                container.querySelectorAll('.wcboost-variation-swatches-item').forEach(function(item) {
-                                    item.classList.toggle(
-                                        'wcboost-variation-swatches-item--selected',
-                                        item.getAttribute('data-value') === val
-                                    );
-                                });
-                            }
-                        }
-                        // 2. Un seul trigger change sur le dernier select
-                        var keys = Object.keys(attrs);
-                        var lastSel = document.querySelector('select[name="' + keys[keys.length - 1] + '"]');
-                        if (lastSel && typeof jQuery !== 'undefined') jQuery(lastSel).trigger('change');
-                        return log;
-                    }
-                """, attrs_target)
-                print(f"      ✓ {result}")
-
-            await page.wait_for_timeout(1500)
-            prix = await page.evaluate("""
-                () => {
-                    var p = document.querySelector('.woocommerce-variation-price .woocommerce-Price-amount');
-                    return p ? p.textContent.trim() : null;
-                }
-            """)
-            print(f"  ✓ Prix variation : {prix or '—'}")
-
-            # ── Option Sur-mesure ─────────────────────────────────────────
-            # WAPF field-de3be54 : swatch "Oui (+199,90€)" → active les 3 champs dimension
-            # WAPF field-fe25811 : Largeur Hors tout (en m)
-            # WAPF field-eb3cd46 : Profondeur Hors tout (en m)
-            # WAPF field-c6c5dea : Hauteur Hors tout (en m) (max 3.07m, prix variable si >2.52)
-            # Règle : sélectionner la variation SUPÉRIEURE aux dimensions souhaitées,
-            #         puis entrer les dimensions exactes dans ces champs.
-            if sur_mesure and largeur_hors_tout:
-                await _fermer_popups(page)
-                await page.click(
-                    '.wapf-field-container.field-de3be54 div.wapf-swatch label[aria-label="Oui"]',
-                    timeout=5000,
+            # ── Configurations supplémentaires (multi-pergola) ─────────
+            for idx, cfg in enumerate(configs_sup):
+                print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configs_sup)} ───")
+                nb_items_panier += 1
+                await _configurer_et_ajouter_pergola(
+                    page, PRODUCT_URL,
+                    largeur=cfg.get("largeur", ""),
+                    profondeur=cfg.get("profondeur", ""),
+                    fixation=cfg.get("fixation", "independante"),
+                    ventelle=cfg.get("ventelle", "sans"),
+                    option=cfg.get("option", "non"),
+                    poteau_lamelle_colle=cfg.get("poteau_lamelle_colle", False),
+                    nb_poteaux_lamelle_colle=cfg.get("nb_poteaux_lamelle_colle", 0),
+                    claustra_type=cfg.get("claustra_type", ""),
+                    nb_claustra=cfg.get("nb_claustra", 0),
+                    sur_mesure=cfg.get("sur_mesure", False),
+                    largeur_hors_tout=cfg.get("largeur_hors_tout", ""),
+                    profondeur_hors_tout=cfg.get("profondeur_hors_tout", ""),
+                    hauteur_hors_tout=cfg.get("hauteur_hors_tout", ""),
+                    nb_attendu=nb_items_panier, site_url=SITE_URL,
                 )
-                print(f"    ✓ Pergola sur-mesure activée (+199,90€)")
-                # Attendre que les champs dimension deviennent visibles
-                try:
-                    await page.wait_for_function(
-                        "!document.querySelector('.wapf-field-container.field-fe25811')?.classList.contains('wapf-hide')",
-                        timeout=6000,
-                    )
-                except Exception:
-                    pass
-                await page.wait_for_timeout(500)
-
-                # Largeur HT
-                inp_l = page.locator('input[name="wapf[field_fe25811]"]').first
-                await inp_l.fill(largeur_hors_tout.replace(",", "."))
-                await inp_l.dispatch_event("change")
-                await inp_l.dispatch_event("input")
-                print(f"  ➜ Largeur HT : {largeur_hors_tout} m")
-
-                # Profondeur HT
-                if profondeur_hors_tout:
-                    inp_p = page.locator('input[name="wapf[field_eb3cd46]"]').first
-                    await inp_p.fill(profondeur_hors_tout.replace(",", "."))
-                    await inp_p.dispatch_event("change")
-                    await inp_p.dispatch_event("input")
-                    print(f"  ➜ Profondeur HT : {profondeur_hors_tout} m")
-
-                # Hauteur HT (optionnelle)
-                if hauteur_hors_tout:
-                    inp_h = page.locator('input[name="wapf[field_c6c5dea]"]').first
-                    await inp_h.fill(hauteur_hors_tout.replace(",", "."))
-                    await inp_h.dispatch_event("change")
-                    await inp_h.dispatch_event("input")
-                    print(f"  ➜ Hauteur HT : {hauteur_hors_tout} m")
-
-                await page.wait_for_timeout(800)
-
-            # ── Option Poteau lamellé-collé ──────────────────────────────
-            # WAPF field-60120c1 : swatch "Oui" (radio val=aynx4)
-            # WAPF field-a7fc76f : quantité poteaux (activé par cascade WAPF après "Oui")
-            # Quantité = Poteau d'angle (+ Poteau muralière si variation indépendante)
-            if poteau_lamelle_colle:
-                import re as _re
-                # Priorité : nb_poteaux_lamelle_colle fourni explicitement
-                if nb_poteaux_lamelle_colle > 0:
-                    total_poteaux = nb_poteaux_lamelle_colle
-                    print(f"  ➜ Poteau lamellé-collé : {total_poteaux} poteaux (fourni explicitement)")
-                else:
-                    # 1. Lire la description depuis le DOM (visible après variation sélectionnée)
-                    # Attendre que l'élément variation-description soit présent
-                    try:
-                        await page.wait_for_selector(
-                            '.woocommerce-variation-description, .woocommerce-variation__availability',
-                            timeout=3000,
-                        )
-                    except Exception:
-                        pass
-                    desc = await page.evaluate("""
-                        () => {
-                            // .woocommerce-variation-description (visible après sélection)
-                            var el = document.querySelector('.woocommerce-variation-description');
-                            if (el && el.innerText) return el.innerText;
-                            try {
-                                var form = document.querySelector('form.variations_form');
-                                var raw = form && form.getAttribute('data-product_variations');
-                                if (raw && raw.length > 10) {
-                                    var vars = JSON.parse(raw);
-                                    var vid = document.querySelector('input.variation_id')?.value;
-                                    if (vid) {
-                                        var v = vars.find(v => String(v.variation_id) === String(vid));
-                                        if (v && v.variation_description) return v.variation_description;
-                                    }
-                                }
-                            } catch(e) {}
-                            return '';
-                        }
-                    """)
-                    # Décoder HTML → texte
-                    desc = _re.sub(r'<[^>]+>', ' ', desc)
-                    desc = desc.replace('&rsquo;', "'").replace('&#8217;', "'").replace('&nbsp;', ' ')
-                    desc = _re.sub(r'\s+', ' ', desc)
-
-                    m_angle = _re.search(r"Poteau d.{0,10}angle\s*:\s*(\d+)", desc)
-                    m_mur   = _re.search(r"Poteau mural\w*\s*:\s*(\d+)", desc)
-                    n_angle = int(m_angle.group(1)) if m_angle else 0
-                    n_mur   = int(m_mur.group(1)) if m_mur else 0
-                    total_poteaux = n_angle + n_mur
-                    print(f"  ➜ Poteau lamellé-collé : {n_angle} angle + {n_mur} muralière = {total_poteaux} poteaux")
-
-                    if total_poteaux == 0:
-                        print("    ⚠ Poteaux non trouvés dans la description (description vide ou absente)")
-
-                # 2. Clic réel sur le swatch "Oui" de field-60120c1 (page.click → cascade WAPF)
-                await _fermer_popups(page)
-                await page.click(
-                    '.wapf-field-container.field-60120c1 div.wapf-swatch label[aria-label="Oui"]',
-                    timeout=5000,
-                )
-                print(f"    ✓ Lamellé-collé sélectionné")
-
-                # 3. Attendre que WAPF rende le champ quantité visible/actif
-                try:
-                    await page.wait_for_function(
-                        "!document.querySelector('.wapf-field-container.field-a7fc76f')?.classList.contains('wapf-hide')",
-                        timeout=6000,
-                    )
-                except Exception:
-                    pass  # On tente quand même
-
-                await page.wait_for_timeout(500)
-
-                # 4. Remplir la quantité via Playwright (field visible après cascade)
-                qty_inp = page.locator('input[name="wapf[field_a7fc76f]"]').first
-                await qty_inp.evaluate("el => el.removeAttribute('disabled')")
-                await qty_inp.fill(str(total_poteaux))
-                await qty_inp.dispatch_event("change")
-                await qty_inp.dispatch_event("input")
-                print(f"    ✓ Quantité poteaux = {total_poteaux}")
-                await page.wait_for_timeout(800)
-
-            # ── Option Claustra ─────────────────────────────────────────
-            # WAPF field-5219ffc : swatch "Claustra vertical" / "Claustra horizontal" / "Claustra lattage"
-            # WAPF field-6bf3105 : quantité de modules (cascade visible après sélection du type)
-            # Chaque module = 1 mètre de large. Ex : pergola 4m → nb_claustra=4 pour remplir un côté.
-            if claustra_type and nb_claustra > 0:
-                await _fermer_popups(page)
-                CLAUSTRA_LABEL_MAP = {
-                    "vertical": "Claustra vertical",
-                    "horizontal": "Claustra horizontal",
-                    "lattage": "Claustra lattage",
-                }
-                label = CLAUSTRA_LABEL_MAP.get(claustra_type, claustra_type)
-
-                # 1. Cliquer sur le type de claustra (swatch field-5219ffc)
-                try:
-                    await page.click(
-                        f'.wapf-field-container.field-5219ffc div.wapf-swatch label[aria-label="{label}"]',
-                        timeout=5000,
-                    )
-                    print(f"    ✓ Claustra type sélectionné : {label}")
-                except Exception as e:
-                    print(f"    ⚠ Claustra swatch non trouvé ({label}): {e}")
-
-                # 2. Attendre que WAPF rende le champ quantité visible (cascade)
-                try:
-                    await page.wait_for_function(
-                        "!document.querySelector('.wapf-field-container.field-6bf3105')?.classList.contains('wapf-hide')",
-                        timeout=6000,
-                    )
-                except Exception:
-                    pass
-                await page.wait_for_timeout(500)
-
-                # 3. Remplir la quantité (field-6bf3105)
-                qty_inp = page.locator('input[name="wapf[field_6bf3105]"]').first
-                await qty_inp.evaluate("el => el.removeAttribute('disabled')")
-                await qty_inp.fill(str(nb_claustra))
-                await qty_inp.dispatch_event("change")
-                await qty_inp.dispatch_event("input")
-                print(f"    ✓ Quantité claustra = {nb_claustra}")
-                await page.wait_for_timeout(800)
-
-            # ── Ajouter au panier ────────────────────────────────────────
-            await _ajouter_au_panier_wc(page)
-            await _verifier_panier(page, SITE_URL, nb_attendu=1)
 
             # ── Produits complémentaires ─────────────────────────────────
             produits_list = json.loads(produits_complementaires) if produits_complementaires and produits_complementaires != "[]" else []
@@ -1126,6 +1157,7 @@ async def generer_devis_terrasse(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
     headless: bool = False,
 ) -> tuple:
     """
@@ -1149,6 +1181,9 @@ async def generer_devis_terrasse(
         visserie            : "" (aucune) | "Vis Inox 5x50mm" | "Vis Inox 5x60mm" |
                               "Fixations invisible Hapax"
         densite_lambourdes  : "simple" (3ml/m²) | "double" (6ml/m²)
+        configurations_supplementaires : JSON array de configs supplémentaires.
+            Chaque élément est un dict avec les mêmes clés : {"essence": "...", "longueur": "...",
+            "quantite": N, "lambourdes": "...", ...}
         client_*            : coordonnées client
 
     Retourne : chemin vers le PDF
@@ -1511,6 +1546,34 @@ async def generer_devis_terrasse(
                         skip_goto=True,
                     )
 
+            # ── Configurations supplémentaires (multi-terrasse sur même devis) ──
+            configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) and configurations_supplementaires != "[]" else []
+            if isinstance(configurations_supplementaires, list):
+                configs_sup = configurations_supplementaires
+            for idx_sup, cfg_sup in enumerate(configs_sup):
+                print(f"\n  ─── Configuration supplémentaire {idx_sup + 1}/{len(configs_sup)} ───")
+                sup_essence = cfg_sup.get("essence", essence)
+                if sup_essence not in TERRASSE_ESSENCE_MAP:
+                    print(f"    ⚠ Essence '{sup_essence}' inconnue, ignorée")
+                    continue
+                # Réassigner les variables capturées par la closure _configurer_wapf_et_ajouter
+                # Python closures capturent la référence de la variable, pas sa valeur,
+                # donc les modifications sont visibles par la fonction interne.
+                essence = cfg_sup.get("essence", essence)
+                longueur = cfg_sup.get("longueur", longueur)
+                lambourdes = cfg_sup.get("lambourdes", "")
+                lambourdes_longueur = cfg_sup.get("lambourdes_longueur", "")
+                plots = cfg_sup.get("plots", "NON")
+                visserie = cfg_sup.get("visserie", "")
+                densite_lambourdes = cfg_sup.get("densite_lambourdes", "simple")
+                essence_val, longueur_field = TERRASSE_ESSENCE_MAP[essence]
+                sup_quantite = cfg_sup.get("quantite", 1)
+                await _configurer_wapf_et_ajouter(
+                    quantite_m2=sup_quantite,
+                    avec_lambourdes=True,
+                    avec_plots=True,
+                )
+
             # ── Produits complémentaires ───────────────────────────────────────
             produits_list = json.loads(produits_complementaires) if produits_complementaires and produits_complementaires != "[]" else []
             if produits_list:
@@ -1650,6 +1713,64 @@ async def generer_devis_terrasse_detail(
 #   recto-verso  : "non" | "oui"
 #   type-de-fixation-au-sol : "pieds-galvanises-en-h" | "plots-beton"
 
+async def _configurer_et_ajouter_cloture(
+    page, site_url: str, product_url: str,
+    modele: str, longeur: str, hauteur: str, bardage: str, fixation_sol: str,
+    type_poteaux: str, longueur_lames: str, sens_bardage: str, recto_verso: str,
+    nb_attendu: int,
+):
+    """Configure une clôture sur la page produit et l'ajoute au panier."""
+    print(f"  ➜ {product_url}")
+    try:
+        await page.goto(product_url, wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        print("    ⚠ Timeout, on attend...")
+    await page.wait_for_timeout(3000)
+    await _fermer_popups(page)
+
+    await page.wait_for_selector('form.variations_form, select[name*="attribute"]', timeout=15000)
+    await page.wait_for_timeout(1000)
+
+    # Construire les attributs selon le modèle
+    if modele == "classique":
+        attrs = {
+            "attribute_pa_longeur":                longeur,
+            "attribute_pa_hauteur":                hauteur,
+            "attribute_pa_bardage":                bardage,
+            "attribute_pa_type-de-poteaux":        type_poteaux,
+            "attribute_pa_longueur-des-lames":     longueur_lames,
+            "attribute_pa_type-de-fixation-au-sol": fixation_sol,
+        }
+    else:
+        attrs = {
+            "attribute_pa_longeur":                longeur,
+            "attribute_pa_hauteur":                hauteur,
+            "attribute_pa_bardage":                bardage,
+            "attribute_pa_sens-du-bardage":        sens_bardage,
+            "attribute_pa_recto-verso":            recto_verso,
+            "attribute_pa_type-de-fixation-au-sol": fixation_sol,
+        }
+    attrs = {k: v for k, v in attrs.items() if v}
+
+    for attr, val in attrs.items():
+        print(f"  ➜ {attr} = {val}")
+        r = await _select_wc_attribute(page, attr, val)
+        print(f"    ✓ {r or 'ok'}")
+
+    await page.wait_for_timeout(2000)
+    prix = await page.evaluate("""
+        () => {
+            var sel = '.woocommerce-variation-price .woocommerce-Price-amount, .summary .price .woocommerce-Price-amount';
+            var p = document.querySelector(sel);
+            return p ? p.textContent.trim() : null;
+        }
+    """)
+    print(f"  ✓ Prix variation : {prix or '—'}")
+
+    await _ajouter_au_panier_wc(page)
+    await _verifier_panier(page, site_url, nb_attendu=nb_attendu)
+
+
 async def generer_devis_cloture(
     modele: str,
     longeur: str,
@@ -1668,6 +1789,7 @@ async def generer_devis_cloture(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
     headless: bool = False,
 ) -> tuple:
     """
@@ -1699,40 +1821,27 @@ async def generer_devis_cloture(
         raise ValueError("modele doit être 'classique' ou 'moderne'")
 
     start_time = time.time()
-    product_path = (
-        "/produit/kit-cloture-bois-classique/" if modele == "classique"
-        else "/produit/kit-cloture-bois-moderne/"
-    )
+    configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) and configurations_supplementaires != "[]" else []
+    if isinstance(configurations_supplementaires, list):
+        configs_sup = configurations_supplementaires
+
     SITE_URL = "https://cloturebois.fr"
-    PRODUCT_URL = SITE_URL + product_path
+
+    def _product_url_for(m: str) -> str:
+        return SITE_URL + (
+            "/produit/kit-cloture-bois-classique/" if m == "classique"
+            else "/produit/kit-cloture-bois-moderne/"
+        )
+
+    PRODUCT_URL = _product_url_for(modele)
 
     print(f"\n{'='*60}")
     print(f"  DEVIS CLÔTURE {modele.upper()} — cloturebois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
     print(f"  {longeur}m | h={hauteur} | bardage={bardage} | fixation={fixation_sol}")
+    if configs_sup:
+        print(f"  + {len(configs_sup)} configuration(s) supplémentaire(s)")
     print(f"{'='*60}\n")
-
-    # Attributs selon le modèle
-    if modele == "classique":
-        attrs = {
-            "attribute_pa_longeur":                longeur,
-            "attribute_pa_hauteur":                hauteur,
-            "attribute_pa_bardage":                bardage,
-            "attribute_pa_type-de-poteaux":        type_poteaux,
-            "attribute_pa_longueur-des-lames":     longueur_lames,
-            "attribute_pa_type-de-fixation-au-sol": fixation_sol,
-        }
-    else:
-        attrs = {
-            "attribute_pa_longeur":                longeur,
-            "attribute_pa_hauteur":                hauteur,
-            "attribute_pa_bardage":                bardage,
-            "attribute_pa_sens-du-bardage":        sens_bardage,
-            "attribute_pa_recto-verso":            recto_verso,
-            "attribute_pa_type-de-fixation-au-sol": fixation_sol,
-        }
-    # Filtrer les valeurs vides
-    attrs = {k: v for k, v in attrs.items() if v}
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=headless)
@@ -1743,37 +1852,36 @@ async def generer_devis_cloture(
         )
         page = await context.new_page()
         try:
-            print(f"  ➜ {PRODUCT_URL}")
-            try:
-                await page.goto(PRODUCT_URL, wait_until="domcontentloaded", timeout=30000)
-            except Exception:
-                print("    ⚠ Timeout, on attend...")
-            await page.wait_for_timeout(3000)
-            await _fermer_popups(page)
+            nb_items_panier = 0
 
-            # Attendre les selects WooCommerce
-            await page.wait_for_selector('form.variations_form, select[name*="attribute"]', timeout=15000)
-            await page.wait_for_timeout(1000)
+            # ── Configuration principale ───────────────────────────────
+            nb_items_panier += 1
+            await _configurer_et_ajouter_cloture(
+                page, SITE_URL, PRODUCT_URL,
+                modele=modele, longeur=longeur, hauteur=hauteur, bardage=bardage,
+                fixation_sol=fixation_sol, type_poteaux=type_poteaux,
+                longueur_lames=longueur_lames, sens_bardage=sens_bardage,
+                recto_verso=recto_verso, nb_attendu=nb_items_panier,
+            )
 
-            # Sélectionner chaque attribut (swatches wcboost ou select caché)
-            for attr, val in attrs.items():
-                print(f"  ➜ {attr} = {val}")
-                r = await _select_wc_attribute(page, attr, val)
-                print(f"    ✓ {r or 'ok'}")
-
-            await page.wait_for_timeout(2000)
-            prix = await page.evaluate("""
-                () => {
-                    var sel = '.woocommerce-variation-price .woocommerce-Price-amount, .summary .price .woocommerce-Price-amount';
-                    var p = document.querySelector(sel);
-                    return p ? p.textContent.trim() : null;
-                }
-            """)
-            print(f"  ✓ Prix variation : {prix or '—'}")
-
-            # Ajouter au panier
-            await _ajouter_au_panier_wc(page)
-            await _verifier_panier(page, SITE_URL, nb_attendu=1)
+            # ── Configurations supplémentaires (multi-clôture) ─────────
+            for idx, cfg in enumerate(configs_sup):
+                print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configs_sup)} ───")
+                nb_items_panier += 1
+                cfg_modele = cfg.get("modele", modele)
+                await _configurer_et_ajouter_cloture(
+                    page, SITE_URL, _product_url_for(cfg_modele),
+                    modele=cfg_modele,
+                    longeur=cfg.get("longeur", ""),
+                    hauteur=cfg.get("hauteur", ""),
+                    bardage=cfg.get("bardage", ""),
+                    fixation_sol=cfg.get("fixation_sol", ""),
+                    type_poteaux=cfg.get("type_poteaux", ""),
+                    longueur_lames=cfg.get("longueur_lames", ""),
+                    sens_bardage=cfg.get("sens_bardage", "vertical"),
+                    recto_verso=cfg.get("recto_verso", "non"),
+                    nb_attendu=nb_items_panier,
+                )
 
             # Produits complémentaires
             produits_list = json.loads(produits_complementaires) if produits_complementaires and produits_complementaires != "[]" else []

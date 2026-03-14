@@ -1507,6 +1507,7 @@ async def generer_devis_abri(
     produits_complementaires: list = None,
     code_promo: str = "",
     produits_uniquement: bool = False,
+    configurations_supplementaires: list = None,
 ) -> str:
     """
     Fonction principale — génère un devis abri complet.
@@ -1531,6 +1532,11 @@ async def generer_devis_abri(
             les produits_complementaires au panier. Utile pour les modèles préconçus
             (Gamme Essentiel, Haut de Gamme) qui ne passent pas par le configurateur WPC.
             Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
+        configurations_supplementaires: liste de configurations supplémentaires à ajouter
+            au même panier. Chaque élément est un dict avec les mêmes clés que la config
+            principale : {"largeur": "4,70M", "profondeur": "3,45m",
+            "ouvertures": [...], "extension_toiture": "", "plancher": False, "bac_acier": False}
+            Permet de mettre plusieurs abris personnalisés sur le même devis PDF.
 
     Retourne : chemin vers le fichier PDF du devis
 
@@ -1539,6 +1545,7 @@ async def generer_devis_abri(
     """
     start_time = time.time()
     produits_complementaires = produits_complementaires or []
+    configurations_supplementaires = configurations_supplementaires or []
     print(f"\n{'='*60}")
     print(f"  GÉNÉRATION DE DEVIS AUTOMATIQUE")
     print(f"  Client : {client_prenom} {client_nom}")
@@ -1547,6 +1554,8 @@ async def generer_devis_abri(
         print(f"  {len(produits_complementaires)} produit(s) à ajouter")
     else:
         print(f"  Abri : Largeur {largeur} / Profondeur {profondeur}")
+        if configurations_supplementaires:
+            print(f"  + {len(configurations_supplementaires)} configuration(s) supplémentaire(s)")
         if produits_complementaires:
             print(f"  + {len(produits_complementaires)} produit(s) complémentaire(s)")
     print(f"{'='*60}\n")
@@ -1555,6 +1564,8 @@ async def generer_devis_abri(
 
     try:
         await gen.start()
+
+        nb_items_panier = 0
 
         # --- Mode produits_uniquement : sauter le configurateur ---
         if not produits_uniquement:
@@ -1569,17 +1580,33 @@ async def generer_devis_abri(
             prix = await gen.configurer_abri(config)
 
             await gen.ajouter_au_panier()
-            # Page est maintenant sur /votre-panier/ après ajout
-            await gen.verifier_panier(nb_attendu=1)
+            nb_items_panier += 1
+            await gen.verifier_panier(nb_attendu=nb_items_panier)
+
+            # --- Configurations supplémentaires (multi-abri sur même devis) ---
+            for idx, cfg_sup in enumerate(configurations_supplementaires):
+                print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configurations_supplementaires)} ───")
+                sup_config = ConfigAbri(
+                    largeur=cfg_sup.get("largeur", ""),
+                    profondeur=cfg_sup.get("profondeur", ""),
+                    ouvertures=cfg_sup.get("ouvertures", []),
+                    extension_toiture=cfg_sup.get("extension_toiture", ""),
+                    plancher=cfg_sup.get("plancher", False),
+                    bac_acier=cfg_sup.get("bac_acier", False),
+                )
+                prix_sup = await gen.configurer_abri(sup_config)
+                await gen.ajouter_au_panier()
+                nb_items_panier += 1
+                await gen.verifier_panier(nb_attendu=nb_items_panier)
 
         # Ajouter les produits complémentaires au même panier
         if produits_complementaires:
             label = "Produits" if produits_uniquement else "Produits complémentaires"
             print(f"\n  ─── {label} ({len(produits_complementaires)}) ───")
-            confirmed_count = 0
+            confirmed_count = nb_items_panier  # Tenir compte des items configurateur déjà au panier
             for prod in produits_complementaires:
                 desc = prod.get("description", prod.get("url", "?").split("/produit/")[-1].strip("/"))
-                print(f"\n  [{confirmed_count + 1}/{len(produits_complementaires)}] {desc}")
+                print(f"\n  [{confirmed_count - nb_items_panier + 1}/{len(produits_complementaires)}] {desc}")
                 confirmed = False
                 for attempt in range(2):
                     try:
@@ -1649,6 +1676,7 @@ async def generer_devis_studio(
     pergola: str = "",
     produits_complementaires: list = None,
     code_promo: str = "",
+    configurations_supplementaires: list = None,
 ) -> str:
     """
     Fonction principale — génère un devis studio complet.
@@ -1676,16 +1704,24 @@ async def generer_devis_studio(
             },
             "description": "Cloison 60€/ml"  # Pour le log
         }]
+        configurations_supplementaires: liste de configurations supplémentaires à ajouter
+            au même panier. Chaque élément est un dict avec les clés de ConfigStudio :
+            {"largeur": "3,3", "profondeur": "3,5", "menuiseries": [...],
+            "bardage_exterieur": "Gris", "isolation": "60mm", ...}
+            Permet de mettre plusieurs studios personnalisés sur le même devis PDF.
 
     Retourne : chemin vers le fichier PDF du devis
     """
     start_time = time.time()
     produits_complementaires = produits_complementaires or []
+    configurations_supplementaires = configurations_supplementaires or []
     dim_key = f"{largeur}x{profondeur}"
     print(f"\n{'='*60}")
     print(f"  GÉNÉRATION DE DEVIS STUDIO")
     print(f"  Client : {client_prenom} {client_nom}")
     print(f"  Studio : {dim_key}")
+    if configurations_supplementaires:
+        print(f"  + {len(configurations_supplementaires)} configuration(s) supplémentaire(s)")
     if produits_complementaires:
         print(f"  + {len(produits_complementaires)} produit(s) complémentaire(s)")
     print(f"{'='*60}\n")
@@ -1694,6 +1730,8 @@ async def generer_devis_studio(
 
     try:
         await gen.start()
+
+        nb_items_panier = 0
 
         config = ConfigStudio(
             largeur=largeur,
@@ -1711,16 +1749,37 @@ async def generer_devis_studio(
         prix = await gen.configurer_studio(config)
 
         await gen.ajouter_au_panier()
-        # Page est maintenant sur /panier/ après ajout
-        await gen.verifier_panier(nb_attendu=1)
+        nb_items_panier += 1
+        await gen.verifier_panier(nb_attendu=nb_items_panier)
+
+        # --- Configurations supplémentaires (multi-studio sur même devis) ---
+        for idx, cfg_sup in enumerate(configurations_supplementaires):
+            print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configurations_supplementaires)} ───")
+            sup_config = ConfigStudio(
+                largeur=cfg_sup.get("largeur", ""),
+                profondeur=cfg_sup.get("profondeur", ""),
+                menuiseries=cfg_sup.get("menuiseries", []),
+                bardage_exterieur=cfg_sup.get("bardage_exterieur", "Gris"),
+                isolation=cfg_sup.get("isolation", "60mm"),
+                rehausse=cfg_sup.get("rehausse", False),
+                bardage_interieur=cfg_sup.get("bardage_interieur", "OSB"),
+                plancher=cfg_sup.get("plancher", "Sans plancher"),
+                finition_plancher=cfg_sup.get("finition_plancher", False),
+                terrasse=cfg_sup.get("terrasse", ""),
+                pergola=cfg_sup.get("pergola", ""),
+            )
+            prix_sup = await gen.configurer_studio(sup_config)
+            await gen.ajouter_au_panier()
+            nb_items_panier += 1
+            await gen.verifier_panier(nb_attendu=nb_items_panier)
 
         # Ajouter les produits complémentaires au même panier
         if produits_complementaires:
             print(f"\n  ─── Produits complémentaires ({len(produits_complementaires)}) ───")
-            confirmed_count = 0
+            confirmed_count = nb_items_panier  # Tenir compte des items configurateur déjà au panier
             for prod in produits_complementaires:
                 desc = prod.get("description", prod.get("url", "?").split("/produit/")[-1].strip("/"))
-                print(f"\n  [{confirmed_count + 1}/{len(produits_complementaires)}] {desc}")
+                print(f"\n  [{confirmed_count - nb_items_panier + 1}/{len(produits_complementaires)}] {desc}")
                 confirmed = False
                 for attempt in range(2):
                     try:

@@ -71,7 +71,8 @@ Corps: …
 |-----------|--------|
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
-| Client veut 2 abris accolés sur le même devis | ✅ `generer_devis` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
+| Client veut 2 produits personnalisés sur le même devis | ✅ `generer_devis` avec `configurations_supplementaires` (2ème produit configuré automatiquement) |
+| Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` → `generer_devis_terrasse_bois_detail` (quantités exactes) |
@@ -165,6 +166,12 @@ generer_devis(
     produits_uniquement=False,  # True = sauter le configurateur, ajouter UNIQUEMENT les produits_complementaires
                                 # Utile pour Gamme Essentiel / Haut de Gamme (produits WooCommerce simples)
                                 # Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode
+
+    # Configurations supplémentaires — multi-produits sur le MÊME devis (abri + studio) ✅
+    # Chaque élément est un dict avec les mêmes clés que la config principale
+    configurations_supplementaires='[{"largeur": "4,70M", "profondeur": "3,45m",
+      "ouvertures": [{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}],
+      "extension_toiture": "Gauche 3,5 M", "plancher": false, "bac_acier": true}]',
 )
 ```
 
@@ -243,6 +250,8 @@ generer_devis_pergola_bois(
     client_telephone="", client_adresse="",
     # Produits complémentaires ✅ apparaissent dans le PDF
     produits_complementaires='[]',
+    # Configurations supplémentaires — multi-pergola sur le même devis ✅
+    configurations_supplementaires='[]',
 )
 ```
 
@@ -556,10 +565,34 @@ Cordialement,
 - **Longueur des planches** : doit couvrir la **largeur de l'extension** → prendre la longueur standard juste au-dessus (ex : extension 3,5m → planches de **4,2m**)
 - Produit : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → variation à la longueur voulue
 
-### 2 abris personnalisés (Gamme Origine)
+### Plusieurs produits personnalisés sur le même devis (`configurations_supplementaires`)
 
-- Si les 2 abris nécessitent le **configurateur** (Gamme Origine avec options personnalisées) → **2 devis séparés** obligatoires
-- Le regroupement sur 1 seul devis via `produits_complementaires` ne fonctionne que si le 2ème abri est un **modèle préconçu** trouvable via `rechercher_produits_detail`
+- **Tous les outils** supportent `configurations_supplementaires` : un JSON array de configurations supplémentaires
+- Chaque élément utilise les mêmes clés que la configuration principale du produit
+- Le script configure le 1er produit, l'ajoute au panier, puis navigue à nouveau vers le configurateur pour chaque config supplémentaire
+- Les `produits_complementaires` sont ajoutés après tous les produits configurés
+
+**Exemple — 2 abris Gamme Origine sur le même devis :**
+```python
+generer_devis(
+    site="abri",
+    largeur="5,50M", profondeur="3,45m",
+    ouvertures='[{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}]',
+    extension_toiture="Droite 3,5 M", bac_acier=True,
+    configurations_supplementaires='[{
+        "largeur": "4,70M", "profondeur": "3,45m",
+        "ouvertures": [{"type": "Porte double Vitrée", "face": "Face 2", "position": "Centre"}],
+        "extension_toiture": "Gauche 3,5 M", "bac_acier": true
+    }]',
+    produits_complementaires='[...]',  # planches, etc.
+    client_nom="Dupont", ...
+)
+```
+
+- **Abri/Studio** : le configurateur WPC est relancé pour chaque config supplémentaire
+- **Pergola** : le configurateur WAPF est relancé pour chaque config supplémentaire
+- **Terrasse/Clôture** : même mécanisme (moins courant mais supporté)
+- Le regroupement via `produits_complementaires` reste valable pour les modèles préconçus (Gamme Essentiel)
 
 ---
 
