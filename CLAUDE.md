@@ -223,7 +223,7 @@ generer_devis_pergola_bois(
     nb_poteaux_lamelle_colle=0,  # Nombre explicite de poteaux (0 = auto-calculé)
                                  # ⚠ Auto-calcul peut échouer (932 variations, JSON non embarqué)
                                  # Fournir manuellement si nécessaire : ex. 9m×5m adossée → 4
-    claustra_type="",        # "" (aucun) | "vertical" | "horizontal" | "lattage" | "bardage"
+    claustra_type="",        # "" (aucun) | "vertical" | "horizontal" | "lattage"
                              # ⚠ Option NATIVE du configurateur (champ WAPF), NE PAS ajouter en produits_complementaires
     nb_claustra=0,           # Nombre de claustras (modules de 1m chacun)
                              # Ex : pergola 4m de côté → nb_claustra=4 pour remplir un côté
@@ -242,21 +242,24 @@ generer_devis_pergola_bois(
 
 > ⚠ `platelage` exige `ventelle="largeur"` ou `ventelle="profondeur"`
 
-**Claustras & bardage pergola (options natives du configurateur) :**
-- 3 types de claustra + 1 bardage disponibles via champ WAPF :
+**Claustras pergola (options natives du configurateur WAPF) :**
+- 3 types de claustra disponibles via champ WAPF (`field-5219ffc`) :
 
 | Type WAPF | Section bardage | Livraison | Prix unitaire |
 |-----------|-----------------|-----------|---------------|
 | **Claustra vertical** | 21×145mm | Cadre assemblé, bardage non posé (à recouper) | 149,90€ |
 | **Claustra horizontal** | 21×145mm | Cadre assemblé, bardage non posé (à recouper) | 149,90€ |
 | **Claustra lattage** | 45×45mm | Assemblé prêt à poser | 149,90€ |
-| **Bardage** | 21×145mm | Cadre assemblé, bardage non posé (à recouper) | 149,90€ |
 
 - Tous en **pin sylvestre autoclave classe 4**, structure 45×70mm, quincaillerie + pied de poteau fournis
-- Chaque claustra/bardage = module de **1 mètre** de large
+- Chaque claustra = module de **1 mètre** de large
 - Pour remplir un côté : `nb_claustra` = dimension du côté en mètres (ex : pergola 5m → 5 claustras)
 - ⚠ **NE JAMAIS ajouter les claustras en `produits_complementaires`** — toujours utiliser `claustra_type` + `nb_claustra`
 - Les claustras apparaissent directement dans le devis PDF
+
+**Bardage pergola (produit séparé, PAS dans le configurateur WAPF) :**
+- Panneau plein 21×145mm, cadre assemblé, 149,90€/module — à ajouter via `produits_complementaires`
+- `rechercher_produits_detail(site="pergola", recherche="bardage")` pour obtenir l'URL et variation_id
 
 **Accessoires pergola notables :**
 - **Poteau Rive** → `rechercher_produits_detail(site="pergola", recherche="poteau rive")`

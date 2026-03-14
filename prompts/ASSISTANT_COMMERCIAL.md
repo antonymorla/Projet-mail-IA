@@ -205,12 +205,13 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 **Options WAPF** (natives du configurateur — apparaissent dans le PDF) :
 - **Sur-mesure** (+199,90€) — dimensions exactes entre 2 tailles standard
 - **Poteaux lamellé-collé** — plus résistants et esthétiques (quantité selon dimensions)
+- **Pente de toiture** — Pente 5% (défaut) ou Pente 15%
 - **Claustra** — 3 types : vertical, horizontal, lattage. Module de 1m. Pin sylvestre autoclave classe 4, structure 45×70mm, quincaillerie + pied de poteau fournis (149,90€/module)
-- **Bardage** — panneau plein 21×145mm, cadre assemblé (149,90€/module)
 - **Bâche** — tailles fixes combinables, vérifier stock via `rechercher_produits_detail`
 
-> ⚠ **Claustras et bardage = options natives du configurateur**. Ne jamais les ajouter en `produits_complementaires`.
+> ⚠ **Claustras = option native du configurateur**. Ne jamais les ajouter en `produits_complementaires`.
 > Pour remplir un côté : nb modules = dimension du côté en mètres (ex : pergola 4m → 4 modules).
+> **Bardage** (panneau plein 21×145mm, 149,90€/module) = produit séparé → ajouter via `produits_complementaires`.
 
 ### 4. Terrasses bois (Terrasse en Bois.fr)
 
@@ -722,7 +723,7 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 - **Pergola — Pied de poteau** : `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
 - **Pergola — Poteaux lamellé-collé** : option directe (`poteau_lamelle_colle=True`) + `nb_poteaux_lamelle_colle=N`
 - **Pergola — Claustra** : option directe (`claustra_type="horizontal"` + `nb_claustra=4`) — ⚠ NE PAS ajouter en produits_complementaires
-- **Pergola — Bardage** : option directe (`claustra_type="bardage"` + `nb_claustra=N`) — ⚠ NE PAS ajouter en produits_complementaires
+- **Pergola — Bardage** : `rechercher_produits_detail(site="pergola", recherche="bardage")` → ajouter via `produits_complementaires` (pas dans le configurateur WAPF)
 - **Pergola — Bâche** : `rechercher_produits_detail(site="pergola", recherche="bache")` — tailles fixes, combiner si pergola > bâche dispo
 
 ### Option pergola lamellé-collé — paramètre nb_poteaux_lamelle_colle

@@ -1020,60 +1020,46 @@ async def generer_devis_pergola(
                 print(f"    ✓ Quantité poteaux = {total_poteaux}")
                 await page.wait_for_timeout(800)
 
-            # ── Option Claustra / Bardage ──────────────────────────────
-            # WAPF field : swatch pour le type (vertical/horizontal/lattage/bardage)
-            # WAPF field : quantité de modules (1 module = 1m)
-            # ⚠ Field IDs à déterminer en inspectant la page produit
-            #   CLAUSTRA_TYPE_FIELD_ID = "field-XXXXXX"  # TODO: inspecter le site
-            #   CLAUSTRA_QTY_FIELD_ID  = "field-YYYYYY"  # TODO: inspecter le site
+            # ── Option Claustra ─────────────────────────────────────────
+            # WAPF field-5219ffc : swatch "Claustra vertical" / "Claustra horizontal" / "Claustra lattage"
+            # WAPF field-6bf3105 : quantité de modules (cascade visible après sélection du type)
+            # Chaque module = 1 mètre de large. Ex : pergola 4m → nb_claustra=4 pour remplir un côté.
             if claustra_type and nb_claustra > 0:
                 await _fermer_popups(page)
-                # Mapping type → label aria du swatch WAPF
                 CLAUSTRA_LABEL_MAP = {
                     "vertical": "Claustra vertical",
                     "horizontal": "Claustra horizontal",
                     "lattage": "Claustra lattage",
-                    "bardage": "Bardage",
                 }
                 label = CLAUSTRA_LABEL_MAP.get(claustra_type, claustra_type)
 
-                # TODO: Remplacer 'field-XXXXXX' par le vrai field ID après inspection du site
-                # Étape 1 : Cliquer sur le type de claustra (swatch)
+                # 1. Cliquer sur le type de claustra (swatch field-5219ffc)
                 try:
-                    # Tenter de trouver le swatch par aria-label
-                    swatch_selector = f'div.wapf-swatch label[aria-label="{label}"]'
-                    await page.click(swatch_selector, timeout=5000)
+                    await page.click(
+                        f'.wapf-field-container.field-5219ffc div.wapf-swatch label[aria-label="{label}"]',
+                        timeout=5000,
+                    )
                     print(f"    ✓ Claustra type sélectionné : {label}")
                 except Exception as e:
                     print(f"    ⚠ Claustra swatch non trouvé ({label}): {e}")
-                    # Fallback : chercher par texte
-                    try:
-                        await page.click(f'div.wapf-swatch label:has-text("{label}")', timeout=5000)
-                        print(f"    ✓ Claustra type sélectionné (fallback texte) : {label}")
-                    except Exception:
-                        print(f"    ❌ Impossible de sélectionner claustra {label}")
 
-                await page.wait_for_timeout(1000)
-
-                # Étape 2 : Remplir la quantité (champ cascade WAPF)
+                # 2. Attendre que WAPF rende le champ quantité visible (cascade)
                 try:
-                    # Chercher le champ quantité claustra visible (non caché)
-                    qty_inputs = page.locator('input[type="number"]:not([disabled])').filter(
-                        has=page.locator(':scope')
+                    await page.wait_for_function(
+                        "!document.querySelector('.wapf-field-container.field-6bf3105')?.classList.contains('wapf-hide')",
+                        timeout=6000,
                     )
-                    # TODO: Utiliser le sélecteur exact une fois le field ID connu :
-                    # qty_inp = page.locator('input[name="wapf[field_YYYYYY]"]').first
-                    #
-                    # Pour l'instant, on cherche le dernier champ number visible dans un container WAPF non caché
-                    qty_inp = page.locator('.wapf-field-container:not(.wapf-hide) input[type="number"]').last
-                    await qty_inp.evaluate("el => el.removeAttribute('disabled')")
-                    await qty_inp.fill(str(nb_claustra))
-                    await qty_inp.dispatch_event("change")
-                    await qty_inp.dispatch_event("input")
-                    print(f"    ✓ Quantité claustra = {nb_claustra}")
-                except Exception as e:
-                    print(f"    ⚠ Quantité claustra non remplie : {e}")
+                except Exception:
+                    pass
+                await page.wait_for_timeout(500)
 
+                # 3. Remplir la quantité (field-6bf3105)
+                qty_inp = page.locator('input[name="wapf[field_6bf3105]"]').first
+                await qty_inp.evaluate("el => el.removeAttribute('disabled')")
+                await qty_inp.fill(str(nb_claustra))
+                await qty_inp.dispatch_event("change")
+                await qty_inp.dispatch_event("input")
+                print(f"    ✓ Quantité claustra = {nb_claustra}")
                 await page.wait_for_timeout(800)
 
             # ── Ajouter au panier ────────────────────────────────────────
