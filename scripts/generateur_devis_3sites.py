@@ -578,6 +578,8 @@ async def _generer_devis_via_generateur(
             await page.evaluate("() => document.querySelector('#quote-form').submit()")
         download = await download_info.value
         await download.save_as(filepath)
+        # Attendre que le fichier soit complètement écrit sur disque
+        await page.wait_for_timeout(2000)
     except Exception as e_dl:
         # Headless mode : le download event peut ne pas se déclencher même si le PDF est reçu
         try:
