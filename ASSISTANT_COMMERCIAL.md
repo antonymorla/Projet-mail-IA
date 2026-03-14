@@ -121,6 +121,20 @@ Pipeline : [Marque]
 
 Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
 
+#### Comparaison Gamme Origine vs Gamme Essentiel
+
+| | **Gamme Origine** | **Gamme Essentiel** |
+|---|---|---|
+| **Toit** | Toit plat (pente 2°) | Toit 2 pentes |
+| **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
+| **Hauteur intérieure** | ~2,05 m | ~1,95 m |
+| **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
+| **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement |
+| **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
+| **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
+
+> ⚠ **RÈGLE** : ne jamais inventer de différences techniques entre les 2 gammes. Même bois, même méthode de construction (madriers emboîtables). Seuls le type de toit et la personnalisation diffèrent.
+
 #### Gamme Origine (toit plat) — Personnalisable
 
 Code promo **LEROYMERLIN10** (vérifier remise via `verifier_promotions_actives`).
@@ -179,15 +193,24 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 
 > Options ventelles, platelage, bioclimatique, polycarbonate augmentent le prix. Sur-mesure : +199,90€.
 
-Options couverture :
+**Options couverture** (attribut WC `option`) :
 - Ventelles bois (sens largeur ou profondeur)
 - Platelage bois (lames jointives) — ⚠ exige ventelles largeur ou profondeur
 - Lattage bois (lames espacées)
 - Polycarbonate transparent
 - Voilage semi-transparent
+- Carport (bac acier anti-condensation)
 - **Bioclimatique** (lames orientables Samkit) — option premium
 
-Poteaux en bois lamellé-collé disponibles (quantité selon dimensions).
+**Options WAPF** (natives du configurateur — apparaissent dans le PDF) :
+- **Sur-mesure** (+199,90€) — dimensions exactes entre 2 tailles standard
+- **Poteaux lamellé-collé** — plus résistants et esthétiques (quantité selon dimensions)
+- **Claustra** — 3 types : vertical, horizontal, lattage. Module de 1m. Pin sylvestre autoclave classe 4, structure 45×70mm, quincaillerie + pied de poteau fournis (149,90€/module)
+- **Bardage** — panneau plein 21×145mm, cadre assemblé (149,90€/module)
+- **Bâche** — tailles fixes combinables, vérifier stock via `rechercher_produits_detail`
+
+> ⚠ **Claustras et bardage = options natives du configurateur**. Ne jamais les ajouter en `produits_complementaires`.
+> Pour remplir un côté : nb modules = dimension du côté en mètres (ex : pergola 4m → 4 modules).
 
 ### 4. Terrasses bois (Terrasse en Bois.fr)
 
@@ -698,6 +721,9 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 - **Pergola — Poteau Rive** : `rechercher_produits_detail(site="pergola", recherche="poteau rive")`
 - **Pergola — Pied de poteau** : `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
 - **Pergola — Poteaux lamellé-collé** : option directe (`poteau_lamelle_colle=True`) + `nb_poteaux_lamelle_colle=N`
+- **Pergola — Claustra** : option directe (`claustra_type="horizontal"` + `nb_claustra=4`) — ⚠ NE PAS ajouter en produits_complementaires
+- **Pergola — Bardage** : option directe (`claustra_type="bardage"` + `nb_claustra=N`) — ⚠ NE PAS ajouter en produits_complementaires
+- **Pergola — Bâche** : `rechercher_produits_detail(site="pergola", recherche="bache")` — tailles fixes, combiner si pergola > bâche dispo
 
 ### Option pergola lamellé-collé — paramètre nb_poteaux_lamelle_colle
 
@@ -705,20 +731,35 @@ Quand `poteau_lamelle_colle=True`, le script calcule automatiquement le nombre d
 
 **Si le comptage échoue** → fournir explicitement : `nb_poteaux_lamelle_colle=4` (lire depuis le PDF d'un devis précédent ou depuis la description produit sur le site). Exemples : 9m×5m adossée → 4 (2 angle + 2 muralière).
 
-### Cas spécial : 2 abris sur le même devis
+### Cas spécial : 2 abris
 
-Quand un client veut **2 abris à accoler** → ne pas générer 2 devis séparés, tout mettre sur 1 seul.
-
+**Si le 2ème abri est un modèle préconçu** → tout sur 1 seul devis :
 1. `generer_devis(site="abri", largeur="Xm", ...)` pour le 1er abri
 2. `rechercher_produits_detail(site="abri", recherche="[dimensions 2ème abri]")` → trouver le modèle préconçu
 3. Ajouter via `produits_complementaires` dans le même appel `generer_devis`
-
 → Les 2 abris apparaissent comme 2 lignes sur le même devis PDF.
+
+**Si les 2 abris sont des configs personnalisées (Gamme Origine)** → **2 devis séparés** obligatoires.
+Le configurateur ne peut traiter qu'un seul abri personnalisé à la fois.
 
 ### Gamme Essentiel — Pas génératable par le configurateur
 
 `generer_devis(site="abri")` utilise le configurateur WPC → **Gamme Origine uniquement**.
 Pour un devis Essentiel : renvoyer vers le site ou `rechercher_produits_detail(site="abri", recherche="essentiel")` → lien produit direct au client.
+
+### Planches pour obstruer le fond d'une extension toiture
+
+- **Hauteur intérieure abri** : ~2,05 m (Gamme Origine)
+- **Nb planches par face** : `ceil(2050 / 130)` = **16 planches** (planches emboîtables 27×130mm)
+- **Longueur des planches** : doit couvrir la **largeur de l'extension** → prendre la longueur standard juste au-dessus (ex : extension 3,5m → planches de **4,2m**)
+- Produit : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → variation à la longueur voulue
+
+### Bâche pergola — règles
+
+- Tailles fixes disponibles (ex : 3×5m, 4×5m, 5×5m). Vérifier via `rechercher_produits_detail(site="pergola", recherche="bache")`.
+- Pour une pergola sur-mesure : **combiner** 2 bâches pour couvrir la largeur (ex : pergola 6,16m → 1 bâche 4×5 + 1 bâche 3×5)
+- ⚠ Les bâches peuvent être en **rupture de stock** → délai allongé pour la commande complète (livraison tout en même temps)
+- Toujours préciser dans l'email : "Merci d'indiquer dans les annotations de commande que les bâches sont d'un seul tenant et sur mesure aux dimensions de la pergola [L×P], comme convenu avec notre équipe."
 
 ---
 
@@ -745,3 +786,6 @@ Pour un devis Essentiel : renvoyer vers le site ou `rechercher_produits_detail(s
 8. **Service de pose (Vano Création)** → donner les coordonnées de Clément Vannier au client et lui indiquer de le **contacter directement** — nous ne faisons pas l'intermédiaire (06 19 64 35 58 / vannier.clement@gmail.com).
 9. **Stockage avant montage** → max 3 semaines — au-delà, déformation non couverte par la garantie. À mentionner si le client commande alors que son chantier n'est pas prêt.
 10. **Dimensions — règle fondamentale** → toujours choisir la dimension standard la plus grande possible **sans dépasser** la contrainte du client (dalle, terrain, espace disponible). Jamais proposer une taille supérieure à la contrainte sans l'expliquer et proposer les alternatives. Voir section "GESTION DES DIMENSIONS" ci-dessous.
+11. **Ne jamais inventer de comparaisons** entre gammes/produits — utiliser uniquement les informations documentées. Les gammes Essentiel et Origine utilisent le même bois et la même méthode de construction.
+12. **Toujours vérifier le stock** via `rechercher_produits_detail` avant de proposer une essence de bois ou un accessoire — ne pas proposer un produit en rupture de stock.
+13. **Claustras et bardage pergola = options natives** du configurateur — ne jamais les ajouter en `produits_complementaires`.

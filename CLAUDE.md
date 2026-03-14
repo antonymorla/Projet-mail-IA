@@ -223,6 +223,10 @@ generer_devis_pergola_bois(
     nb_poteaux_lamelle_colle=0,  # Nombre explicite de poteaux (0 = auto-calculé)
                                  # ⚠ Auto-calcul peut échouer (932 variations, JSON non embarqué)
                                  # Fournir manuellement si nécessaire : ex. 9m×5m adossée → 4
+    claustra_type="",        # "" (aucun) | "vertical" | "horizontal" | "lattage" | "bardage"
+                             # ⚠ Option NATIVE du configurateur (champ WAPF), NE PAS ajouter en produits_complementaires
+    nb_claustra=0,           # Nombre de claustras (modules de 1m chacun)
+                             # Ex : pergola 4m de côté → nb_claustra=4 pour remplir un côté
     sur_mesure=False,        # True pour activer la config sur-mesure (+199,90€)
     largeur_hors_tout="",    # Largeur réelle en mètres (ex: "8.79") — requis si sur_mesure=True
     profondeur_hors_tout="", # Profondeur réelle en mètres (ex: "4.99")
@@ -238,9 +242,32 @@ generer_devis_pergola_bois(
 
 > ⚠ `platelage` exige `ventelle="largeur"` ou `ventelle="profondeur"`
 
+**Claustras & bardage pergola (options natives du configurateur) :**
+- 3 types de claustra + 1 bardage disponibles via champ WAPF :
+
+| Type WAPF | Section bardage | Livraison | Prix unitaire |
+|-----------|-----------------|-----------|---------------|
+| **Claustra vertical** | 21×145mm | Cadre assemblé, bardage non posé (à recouper) | 149,90€ |
+| **Claustra horizontal** | 21×145mm | Cadre assemblé, bardage non posé (à recouper) | 149,90€ |
+| **Claustra lattage** | 45×45mm | Assemblé prêt à poser | 149,90€ |
+| **Bardage** | 21×145mm | Cadre assemblé, bardage non posé (à recouper) | 149,90€ |
+
+- Tous en **pin sylvestre autoclave classe 4**, structure 45×70mm, quincaillerie + pied de poteau fournis
+- Chaque claustra/bardage = module de **1 mètre** de large
+- Pour remplir un côté : `nb_claustra` = dimension du côté en mètres (ex : pergola 5m → 5 claustras)
+- ⚠ **NE JAMAIS ajouter les claustras en `produits_complementaires`** — toujours utiliser `claustra_type` + `nb_claustra`
+- Les claustras apparaissent directement dans le devis PDF
+
 **Accessoires pergola notables :**
 - **Poteau Rive** → `rechercher_produits_detail(site="pergola", recherche="poteau rive")`
 - **Pied de poteau** → `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
+- **Bâche** → `rechercher_produits_detail(site="pergola", recherche="bache")`
+
+**Bâche pergola — règles :**
+- Tailles fixes disponibles (ex : 3×5m, 4×5m, 5×5m). Vérifier via `rechercher_produits_detail`.
+- Pour une pergola sur-mesure : **combiner** 2 bâches pour couvrir la largeur (ex : pergola 6,16m → 1 bâche 4×5 + 1 bâche 3×5)
+- ⚠ Les bâches peuvent être en **rupture de stock** → délai allongé pour la commande complète (livraison tout en même temps)
+- Toujours préciser dans l'email : "Merci d'indiquer dans les annotations de commande que les bâches sont d'un seul tenant et sur mesure aux dimensions de la pergola [L×P], comme convenu avec notre équipe."
 
 **Calcul poteaux lamellé-collé :**
 - Si `nb_poteaux_lamelle_colle=0`, le script tente de lire la description de variation
@@ -387,16 +414,38 @@ Livraison **4-5 semaines gratuite**. Paiement 3× sans frais.
 
 ### Abris de jardin (Abri Français)
 
-Pin autoclave 28mm, fabriqué à Lille (Destombes Bois, 50 ans).
-Gamme **Origine** (toit plat) — code promo **LEROYMERLIN10**
-Gamme **Essentiel** (toit 2 pentes) — code promo **LEROYMERLIN5**
+Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
+
+#### Comparaison Gamme Origine vs Gamme Essentiel
+
+| | **Gamme Origine** | **Gamme Essentiel** |
+|---|---|---|
+| **Toit** | Toit plat (pente 2°) | Toit 2 pentes |
+| **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
+| **Hauteur intérieure** | ~2,05 m | ~1,95 m |
+| **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
+| **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement (configs porte+fenêtre fixes) |
+| **Générateur de devis** | ✅ `generer_devis(site="abri")` | ❌ Non génératable → renvoyer vers le site ou `rechercher_produits_detail` |
+| **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
+| **Fondations** | Pas de dalle nécessaire — plots béton ou réglables | Pas de dalle nécessaire — plots béton ou réglables |
+| **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
+
+> ⚠ **RÈGLE ABSOLUE** : ne jamais inventer de différences techniques entre les 2 gammes. Les 2 utilisent le **même bois** (pin autoclave 28mm), la **même méthode de construction** (madriers emboîtables). La seule différence fondamentale est le **type de toit** et la **personnalisation**.
+
 > Prix → générer le devis ou `rechercher_produits_detail`. Promos → `verifier_promotions_actives`.
 
 ### Pergolas bois (Ma Pergola Bois)
 
 De 2×2m à 10×5m. Portée max : **5m** (ventelles parallèles à la muralière) ou **4m** (ventelles perpendiculaires, fixées sur la muralière).
 Pieds réglables 12 à 18cm. Livraison comprise.
-Options : ventelles, platelage, lattage, polycarbonate, voilage, bioclimatique.
+
+**Options couverture** (attribut WC `option`) : ventelles, platelage, lattage, polycarbonate, voilage, bioclimatique, carport.
+**Options WAPF** (natives du configurateur) :
+- **Sur-mesure** (+199,90€) — dimensions exactes entre 2 tailles standard
+- **Poteaux lamellé-collé** — plus résistants et esthétiques
+- **Claustra** — 3 types : vertical, horizontal, lattage. Modules de 1m. Ex : pergola 4m → 4 claustras pour remplir un côté
+- **Bâche** — tailles fixes, combinables pour couvrir les grandes pergolas
+
 > Prix → générer le devis.
 
 ### Terrasses bois (Terrasse en Bois.fr)
@@ -464,6 +513,25 @@ Cordialement,
 5. Portée pergola > 5m (ou > 4m si ventelles perpendiculaires à la muralière) ou hauteur abri > 2,65m → orienter vers Destombes Bois
 6. Hors périmètre (terrassement, électricité, plomberie) → artisans locaux
 7. Ne jamais inventer une information technique → poser la question ou proposer un appel
+8. **Ne jamais inventer de comparaisons** entre gammes/produits — utiliser uniquement les informations documentées dans ce fichier ou dans `ASSISTANT_COMMERCIAL.md`
+9. **Toujours vérifier le stock** via `rechercher_produits_detail` avant de proposer une essence de bois ou un accessoire — ne pas proposer un produit en rupture de stock
+10. **Claustras pergola = option native** du configurateur — ne jamais les ajouter en `produits_complementaires`
+
+---
+
+## RÈGLES DE CALCUL — ABRIS
+
+### Planches pour obstruer le fond d'une extension toiture
+
+- **Hauteur intérieure abri** : ~2,05 m (Gamme Origine)
+- **Nb planches par face** : `ceil(2050 / 130)` = **16 planches** (planches emboîtables 27×130mm)
+- **Longueur des planches** : doit couvrir la **largeur de l'extension** → prendre la longueur standard juste au-dessus (ex : extension 3,5m → planches de **4,2m**)
+- Produit : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → variation à la longueur voulue
+
+### 2 abris personnalisés (Gamme Origine)
+
+- Si les 2 abris nécessitent le **configurateur** (Gamme Origine avec options personnalisées) → **2 devis séparés** obligatoires
+- Le regroupement sur 1 seul devis via `produits_complementaires` ne fonctionne que si le 2ème abri est un **modèle préconçu** trouvable via `rechercher_produits_detail`
 
 ---
 

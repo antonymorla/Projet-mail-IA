@@ -543,6 +543,8 @@ async def generer_devis_pergola_bois(
     option: str = "non",
     poteau_lamelle_colle: bool = False,
     nb_poteaux_lamelle_colle: int = 0,
+    claustra_type: str = "",
+    nb_claustra: int = 0,
     sur_mesure: bool = False,
     largeur_hors_tout: str = "",
     profondeur_hors_tout: str = "",
@@ -569,6 +571,11 @@ async def generer_devis_pergola_bois(
         poteau_lamelle_colle : True pour ajouter des poteaux en bois lamellé-collé
         nb_poteaux_lamelle_colle : Nombre de poteaux lamellé-collé (0 = auto-calculé depuis
                                la description de variation). Fournir si auto-calcul échoue.
+        claustra_type        : Type de claustra/bardage : "" (aucun) | "vertical" | "horizontal" |
+                               "lattage" | "bardage". Option native du configurateur WAPF.
+                               ⚠ NE PAS ajouter les claustras en produits_complementaires.
+        nb_claustra          : Nombre de modules claustra/bardage (1 module = 1m de large).
+                               Ex : pergola 4m → nb_claustra=4 pour remplir un côté.
         sur_mesure           : True pour activer la configuration sur-mesure (+199,90€)
                                Choisir largeur/profondeur = variation standard >= dimensions souhaitées
         largeur_hors_tout    : Largeur réelle hors-tout en mètres (ex: "7.60")
@@ -591,6 +598,7 @@ async def generer_devis_pergola_bois(
         "ventelle": ventelle, "option": option,
         "poteau_lamelle_colle": poteau_lamelle_colle,
         "nb_poteaux_lamelle_colle": nb_poteaux_lamelle_colle,
+        "claustra_type": claustra_type, "nb_claustra": nb_claustra,
         "sur_mesure": sur_mesure, "largeur_hors_tout": largeur_hors_tout,
         "profondeur_hors_tout": profondeur_hors_tout, "hauteur_hors_tout": hauteur_hors_tout,
         "client_nom": client_nom, "client_prenom": client_prenom,

@@ -753,6 +753,8 @@ async def generer_devis_pergola(
     option: str = "non",
     poteau_lamelle_colle: bool = False,
     nb_poteaux_lamelle_colle: int = 0,
+    claustra_type: str = "",
+    nb_claustra: int = 0,
     sur_mesure: bool = False,
     largeur_hors_tout: str = "",
     profondeur_hors_tout: str = "",
@@ -777,6 +779,8 @@ async def generer_devis_pergola(
         ventelle              : "largeur" | "profondeur" | "retro" | "sans"
         option                : "non" | "platelage" | ... | "polycarbonate"
         poteau_lamelle_colle  : True → ajoute les poteaux en bois lamellé-collé
+        claustra_type         : "" | "vertical" | "horizontal" | "lattage" | "bardage"
+        nb_claustra           : nombre de modules claustra/bardage (1 module = 1m)
         sur_mesure            : True → active l'option "Pergola sur mesure" (+199,90€)
         largeur_hors_tout     : ex. "7.60"  — dimension réelle souhaitée en largeur
         profondeur_hors_tout  : ex. "3.42"  — dimension réelle souhaitée en profondeur
@@ -790,6 +794,8 @@ async def generer_devis_pergola(
     print(f"  DEVIS PERGOLA — mapergolabois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
     extra = " | lamellé-collé" if poteau_lamelle_colle else ""
+    if claustra_type:
+        extra += f" | claustra={claustra_type}×{nb_claustra}"
     if sur_mesure and largeur_hors_tout:
         sm = f" | SUR-MESURE {largeur_hors_tout}m×{profondeur_hors_tout}m"
         if hauteur_hors_tout:
@@ -1012,6 +1018,62 @@ async def generer_devis_pergola(
                 await qty_inp.dispatch_event("change")
                 await qty_inp.dispatch_event("input")
                 print(f"    ✓ Quantité poteaux = {total_poteaux}")
+                await page.wait_for_timeout(800)
+
+            # ── Option Claustra / Bardage ──────────────────────────────
+            # WAPF field : swatch pour le type (vertical/horizontal/lattage/bardage)
+            # WAPF field : quantité de modules (1 module = 1m)
+            # ⚠ Field IDs à déterminer en inspectant la page produit
+            #   CLAUSTRA_TYPE_FIELD_ID = "field-XXXXXX"  # TODO: inspecter le site
+            #   CLAUSTRA_QTY_FIELD_ID  = "field-YYYYYY"  # TODO: inspecter le site
+            if claustra_type and nb_claustra > 0:
+                await _fermer_popups(page)
+                # Mapping type → label aria du swatch WAPF
+                CLAUSTRA_LABEL_MAP = {
+                    "vertical": "Claustra vertical",
+                    "horizontal": "Claustra horizontal",
+                    "lattage": "Claustra lattage",
+                    "bardage": "Bardage",
+                }
+                label = CLAUSTRA_LABEL_MAP.get(claustra_type, claustra_type)
+
+                # TODO: Remplacer 'field-XXXXXX' par le vrai field ID après inspection du site
+                # Étape 1 : Cliquer sur le type de claustra (swatch)
+                try:
+                    # Tenter de trouver le swatch par aria-label
+                    swatch_selector = f'div.wapf-swatch label[aria-label="{label}"]'
+                    await page.click(swatch_selector, timeout=5000)
+                    print(f"    ✓ Claustra type sélectionné : {label}")
+                except Exception as e:
+                    print(f"    ⚠ Claustra swatch non trouvé ({label}): {e}")
+                    # Fallback : chercher par texte
+                    try:
+                        await page.click(f'div.wapf-swatch label:has-text("{label}")', timeout=5000)
+                        print(f"    ✓ Claustra type sélectionné (fallback texte) : {label}")
+                    except Exception:
+                        print(f"    ❌ Impossible de sélectionner claustra {label}")
+
+                await page.wait_for_timeout(1000)
+
+                # Étape 2 : Remplir la quantité (champ cascade WAPF)
+                try:
+                    # Chercher le champ quantité claustra visible (non caché)
+                    qty_inputs = page.locator('input[type="number"]:not([disabled])').filter(
+                        has=page.locator(':scope')
+                    )
+                    # TODO: Utiliser le sélecteur exact une fois le field ID connu :
+                    # qty_inp = page.locator('input[name="wapf[field_YYYYYY]"]').first
+                    #
+                    # Pour l'instant, on cherche le dernier champ number visible dans un container WAPF non caché
+                    qty_inp = page.locator('.wapf-field-container:not(.wapf-hide) input[type="number"]').last
+                    await qty_inp.evaluate("el => el.removeAttribute('disabled')")
+                    await qty_inp.fill(str(nb_claustra))
+                    await qty_inp.dispatch_event("change")
+                    await qty_inp.dispatch_event("input")
+                    print(f"    ✓ Quantité claustra = {nb_claustra}")
+                except Exception as e:
+                    print(f"    ⚠ Quantité claustra non remplie : {e}")
+
                 await page.wait_for_timeout(800)
 
             # ── Ajouter au panier ────────────────────────────────────────
