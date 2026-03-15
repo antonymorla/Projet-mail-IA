@@ -77,7 +77,8 @@ Corps: …
 | Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis_abri` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
-| **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` → `generer_devis_terrasse_bois_detail` (quantités exactes) |
+| **Terrasse — client donne quantités exactes (lames + lambourdes + vis…)** | ✅ **Workflow "configurateur d'abord"** — voir section TERRASSE ci-dessous |
+| **Terrasse — client veut 2+ zones/configs sur le même devis** | ✅ `generer_devis_terrasse_bois` avec `configurations_supplementaires` — voir section TERRASSE ci-dessous |
 | **Client demande un modèle préconçu (Essentiel ou Haut de Gamme)** | ✅ `rechercher_produits_detail(site="abri", recherche="essentiel …")` → trouver url + variation_id → `generer_devis_abri` avec `produits_complementaires` |
 | Client avec budget serré sans modèle précis | ✉ Proposer Gamme Essentiel — lister les modèles via `rechercher_produits_detail` + email A |
 | Infos manquantes | ✉ Email B — demander les compléments |
@@ -412,6 +413,56 @@ generer_devis_terrasse_bois_detail(
     client_telephone="", client_adresse="",
 )
 ```
+
+### Workflow terrasse — "Configurateur d'abord, détail en fallback"
+
+> ⚠ **RÈGLE PRINCIPALE** : quand un client donne des quantités exactes (lames, lambourdes, vis), **ne pas aller directement vers `generer_devis_terrasse_bois_detail`**. Tenter d'abord le configurateur WAPF (`generer_devis_terrasse_bois`) qui supporte `configurations_supplementaires` (multi-zones sur 1 PDF).
+
+**Étapes obligatoires :**
+
+1. **Vérifier les longueurs disponibles dans le configurateur** via `rechercher_produits_detail(site="terrasse", recherche="[essence]")` — comparer les longueurs demandées par le client avec celles du configurateur WAPF.
+
+2. **Si les longueurs matchent** → utiliser `generer_devis_terrasse_bois` :
+   - Passer `nb_lames=X`, `nb_lambourdes=Y`, `visserie="Vis Inox 5x60mm"` etc.
+   - Si le client a 2+ zones → utiliser `configurations_supplementaires` pour tout mettre sur 1 PDF
+   - **Avantage** : 1 seul devis PDF propre avec toutes les zones, le configurateur calcule automatiquement les quantités d'accessoires
+
+3. **Si les longueurs NE matchent PAS** (ex : client demande 2,75m mais configurateur n'a que 1.25, 1.85, 2.15, 3.05, 3.65) → **fallback** vers `generer_devis_terrasse_bois_detail` :
+   - `rechercher_produits_detail(site="terrasse", recherche="[essence] au detail")` pour obtenir les URLs et variation_ids du catalogue au détail
+   - **Regrouper les quantités** : si 2 zones utilisent le même produit (même longueur), **additionner les quantités** en une seule ligne (ex : 8 lambourdes zone 1 + 16 lambourdes zone 2 = 24 lambourdes total)
+   - Passer toutes les lignes dans un **SEUL appel** `generer_devis_terrasse_bois_detail`
+
+**Exemple concret — Client avec 2 zones, longueurs hors configurateur :**
+
+Le client demande :
+- Zone 1 : 21 lames Cumaru 2,75m + 8 lambourdes 3,05m + 2 boîtes vis 5×60
+- Zone 2 : 46 lames Cumaru 2,45m + 16 lambourdes 3,05m + 3 boîtes vis 5×60
+
+Étape 1 : Vérifier → le configurateur WAPF Cumaru n'a pas 2,75m ni 2,45m → fallback détail.
+
+Étape 2 : Regrouper les quantités identiques :
+- Lames 2,75m : 21 (une seule zone)
+- Lames 2,45m : 46 (une seule zone)
+- Lambourdes 3,05m : 8 + 16 = **24** (regroupées)
+- Vis 5×60mm : 2 + 3 = **5 boîtes** (regroupées)
+
+Étape 3 : UN SEUL appel avec 4 lignes :
+```python
+generer_devis_terrasse_bois_detail(
+    produits='[
+        {"url": "...", "variation_id": 89494, "quantite": 21, "attribut_selects": {...}, "description": "21 lames Cumaru 2,75m (zone 1 — 8m²)"},
+        {"url": "...", "variation_id": 89493, "quantite": 46, "attribut_selects": {...}, "description": "46 lames Cumaru 2,45m (zone 2 — 16m²)"},
+        {"url": "...", "variation_id": 89624, "quantite": 24, "attribut_selects": {...}, "description": "24 lambourdes Niove 40×60 3,05m"},
+        {"url": "...", "variation_id": ...,   "quantite": 5,  "attribut_selects": {},    "description": "5 boîtes vis Inox 5×60mm"}
+    ]',
+    code_promo="LEROYMERLIN10",
+    client_nom="Delrue", client_prenom="Valérie", ...
+)
+```
+
+> ⚠ **Ne JAMAIS dupliquer les lignes par zone** — toujours regrouper les produits identiques (même variation_id) en additionnant les quantités.
+
+---
 
 **Recalcul nb_lames quand essences différentes :**
 Essences différentes ont des longueurs disponibles différentes → nb_lames ≠ pour la même surface.

@@ -62,7 +62,8 @@ Pipeline : [Marque]
 | Client veut 1 abri configuré + 1 modèle préconçu sur le même devis | ✅ `generer_devis_abri` pour le configuré + `rechercher_produits_detail` pour le préconçu → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
-| **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes) → `generer_devis_terrasse_bois_detail` |
+| **Terrasse — client donne quantités exactes (lames + lambourdes + vis…)** | ✅ **Workflow "configurateur d'abord"** — voir section Terrasse ci-dessous |
+| **Terrasse — client veut 2+ zones/configs sur le même devis** | ✅ `generer_devis_terrasse_bois` avec `configurations_supplementaires` — voir section Terrasse ci-dessous |
 | **Terrasse — devis comparatif essences différentes** | ✅ Recalculer nb_lames selon longueurs dispo de chaque essence (longueurs ≠ entre Pin et exotiques) |
 | **Client demande un modèle préconçu (Essentiel ou Haut de Gamme)** | ✅ `rechercher_produits_detail(site="abri", recherche="essentiel …")` → trouver url + variation_id → `generer_devis_abri` avec `produits_complementaires` |
 | Client avec budget serré sans modèle précis | ✉ Proposer Gamme Essentiel — lister les modèles via `rechercher_produits_detail` + email A |
@@ -240,15 +241,16 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 
 **Deux offres disponibles :**
 
-#### Configurateur sur-mesure (WAPF) — à utiliser pour TOUTES les essences
+#### Configurateur sur-mesure (WAPF) — à utiliser EN PRIORITÉ
 
-⚠ **Règle principale : toujours utiliser `generer_devis_terrasse_bois` pour générer un PDF.** Toutes les essences sont disponibles (Pin, Cumaru, Ipé, Jatoba, Padouk, Frake). Les plots sont un **paramètre natif** du configurateur — les inclure directement via `plots="6 à 9 cm"` etc., jamais via `produits_complementaires`.
+⚠ **Règle principale : toujours tenter `generer_devis_terrasse_bois` EN PREMIER.** Ce configurateur supporte `configurations_supplementaires` (multi-zones sur 1 PDF) et gère automatiquement les calculs d'accessoires. Toutes les essences sont disponibles (Pin, Cumaru, Ipé, Jatoba, Padouk, Frake). Les plots sont un **paramètre natif** du configurateur — les inclure directement via `plots="6 à 9 cm"` etc., jamais via `produits_complementaires`.
 
 | Situation client | Paramètres à utiliser |
 |------------------|-----------------------|
 | Surface en m² | `quantite=X` |
 | Nombre exact de lames (sans lambourdes) | `nb_lames=X` |
 | Nombre exact de lames + lambourdes | `nb_lames=X, nb_lambourdes=Y` |
+| 2+ zones/configs différentes | `configurations_supplementaires` (chaque zone = 1 config) |
 | Plots réglables | `plots="6 à 9 cm"` (ou autre hauteur) — **toujours en paramètre direct** |
 | Visserie | `visserie="Vis Inox 5x50mm"` etc. |
 
@@ -263,8 +265,58 @@ generer_devis_terrasse_bois(
 ```
 → Le PDF inclura lames + lambourdes + plots. **Ne pas chercher les plots au-détail séparément.**
 
+#### Workflow "Configurateur d'abord" — quantités exactes et multi-zones
+
+> ⚠ **Quand un client donne des quantités exactes (lames, lambourdes, vis), ne PAS aller directement vers `generer_devis_terrasse_bois_detail`.** Tenter d'abord le configurateur qui supporte `configurations_supplementaires`.
+
+**Étapes obligatoires :**
+
+1. **Vérifier les longueurs** : `rechercher_produits_detail(site="terrasse", recherche="[essence]")` → comparer les longueurs demandées par le client avec celles du configurateur WAPF.
+
+2. **Si les longueurs matchent** → `generer_devis_terrasse_bois` :
+   - Passer `nb_lames=X`, `nb_lambourdes=Y`, `visserie="Vis Inox 5x60mm"` etc.
+   - Si 2+ zones → utiliser `configurations_supplementaires` pour tout mettre sur 1 PDF
+   - **Avantage** : 1 seul devis PDF propre avec toutes les zones
+
+3. **Si les longueurs NE matchent PAS** → **fallback** vers `generer_devis_terrasse_bois_detail` :
+   - Chercher les produits au détail : `rechercher_produits_detail(site="terrasse", recherche="[essence] au detail")`
+   - **Regrouper les quantités identiques** : si 2 zones utilisent le même produit (même variation_id), **additionner les quantités** en une seule ligne
+   - Passer toutes les lignes dans un **SEUL appel** `generer_devis_terrasse_bois_detail`
+
+**Exemple — 2 zones, longueurs DISPONIBLES dans le configurateur (3,05m) :**
+```
+generer_devis_terrasse_bois(
+    essence="CUMARU", longueur="3.05",
+    nb_lames=30, lambourdes="Bois exotique Niove 40x60",
+    lambourdes_longueur="3.05", nb_lambourdes=12,
+    visserie="Vis Inox 5x60mm",
+    configurations_supplementaires='[{
+        "essence": "CUMARU", "longueur": "3.65",
+        "nb_lames": 45, "lambourdes": "Bois exotique Niove 40x60",
+        "lambourdes_longueur": "3.05", "nb_lambourdes": 18,
+        "visserie": "Vis Inox 5x60mm"
+    }]',
+    client_nom="Dupont", ...
+)
+```
+
+**Exemple — 2 zones, longueurs HORS configurateur (2,75m et 2,45m) → fallback détail :**
+```
+generer_devis_terrasse_bois_detail(
+    produits='[
+        {"url": "...", "variation_id": 89494, "quantite": 21, "description": "21 lames Cumaru 2,75m (zone 1)"},
+        {"url": "...", "variation_id": 89493, "quantite": 46, "description": "46 lames Cumaru 2,45m (zone 2)"},
+        {"url": "...", "variation_id": 89624, "quantite": 24, "description": "24 lambourdes Niove 3,05m"},
+        {"url": "...", "variation_id": ...,   "quantite": 5,  "description": "5 boîtes vis Inox 5×60mm"}
+    ]',
+    code_promo="LEROYMERLIN10", client_nom="Delrue", ...
+)
+```
+> ⚠ Lambourdes regroupées (8+16=24) et vis regroupées (2+3=5) — ne JAMAIS dupliquer les lignes par zone.
+
 **Quand utiliser `rechercher_produits_detail(site="terrasse")` :**
-→ Uniquement pour trouver le **prix unitaire** d'un produit à communiquer dans un email (ex : client veut savoir combien coûte 1 plot, 1 lame Cumaru…).
+→ Pour vérifier les longueurs disponibles dans le configurateur vs au détail.
+→ Pour trouver le **prix unitaire** d'un produit à communiquer dans un email.
 → ⚠ Lames Pin (21mm, 27mm) **non disponibles** au-détail — toujours passer par le configurateur.
 → ⚠ `produits_complementaires` sur terrasse : ajoutés au panier WC mais **absents du PDF** — ne pas utiliser pour plots, visserie ou lames.
 
