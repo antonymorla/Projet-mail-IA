@@ -803,12 +803,17 @@ async def generer_devis_abri(
     code_promo: str = "",
     produits_uniquement: bool = False,
     configurations_supplementaires: str = "[]",
+    # --- Paramètres-pièges : intercepter les inventions de l'IA ---
+    obstruer_extensions: bool = None,
+    bois_supplementaire_m2: float = None,
+    ajouter_planches: bool = None,
 ) -> str:
     """Génère un devis PDF abri de jardin sur abri-francais.fr.
 
-    ⛔ PARAMÈTRES INTERDITS : obstruer_extensions, bois_supplementaire_m2, ajouter_planches N'EXISTENT PAS.
-    Pour ajouter des planches/bois/obstruction → appeler rechercher_produits_detail AVANT puis passer
-    le résultat dans produits_complementaires avec url, variation_id, quantite, attribut_selects, description.
+    ⚠ WORKFLOW OBLIGATOIRE pour planches/bois/obstruction d'extension :
+    1. Appeler rechercher_produits_detail(site="abri", recherche="planche 27x130") AVANT
+    2. Calculer les quantités (obstruction = 16 planches/face, bois = ceil(m²/(0.130×longueur)))
+    3. Passer le résultat dans produits_complementaires ci-dessous
 
     Args:
         largeur: "4,35M", "4,70M", "5,50M", etc.
@@ -828,6 +833,32 @@ async def generer_devis_abri(
         configurations_supplementaires: JSON array de configs supplémentaires pour multi-abri sur 1 PDF.
             Ex: [{"largeur":"4,70M","profondeur":"3,45m","ouvertures":[...],"extension_toiture":"Gauche 3,5 M","bac_acier":true,"plancher":false}]
     """
+    # --- Intercepter les paramètres inventés par l'IA ---
+    params_pieges = {
+        "obstruer_extensions": obstruer_extensions,
+        "bois_supplementaire_m2": bois_supplementaire_m2,
+        "ajouter_planches": ajouter_planches,
+    }
+    params_utilises = {k: v for k, v in params_pieges.items() if v is not None}
+    if params_utilises:
+        return json.dumps({
+            "success": False,
+            "error": f"PARAMÈTRES INVALIDES DÉTECTÉS : {', '.join(params_utilises.keys())}. "
+                     "Ces paramètres N'EXISTENT PAS. "
+                     "Pour ajouter des planches, du bois ou obstruer une extension, "
+                     "tu DOIS suivre ce workflow EN 3 ÉTAPES : "
+                     "1) Appeler rechercher_produits_detail(site='abri', recherche='planche 27x130') "
+                     "pour obtenir url, variation_id et attribut_selects. "
+                     "2) Calculer les quantités : obstruction = 16 planches par face d'extension "
+                     "(longueur planche >= largeur extension), "
+                     "bois supplémentaire = ceil(m² / (0.130 × longueur_planche)). "
+                     "3) Passer le résultat dans produits_complementaires au format JSON : "
+                     '[{"url":"...","variation_id":123,"quantite":N,'
+                     '"attribut_selects":{"attribute_pa_longueur":"4-2-m"},'
+                     '"description":"..."}]. '
+                     "Relance l'appel SANS ces paramètres invalides et AVEC produits_complementaires rempli."
+        })
+
     # Parser produits_complementaires
     try:
         produits_list = json.loads(produits_complementaires) if isinstance(produits_complementaires, str) else produits_complementaires
