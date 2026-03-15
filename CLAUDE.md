@@ -72,8 +72,8 @@ Corps: …
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
 | Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** à l'outil correspondant (`generer_devis_abri`, `generer_devis_studio`, `generer_devis_pergola_bois`, `generer_devis_terrasse_bois`, `generer_devis_cloture_bois`) avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
-| Client veut obstruer/fermer le fond des extensions | ✅ `generer_devis_abri` avec `obstruer_extensions=True` — planches calculées et ajoutées automatiquement |
-| Client veut du bois en plus (jardinières, étagères…) | ✅ `generer_devis_abri` avec `bois_supplementaire_m2=10` — planches calculées et ajoutées automatiquement |
+| Client veut obstruer/fermer le fond des extensions | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer quantités (16 planches/face, longueur ≥ largeur extension) → passer en `produits_complementaires` |
+| Client veut du bois en plus (jardinières, étagères…) | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer `nb = ceil(m² / (0.130 × longueur))` → passer en `produits_complementaires` |
 | Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis_abri` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
@@ -147,8 +147,6 @@ generer_devis_abri(
     produits_complementaires='[]',      # JSON array — utiliser rechercher_produits_detail d'abord
     produits_uniquement=False,          # True = Gamme Essentiel (skip configurateur)
     configurations_supplementaires='[]', # Multi-abri sur 1 PDF
-    obstruer_extensions=False,          # True = auto-ajout planches 27×130 pour fermer extensions
-    bois_supplementaire_m2=0,           # m² de bois extra (jardinières…)
 )
 ```
 
@@ -566,6 +564,21 @@ Cordialement,
 - **Longueur des planches** : doit couvrir la **largeur de l'extension** → prendre la longueur standard juste au-dessus (ex : extension 3,5m → planches de **4,2m**)
 - Produit : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → variation à la longueur voulue
 
+**Workflow obligatoire** (Claude calcule, le script exécute) :
+1. `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → obtenir `url`, `variation_id`, `attribut_selects` pour la bonne longueur
+2. Calculer les quantités :
+   - **Obstruction extension** : 16 planches × nb_extensions (longueur planche ≥ largeur extension)
+   - **Bois supplémentaire** : `ceil(m² / (0.130 × longueur_planche))`
+3. Passer le tout dans `produits_complementaires` de `generer_devis_abri`
+
+> ⚠ Le script vérifie automatiquement le panier après chaque ajout et affiche un récapitulatif détaillé (nom + quantité + prix). Si un produit n'est pas ajouté, le script retente une fois.
+
+### Bois supplémentaire (jardinières, étagères…)
+
+- Même workflow que les planches d'obstruction
+- **Formule** : `nb_planches = ceil(surface_m² / (0.130 × longueur_planche))`
+- Ex : 10m² de bois avec planches de 4,2m → `ceil(10 / (0.130 × 4.2))` = **19 planches**
+
 ### Plusieurs produits personnalisés sur le même devis (`configurations_supplementaires`)
 
 > ⚠ **RÈGLE ABSOLUE** : quand un client veut 2+ produits configurés sur le même devis, faire **UN SEUL appel** à `generer_devis_abri` (ou `generer_devis_studio`, etc.) avec le 2ème produit dans `configurations_supplementaires`. **INTERDIT de faire 2 appels séparés** — cela crée 2 devis au lieu d'un seul PDF combiné. Les `produits_complementaires` doivent aussi être dans ce même appel unique.
@@ -575,7 +588,16 @@ Cordialement,
 - Le script configure le 1er produit, l'ajoute au panier, puis navigue à nouveau vers le configurateur pour chaque config supplémentaire
 - Les `produits_complementaires` sont ajoutés après tous les produits configurés
 
-**Exemple — 2 abris Gamme Origine + planches auto sur le même devis :**
+**Exemple — 2 abris + planches obstruction + bois jardinières sur le même devis :**
+
+Étape 1 : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → trouver variation 4,2m
+
+Étape 2 : Calculer les quantités
+- 2 extensions de 3,5m → planches de 4,2m → 16 × 2 = **32 planches**
+- 10m² bois supplémentaire → `ceil(10 / (0.130 × 4.2))` = **19 planches**
+- Total : **51 planches** de 4,2m
+
+Étape 3 : UN SEUL appel
 ```python
 generer_devis_abri(
     largeur="5,50M", profondeur="3,45m",
@@ -586,8 +608,13 @@ generer_devis_abri(
         "ouvertures": [{"type": "Porte double Vitrée", "face": "Face 2", "position": "Centre"}],
         "extension_toiture": "Gauche 3,5 M", "bac_acier": true
     }]',
-    obstruer_extensions=True,       # AUTO : planches pour fermer les 2 extensions
-    bois_supplementaire_m2=10,      # AUTO : bois jardinières
+    produits_complementaires='[{
+        "url": "<url depuis rechercher_produits_detail>",
+        "variation_id": <id_variation_4_2m>,
+        "quantite": 51,
+        "attribut_selects": {"attribute_pa_longueur": "4-2-m"},
+        "description": "51 planches 27×130 autoclave 4,2m (32 obstruction + 19 jardinières)"
+    }]',
     client_nom="Dupont", ...
 )
 ```
@@ -610,7 +637,7 @@ scripts/                             # ← SOURCE DE VÉRITÉ — tout le code e
 └── mcp_server_devis.py              # Serveur MCP exposant 12 outils à Claude :
                                      #   verifier_promotions_actives
                                      #   rechercher_produits_detail (API WC live + cache 5min)
-                                     #   generer_devis_abri (auto-planches + configurations_supplementaires)
+                                     #   generer_devis_abri (configurations_supplementaires)
                                      #   generer_devis_studio (configurations_supplementaires)
                                      #   generer_devis_pergola_bois (configurations_supplementaires)
                                      #   generer_devis_terrasse_bois (configurations_supplementaires)

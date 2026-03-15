@@ -986,6 +986,7 @@ class GenerateurDevis:
 
         Si la page courante n'est pas le panier, y navigue d'abord.
         Retourne le nombre de lignes effectivement présentes.
+        Affiche un récapitulatif détaillé de chaque ligne (nom + quantité + prix).
         """
         panier_path = self.site_config.get("panier", "/panier/")
         cart_url = self.base_url + panier_path
@@ -993,18 +994,39 @@ class GenerateurDevis:
             await self.page.goto(cart_url, wait_until="domcontentloaded", timeout=20000)
             await self.page.wait_for_timeout(2000)
 
-        nb_items = await self.page.evaluate("""
+        # Récupérer le détail de chaque ligne du panier
+        cart_details = await self.page.evaluate("""
             () => {
                 const rows = document.querySelectorAll(
                     '.woocommerce-cart-form__cart-item, tr.cart_item'
                 );
-                return rows.length;
+                const items = [];
+                for (const row of rows) {
+                    const nameEl = row.querySelector('.product-name a, td.product-name a');
+                    const qtyEl = row.querySelector('input.qty, .product-quantity input');
+                    const priceEl = row.querySelector('.product-subtotal .amount, td.product-subtotal .amount');
+                    items.push({
+                        name: nameEl ? nameEl.textContent.trim() : '?',
+                        qty: qtyEl ? (qtyEl.value || '1') : '1',
+                        subtotal: priceEl ? priceEl.textContent.trim() : '?',
+                    });
+                }
+                return items;
             }
         """)
+        nb_items = len(cart_details)
         if nb_items >= nb_attendu:
             print(f"    ✓ Panier OK : {nb_items} ligne(s) présente(s)")
         else:
             print(f"    ⚠ Panier : {nb_items} ligne(s) au lieu de {nb_attendu} attendue(s)")
+
+        # Récapitulatif détaillé
+        if cart_details:
+            print(f"    ┌── Récapitulatif panier ──")
+            for i, item in enumerate(cart_details, 1):
+                print(f"    │ {i}. {item['name']} × {item['qty']} → {item['subtotal']}")
+            print(f"    └── {nb_items} ligne(s) total ──")
+
         return nb_items
 
     async def _appliquer_code_promo(self, code_promo: str):

@@ -10,7 +10,6 @@ Lancement :
     python3 mcp_server_devis.py
 """
 
-import asyncio
 import datetime
 import json
 import os
@@ -182,196 +181,6 @@ def _woo_api_get(base_url: str, path: str, params: dict = None) -> list | dict:
         return json.loads(resp.read())
 
 
-# ═══════════════════════════════════════════════════════════════
-# HELPER : AUTO-CALCUL PLANCHES POUR EXTENSIONS (abri)
-# ═══════════════════════════════════════════════════════════════
-
-import math as _math
-import re as _re_mod
-
-
-def _extraire_largeur_extension(extension_toiture: str) -> float:
-    """Extrait la largeur en mètres d'une extension_toiture.
-    Ex: 'Droite 3,5 M' → 3.5, 'Gauche 1 M' → 1.0, '' → 0.0
-    """
-    if not extension_toiture:
-        return 0.0
-    # Pattern : "Droite 3,5 M" ou "Gauche 1 M" ou "Droite 1,5 M"
-    m = _re_mod.search(r'(\d+[,.]?\d*)\s*M', extension_toiture, _re_mod.IGNORECASE)
-    if m:
-        return float(m.group(1).replace(',', '.'))
-    return 0.0
-
-
-def _chercher_planches_27x130(base_url: str) -> list:
-    """Cherche les planches 27×130mm sur le site abri via l'API WooCommerce.
-    Retourne la liste des variations avec leur longueur, variation_id, prix, etc.
-    """
-    try:
-        products = _woo_api_get(base_url, "products", {"search": "planche", "per_page": 20})
-        print(f"  [auto-planches] API retourné {len(products)} produit(s) pour 'planche'")
-        # Chercher le produit "planche 27x130" ou "planche 27×130"
-        for p in products:
-            name = p.get("name", "").lower()
-            print(f"  [auto-planches] Produit: {name}")
-            if "27" in name and ("130" in name or "×130" in name or "x130" in name):
-                print(f"  [auto-planches] ✓ Match trouvé: {p.get('name', '')} (id={p.get('id')})")
-                raw_variations = p.get("variations", [])
-                print(f"  [auto-planches] {len(raw_variations)} variation(s) inline")
-                variations = []
-                for v in raw_variations:
-                    # Extraire la longueur depuis les attributs
-                    longueur = None
-                    attr_selects = {}
-                    for a in v.get("attributes", []):
-                        attr_slug = "attribute_pa_" + a["name"].lower().replace(" ", "_").replace("-", "_")
-                        attr_selects[attr_slug] = a["value"]
-                        # Décoder la valeur pour extraire la longueur
-                        val_decoded = urllib.parse.unquote(a["value"])
-                        # "4-2-m" → 4.2, "2-m" → 2.0, "3-m" → 3.0
-                        m = _re_mod.match(r'^(\d+)(?:-(\d+))?-m', val_decoded)
-                        if m:
-                            if m.group(2):
-                                longueur = float(f"{m.group(1)}.{m.group(2)}")
-                            else:
-                                longueur = float(m.group(1))
-
-                    if longueur is not None:
-                        minor = int(p.get("prices", {}).get("currency_minor_unit", 2))
-                        divisor = 10 ** minor
-                        if "prices" in v:
-                            prix = int(v["prices"].get("price", 0)) / divisor
-                        else:
-                            prix = int(p.get("prices", {}).get("price", 0)) / divisor
-
-                        variations.append({
-                            "variation_id": v["id"],
-                            "longueur_m": longueur,
-                            "prix": round(prix, 2),
-                            "en_stock": v.get("is_in_stock", True),
-                            "attr_selects": attr_selects,
-                        })
-
-                print(f"  [auto-planches] {len(variations)} variation(s) avec longueur parsée")
-                url = f"{base_url}/produit/{p['slug']}/"
-                return sorted(variations, key=lambda x: x["longueur_m"]), url
-        print("  [auto-planches] ⚠ Aucun produit ne matche '27' + '130'")
-    except Exception as e:
-        print(f"  [auto-planches] ❌ Erreur API: {e}")
-    return [], ""
-
-
-def _auto_planches_pour_extensions(
-    extension_principale: str,
-    configs_sup: list,
-    bois_supplementaire_m2: float,
-    site_base_url: str,
-) -> list:
-    """Calcule automatiquement les planches nécessaires pour obstruer les extensions
-    et/ou ajouter du bois supplémentaire (jardinières, etc.).
-
-    Retourne une liste de dicts produits_complementaires prêts à l'emploi.
-    """
-    print(f"  [auto-planches] Démarrage: ext_principale='{extension_principale}', "
-          f"configs_sup={len(configs_sup or [])}, bois_sup_m2={bois_supplementaire_m2}")
-    # Collecter toutes les extensions à obstruer
-    extensions = []
-    largeur_main = _extraire_largeur_extension(extension_principale)
-    if largeur_main > 0:
-        extensions.append(largeur_main)
-    for cfg in (configs_sup or []):
-        l = _extraire_largeur_extension(cfg.get("extension_toiture", ""))
-        if l > 0:
-            extensions.append(l)
-
-    if not extensions and bois_supplementaire_m2 <= 0:
-        print("  [auto-planches] Rien à faire (pas d'extension, pas de bois sup)")
-        return []
-
-    print(f"  [auto-planches] Extensions détectées: {extensions}")
-    # Chercher les planches 27×130 disponibles
-    variations, product_url = _chercher_planches_27x130(site_base_url)
-    if not variations or not product_url:
-        print("  [auto-planches] ⚠ Aucune variation planche trouvée — abandon")
-        return []
-    print(f"  [auto-planches] ✓ {len(variations)} variations trouvées, url={product_url}")
-
-    # Hauteur intérieure abri Gamme Origine : ~2050mm
-    # nb_planches par face = ceil(2050 / 130) = 16
-    NB_PLANCHES_PAR_FACE = _math.ceil(2050 / 130)  # = 16
-
-    # Pour chaque extension, trouver la longueur de planche nécessaire
-    # (prendre la plus petite longueur standard ≥ largeur extension)
-    # Regrouper par longueur de planche pour optimiser (1 seul produit complémentaire)
-    besoin_par_longueur = {}  # {longueur_m: nb_planches}
-
-    for ext_largeur in extensions:
-        # Trouver la variation avec longueur ≥ ext_largeur
-        variation_ok = None
-        for var in variations:
-            if var["longueur_m"] >= ext_largeur and var.get("en_stock", True):
-                variation_ok = var
-                break
-        if not variation_ok:
-            # Prendre la plus longue disponible
-            en_stock = [v for v in variations if v.get("en_stock", True)]
-            if en_stock:
-                variation_ok = en_stock[-1]
-            else:
-                continue
-
-        longueur = variation_ok["longueur_m"]
-        besoin_par_longueur.setdefault(longueur, {"nb": 0, "var": variation_ok})
-        besoin_par_longueur[longueur]["nb"] += NB_PLANCHES_PAR_FACE
-
-    # Bois supplémentaire en m²
-    if bois_supplementaire_m2 > 0:
-        # Prendre la longueur la plus longue disponible en stock
-        en_stock = [v for v in variations if v.get("en_stock", True)]
-        if en_stock:
-            var_longue = en_stock[-1]
-            longueur = var_longue["longueur_m"]
-            nb_planches_sup = _math.ceil(bois_supplementaire_m2 / (0.130 * longueur))
-            besoin_par_longueur.setdefault(longueur, {"nb": 0, "var": var_longue})
-            besoin_par_longueur[longueur]["nb"] += nb_planches_sup
-
-    # Construire les produits_complementaires
-    result = []
-    for longueur, data in besoin_par_longueur.items():
-        var = data["var"]
-        nb = data["nb"]
-        # Description lisible
-        parts = []
-        # Combien viennent des extensions ?
-        nb_ext = 0
-        for ext_l in extensions:
-            # Vérifier si cette longueur couvre cette extension
-            couvertes = [v for v in variations if v["longueur_m"] >= ext_l and v.get("en_stock", True)]
-            if couvertes and couvertes[0]["longueur_m"] == longueur:
-                nb_ext += NB_PLANCHES_PAR_FACE
-        if nb_ext > 0:
-            nb_faces = nb_ext // NB_PLANCHES_PAR_FACE
-            parts.append(f"{nb_ext} pour obstruer {nb_faces} extension{'s' if nb_faces > 1 else ''}")
-        nb_sup = nb - nb_ext
-        if nb_sup > 0:
-            m2_couvert = round(nb_sup * 0.130 * longueur, 1)
-            parts.append(f"{nb_sup} pour bois supplémentaire (~{m2_couvert} m²)")
-        desc = f"{nb} planches 27×130 autoclave {longueur}m"
-        if parts:
-            desc += f" ({' + '.join(parts)})"
-
-        result.append({
-            "url": product_url,
-            "variation_id": var["variation_id"],
-            "quantite": nb,
-            "attribut_selects": var["attr_selects"],
-            "description": desc,
-        })
-
-    print(f"  [auto-planches] ✅ Résultat: {len(result)} produit(s) complémentaire(s)")
-    for r in result:
-        print(f"    → {r['description']} (variation_id={r['variation_id']}, qté={r['quantite']})")
-    return result
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -994,10 +803,8 @@ async def generer_devis_abri(
     code_promo: str = "",
     produits_uniquement: bool = False,
     configurations_supplementaires: str = "[]",
-    obstruer_extensions: bool = False,
-    bois_supplementaire_m2: float = 0,
 ) -> str:
-    """Génère un devis PDF abri de jardin sur abri-francais.fr. 18 paramètres.
+    """Génère un devis PDF abri de jardin sur abri-francais.fr.
 
     Args:
         largeur: "4,35M", "4,70M", "5,50M", etc.
@@ -1010,11 +817,11 @@ async def generer_devis_abri(
         bac_acier: True pour bac acier anti-condensation
         produits_complementaires: JSON array produits au même panier. Utiliser rechercher_produits_detail d'abord.
             Format: [{"url":"...","variation_id":123,"quantite":N,"attribut_selects":{},"description":"..."}]
+            Pour obstruer extensions ou ajouter du bois : appeler rechercher_produits_detail(site="abri",
+            recherche="planche 27x130") AVANT, calculer les quantités, et les passer ici.
         produits_uniquement: True = skip configurateur, ajouter UNIQUEMENT produits_complementaires (Gamme Essentiel)
         configurations_supplementaires: JSON array de configs supplémentaires pour multi-abri sur 1 PDF.
             Ex: [{"largeur":"4,70M","profondeur":"3,45m","ouvertures":[...],"extension_toiture":"Gauche 3,5 M","bac_acier":true,"plancher":false}]
-        obstruer_extensions: True = ajouter auto planches 27×130 pour fermer extensions (16/face, longueur auto)
-        bois_supplementaire_m2: m² de bois extra (jardinières…). Ex: 10 → ~19 planches 4,2m auto.
     """
     # Parser produits_complementaires
     try:
@@ -1031,28 +838,6 @@ async def generer_devis_abri(
             configs_sup = []
     except (json.JSONDecodeError, TypeError):
         configs_sup = []
-
-    # ── Auto-calcul planches pour extensions + bois supplémentaire ──
-    # Exécuté dans un thread pour ne pas bloquer l'event loop asyncio
-    # (_auto_planches_pour_extensions fait des appels HTTP synchrones via urllib)
-    if obstruer_extensions or bois_supplementaire_m2 > 0:
-        try:
-            planches_auto = await asyncio.to_thread(
-                _auto_planches_pour_extensions,
-                extension_principale=extension_toiture if obstruer_extensions else "",
-                configs_sup=configs_sup if obstruer_extensions else [],
-                bois_supplementaire_m2=bois_supplementaire_m2,
-                site_base_url=SITES_BASE_URL["abri"],
-            )
-            if planches_auto:
-                produits_list.extend(planches_auto)
-                print(f"  [auto-planches] ✅ {len(planches_auto)} produit(s) ajouté(s) à produits_list (total: {len(produits_list)})")
-            else:
-                print("  [auto-planches] ⚠ Fonction retournée mais liste vide")
-        except Exception as e:
-            import traceback
-            print(f"  ⚠ Auto-planches échoué: {e}")
-            traceback.print_exc()
 
     try:
         # Parser les ouvertures (JSON string → list)

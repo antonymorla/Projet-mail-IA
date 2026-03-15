@@ -57,8 +57,8 @@ Pipeline : [Marque]
 | Config complète (dimensions + options) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
 | Client veut 2+ produits configurés sur le même devis | ✅ **UN SEUL appel** `generer_devis_abri` avec `configurations_supplementaires` (multi-config sur 1 PDF) — ⚠ INTERDIT de faire 2 appels séparés |
-| Client veut obstruer/fermer le fond des extensions | ✅ `generer_devis_abri` avec `obstruer_extensions=True` — planches 27×130 calculées et ajoutées **automatiquement** |
-| Client veut du bois en plus (jardinières, étagères…) | ✅ `generer_devis_abri` avec `bois_supplementaire_m2=10` — planches calculées et ajoutées **automatiquement** |
+| Client veut obstruer/fermer le fond des extensions | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer 16 planches/face (longueur ≥ largeur extension) → passer en `produits_complementaires` |
+| Client veut du bois en plus (jardinières, étagères…) | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer `ceil(m² / (0.130 × longueur))` → passer en `produits_complementaires` |
 | Client veut 1 abri configuré + 1 modèle préconçu sur le même devis | ✅ `generer_devis_abri` pour le configuré + `rechercher_produits_detail` pour le préconçu → `produits_complementaires` |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
@@ -725,8 +725,8 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 - **Studio — Cloison intérieure** : `rechercher_produits_detail(site="studio", recherche="cloison")`
 - **Abri — Bac acier anti-condensation** : option directe dans `generer_devis_abri` (`bac_acier=True`)
 - **Abri — Plancher** : option directe dans `generer_devis_abri` (`plancher="true"`)
-- **Abri — Obstruer les extensions** : option directe (`obstruer_extensions=True`) — planches 27×130 calculées et ajoutées **automatiquement** (16 planches/face, longueur adaptée)
-- **Abri — Bois supplémentaire** : option directe (`bois_supplementaire_m2=10`) — planches 27×130 calculées automatiquement pour la surface demandée
+- **Abri — Obstruer les extensions** : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer 16 planches/face (longueur ≥ largeur extension) → passer en `produits_complementaires`
+- **Abri — Bois supplémentaire** : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer `ceil(m² / (0.130 × longueur))` → passer en `produits_complementaires`
 - **Pergola — Poteau Rive** : `rechercher_produits_detail(site="pergola", recherche="poteau rive")`
 - **Pergola — Pied de poteau** : `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
 - **Pergola — Poteaux lamellé-collé** : option directe (`poteau_lamelle_colle=True`) + `nb_poteaux_lamelle_colle=N`
@@ -777,11 +777,16 @@ generer_devis_abri(
                        {"type": "Porte double Vitrée", "face": "Face 2", "position": "Centre"}],
         "extension_toiture": "Gauche 3,5 M", "bac_acier": true, "plancher": false
     }]',
-    obstruer_extensions=True,       # ← AUTO : 32 planches 27×130 (16/face × 2 extensions)
-    bois_supplementaire_m2=10,      # ← AUTO : ~19 planches supplémentaires pour jardinières
+    produits_complementaires='[{
+        "url": "<url depuis rechercher_produits_detail>",
+        "variation_id": 12345,
+        "quantite": 51,
+        "attribut_selects": {"attribute_pa_longueur": "4-2-m"},
+        "description": "51 planches 27×130 autoclave 4,2m (32 obstruction + 19 jardinières)"
+    }]',
 )
 ```
-> ☝ **Tout dans UN SEUL appel** : 2 abris + planches calculées automatiquement. Plus besoin de `rechercher_produits_detail` ni de calculer les quantités de planches !
+> ☝ **Tout dans UN SEUL appel** : 2 abris + planches. Claude calcule les quantités via `rechercher_produits_detail` puis passe le tout en `produits_complementaires`. Le script vérifie le panier après chaque ajout.
 
 **Paramètres disponibles par site :**
 | Site | Champs de chaque config supplémentaire |
