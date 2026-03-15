@@ -101,7 +101,7 @@ async def appliquer_code_promo(page, code_promo: str) -> None:
         if result.get("error"):
             print(f"    ⚠ Code promo {code_promo} refusé par le site (invalide ou non applicable)")
             return
-        print(f"    ⚠ nonce absent, tentative via formulaire...")
+        print("    ⚠ nonce absent, tentative via formulaire...")
     except Exception as e:
         print(f"    ⚠ AJAX échoué ({e}), tentative via formulaire...")
 
@@ -122,6 +122,6 @@ async def appliquer_code_promo(page, code_promo: str) -> None:
             else:
                 print(f"    ⚠ Code promo {code_promo} : résultat inconnu")
         else:
-            print(f"    ⚠ Formulaire coupon introuvable")
+            print("    ⚠ Formulaire coupon introuvable")
     except Exception as e:
         print(f"    ⚠ Erreur application code promo {code_promo} (formulaire) : {e}")

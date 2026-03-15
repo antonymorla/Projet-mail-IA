@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 
@@ -133,12 +133,9 @@ class TestGenererDirect:
         orig_available = mcp._GENERATORS_AVAILABLE
         mcp._GENERATORS_AVAILABLE = True
 
-        # Patch _run_generator to return an existing PDF path
-        async def fake_gen(*a, **kw):
-            return str(pdf)
-
-        orig_run = mcp._run_generator
-        mcp._run_generator = fake_gen
+        # Patch the imported generer_devis_pergola to return the existing PDF
+        orig_gen = mcp.generer_devis_pergola
+        mcp.generer_devis_pergola = AsyncMock(return_value=(str(pdf), ""))
 
         try:
             result_str = await asyncio.wait_for(
@@ -152,7 +149,7 @@ class TestGenererDirect:
             assert "size_kb" in data
         finally:
             mcp._GENERATORS_AVAILABLE = orig_available
-            mcp._run_generator = orig_run
+            mcp.generer_devis_pergola = orig_gen
 
     @pytest.mark.asyncio
     async def test_generateurs_non_disponibles(self) -> None:

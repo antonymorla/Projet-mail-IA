@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 
 try:
-    from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
+    from playwright.async_api import async_playwright
 except ImportError:
     import sys
     print("❌ Playwright non installé.")
@@ -263,7 +263,7 @@ async def _generer_pdf_panier(
         """)
 
     Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
-    pdf_bytes = await page.pdf(
+    await page.pdf(
         path=filepath,
         format="A4",
         print_background=True,
@@ -316,7 +316,7 @@ async def _ajouter_au_panier_wapf(page, product_id: str):
     """)
     if result.get('error'):
         raise RuntimeError(f"AJAX add-to-cart failed: {result['error']}")
-    print(f"    ✓ Ajouté au panier (AJAX WAPF)")
+    print("    ✓ Ajouté au panier (AJAX WAPF)")
     await page.wait_for_timeout(2000)
 
 
@@ -384,7 +384,7 @@ async def _ajouter_au_panier_wc(page):
         added = True
     except Exception:
         await page.wait_for_timeout(3000)
-    print(f"    ✓ Ajouté au panier")
+    print("    ✓ Ajouté au panier")
     return added
 
 
@@ -529,7 +529,7 @@ async def _generer_devis_via_generateur(
 
     await page.wait_for_selector('#quote-form', timeout=10000)
 
-    print(f"  ➜ Remplissage formulaire client")
+    print("  ➜ Remplissage formulaire client")
     await page.locator('#quote-name').fill(client_nom)
     await page.locator('#quote-surname').fill(client_prenom)
     await page.locator('#quote-email').fill(client_email)
@@ -552,7 +552,7 @@ async def _generer_devis_via_generateur(
     """)
     await page.wait_for_timeout(500)
 
-    print(f"  ➜ Soumission du formulaire générateur de devis")
+    print("  ➜ Soumission du formulaire générateur de devis")
     Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
     # Intercepteur réseau — fallback headless : download event parfois absent en mode sans UI
@@ -644,7 +644,7 @@ async def _verifier_panier(page, site_url: str, nb_attendu: int) -> int:
 
     # Récapitulatif détaillé
     if cart_details:
-        print(f"    ┌── Récapitulatif panier ──")
+        print("    ┌── Récapitulatif panier ──")
         for i, item in enumerate(cart_details, 1):
             print(f"    │ {i}. {item['name']} × {item['qty']} → {item['subtotal']}")
         print(f"    └── {nb_items} ligne(s) total ──")
@@ -667,7 +667,6 @@ async def _ajouter_produits_complementaires(page, produits_list: list, site_url:
     confirmed_count = 0  # Nombre d'items réellement ajoutés au panier
     for i, prod in enumerate(produits_list):
         url          = prod.get("url", "").strip()
-        variation_id = int(prod.get("variation_id") or 0)
         quantite     = int(prod.get("quantite") or 1)
         attribut_selects = prod.get("attribut_selects") or {}
         description  = prod.get("description") or url.split("/produit/")[-1].strip("/")
@@ -742,7 +741,7 @@ async def _ajouter_produits_complementaires(page, produits_list: list, site_url:
                         confirmed = True
                         break
                     if attempt == 0:
-                        print(f"    ↺ Produit absent du panier — nouvelle tentative...")
+                        print("    ↺ Produit absent du panier — nouvelle tentative...")
                 else:
                     confirmed = True
                     break
@@ -809,7 +808,7 @@ async def _configurer_et_ajouter_pergola(
     if variation_id:
         print(f"    ✓ Variation trouvée : ID={variation_id}")
     else:
-        print(f"    ⚠ Variation non trouvée dans JSON, fallback jQuery tout-en-un")
+        print("    ⚠ Variation non trouvée dans JSON, fallback jQuery tout-en-un")
         result = await page.evaluate("""
             (attrs) => {
                 var log = [];
@@ -856,7 +855,7 @@ async def _configurer_et_ajouter_pergola(
             '.wapf-field-container.field-de3be54 div.wapf-swatch label[aria-label="Oui"]',
             timeout=5000,
         )
-        print(f"    ✓ Pergola sur-mesure activée (+199,90€)")
+        print("    ✓ Pergola sur-mesure activée (+199,90€)")
         try:
             await page.wait_for_function(
                 "!document.querySelector('.wapf-field-container.field-fe25811')?.classList.contains('wapf-hide')",
@@ -940,7 +939,7 @@ async def _configurer_et_ajouter_pergola(
             '.wapf-field-container.field-60120c1 div.wapf-swatch label[aria-label="Oui"]',
             timeout=5000,
         )
-        print(f"    ✓ Lamellé-collé sélectionné")
+        print("    ✓ Lamellé-collé sélectionné")
 
         try:
             await page.wait_for_function(
@@ -1056,7 +1055,7 @@ async def generer_devis_pergola(
     if isinstance(configurations_supplementaires, list):
         configs_sup = configurations_supplementaires
     print(f"\n{'='*60}")
-    print(f"  DEVIS PERGOLA — mapergolabois.fr")
+    print("  DEVIS PERGOLA — mapergolabois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
     extra = " | lamellé-collé" if poteau_lamelle_colle else ""
     if claustra_type:
@@ -1261,23 +1260,25 @@ async def generer_devis_terrasse(
 
     start_time = time.time()
     print(f"\n{'='*60}")
-    print(f"  DEVIS TERRASSE — terrasseenbois.fr")
+    print("  DEVIS TERRASSE — terrasseenbois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
     print(f"  Essence: {essence} | Longueur: {longueur}m | Qté: {quantite} m²")
     if extra_lames_for_split:
         print(f"  + Item 2 : {extra_lames_for_split} lames seules (mode direct — quantité exacte)")
     extras = []
-    if lambourdes: extras.append(f"lambourdes={lambourdes}")
-    if plots and plots != "NON": extras.append(f"plots={plots}")
-    if visserie: extras.append(f"visserie={visserie}")
-    if extras: print(f"  Options: {' | '.join(extras)}")
+    if lambourdes:
+        extras.append(f"lambourdes={lambourdes}")
+    if plots and plots != "NON":
+        extras.append(f"plots={plots}")
+    if visserie:
+        extras.append(f"visserie={visserie}")
+    if extras:
+        print(f"  Options: {' | '.join(extras)}")
     print(f"{'='*60}\n")
 
     SITE_URL = "https://terrasseenbois.fr"
     PRODUCT_URL = f"{SITE_URL}/produit/configurateur-terrasse/"
-    PRODUCT_ID = "57595"
     ESSENCE_FIELD = "field_65c1e3eb8cfb0"
-    LAMBOURDES_FIELD = "field_65c249d0a5359"
 
     essence_val, longueur_field = TERRASSE_ESSENCE_MAP[essence]
 
@@ -1511,7 +1512,7 @@ async def generer_devis_terrasse(
                             # Fallback : clic Playwright (implique un scroll mais c'est acceptable
                             # pour item 2 car il n'y a pas d'image spécifique à capturer)
                             print(f"  {label}⚠ Fallback → clic Playwright pour plots NON")
-                            await wapf_click_swatch("NON", f"Plots NON (fallback)", field_id=plots_field)
+                            await wapf_click_swatch("NON", "Plots NON (fallback)", field_id=plots_field)
                         await page.wait_for_timeout(500)
                     except Exception as e_plots:
                         print(f"  {label}⚠ Plots NON : {e_plots}")
@@ -1666,7 +1667,7 @@ async def generer_devis_terrasse_detail(
 
     start_time = time.time()
     print(f"\n{'='*60}")
-    print(f"  DEVIS TERRASSE AU DÉTAIL — terrasseenbois.fr")
+    print("  DEVIS TERRASSE AU DÉTAIL — terrasseenbois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
     print(f"  Produits : {len(produits)}")
     for p in produits:

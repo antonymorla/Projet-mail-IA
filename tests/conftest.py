@@ -6,12 +6,10 @@ Fournit des mocks Playwright réutilisables et des données de test.
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

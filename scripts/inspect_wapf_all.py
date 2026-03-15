@@ -343,7 +343,7 @@ def afficher_rapport(results: list[dict]):
 
     # ── Résumé final ──
     print(f"\n{'═' * 70}")
-    print(f"  RÉSUMÉ")
+    print("  RÉSUMÉ")
     print(f"{'═' * 70}")
     for r in results:
         nb_wapf = len(r["wapf_fields"])

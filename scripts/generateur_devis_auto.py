@@ -20,7 +20,6 @@ Installer Playwright:
 """
 
 import asyncio
-import json
 import os
 import sys
 import time
@@ -336,7 +335,7 @@ class GenerateurDevis:
 
     async def configurer_abri(self, config: ConfigAbri):
         """Configure un abri sur le configurateur."""
-        print(f"  ➜ Ouverture du configurateur...")
+        print("  ➜ Ouverture du configurateur...")
         await self.page.goto(
             self.base_url + self.site_config["configurateur"],
             wait_until="domcontentloaded"
@@ -382,7 +381,7 @@ class GenerateurDevis:
 
         # --- ÉTAPE 5 : Options (Plancher, Bac Acier) ---
         if config.plancher:
-            print(f"  ➜ Ajout plancher...")
+            print("  ➜ Ajout plancher...")
             await self._click_by_data_text("OPTIONS")
             await self.page.wait_for_timeout(500)
             await self._click_visible_by_data_text("Plancher", parent_text="OPTIONS")
@@ -391,7 +390,7 @@ class GenerateurDevis:
             await self.page.wait_for_timeout(500)
 
         if config.bac_acier:
-            print(f"  ➜ Ajout bac acier anti-condensation...")
+            print("  ➜ Ajout bac acier anti-condensation...")
             await self._click_by_data_text("OPTIONS")
             await self.page.wait_for_timeout(500)
             await self._click_visible_by_data_text("Bac Acier", parent_text="OPTIONS")
@@ -482,7 +481,7 @@ class GenerateurDevis:
 
         # Rehausse
         if config.rehausse:
-            print(f"  ➜ Rehausse : OUI")
+            print("  ➜ Rehausse : OUI")
             await self._click_by_data_text("Rehausse")
             await self.page.wait_for_timeout(300)
             # Cliquer le premier OUI visible
@@ -528,7 +527,7 @@ class GenerateurDevis:
 
         # Finition plancher
         if config.finition_plancher:
-            print(f"  ➜ Finition plancher : OUI")
+            print("  ➜ Finition plancher : OUI")
             await select_option("Finition Plancher", "OUI")
 
         # Terrasse
@@ -859,7 +858,7 @@ class GenerateurDevis:
             print(f"    ✅ Produit ajouté au panier ({quantite}×)")
         except Exception:
             await self.page.wait_for_timeout(3000)
-            print(f"    ✅ Produit ajouté (confirmation non détectée, on continue)")
+            print("    ✅ Produit ajouté (confirmation non détectée, on continue)")
 
     async def ajouter_au_panier(self):
         """Ajoute le produit configuré au panier.
@@ -874,7 +873,7 @@ class GenerateurDevis:
         dans un header sticky souvent hors viewport. L'appel JS direct reproduit
         exactement le même flux qu'un clic humain sur le bouton.
         """
-        print(f"  ➜ Ajout au panier...")
+        print("  ➜ Ajout au panier...")
 
         # 1. Attendre que toutes les images du preview soient chargées
         await self._wait_for_preview_images()
@@ -968,9 +967,9 @@ class GenerateurDevis:
             has_views = p.get("has_all_views", False)
             print(f"    POST: {p['len']} chars | image: {has_img} | multi-vues: {has_views}")
             if not has_img:
-                print(f"    ⚠ Image de configuration absente du POST !")
+                print("    ⚠ Image de configuration absente du POST !")
         else:
-            print(f"    ⚠ Aucun POST add-to-cart capturé")
+            print("    ⚠ Aucun POST add-to-cart capturé")
 
         self.page.remove_listener("request", on_request)
 
@@ -979,7 +978,7 @@ class GenerateurDevis:
                 print(f"    [console] {cl[:120]}")
         self.page.remove_listener("console", on_console)
 
-        print(f"  ✓ Produit ajouté au panier")
+        print("  ✓ Produit ajouté au panier")
 
     async def verifier_panier(self, nb_attendu: int) -> int:
         """Vérifie que le panier contient bien nb_attendu lignes.
@@ -1022,7 +1021,7 @@ class GenerateurDevis:
 
         # Récapitulatif détaillé
         if cart_details:
-            print(f"    ┌── Récapitulatif panier ──")
+            print("    ┌── Récapitulatif panier ──")
             for i, item in enumerate(cart_details, 1):
                 print(f"    │ {i}. {item['name']} × {item['qty']} → {item['subtotal']}")
             print(f"    └── {nb_items} ligne(s) total ──")
@@ -1569,10 +1568,10 @@ async def generer_devis_abri(
     produits_complementaires = produits_complementaires or []
     configurations_supplementaires = configurations_supplementaires or []
     print(f"\n{'='*60}")
-    print(f"  GÉNÉRATION DE DEVIS AUTOMATIQUE")
+    print("  GÉNÉRATION DE DEVIS AUTOMATIQUE")
     print(f"  Client : {client_prenom} {client_nom}")
     if produits_uniquement:
-        print(f"  Mode : produits_uniquement (sans configurateur)")
+        print("  Mode : produits_uniquement (sans configurateur)")
         print(f"  {len(produits_complementaires)} produit(s) à ajouter")
     else:
         print(f"  Abri : Largeur {largeur} / Profondeur {profondeur}")
@@ -1599,7 +1598,7 @@ async def generer_devis_abri(
                 plancher=plancher,
                 bac_acier=bac_acier,
             )
-            prix = await gen.configurer_abri(config)
+            await gen.configurer_abri(config)
 
             await gen.ajouter_au_panier()
             nb_items_panier += 1
@@ -1616,7 +1615,7 @@ async def generer_devis_abri(
                     plancher=cfg_sup.get("plancher", False),
                     bac_acier=cfg_sup.get("bac_acier", False),
                 )
-                prix_sup = await gen.configurer_abri(sup_config)
+                await gen.configurer_abri(sup_config)
                 await gen.ajouter_au_panier()
                 nb_items_panier += 1
                 await gen.verifier_panier(nb_attendu=nb_items_panier)
@@ -1626,9 +1625,9 @@ async def generer_devis_abri(
             label = "Produits" if produits_uniquement else "Produits complémentaires"
             print(f"\n  ─── {label} ({len(produits_complementaires)}) ───")
             confirmed_count = nb_items_panier  # Tenir compte des items configurateur déjà au panier
-            for prod in produits_complementaires:
+            for idx, prod in enumerate(produits_complementaires):
                 desc = prod.get("description", prod.get("url", "?").split("/produit/")[-1].strip("/"))
-                print(f"\n  [{confirmed_count - nb_items_panier + 1}/{len(produits_complementaires)}] {desc}")
+                print(f"\n  [{idx + 1}/{len(produits_complementaires)}] {desc}")
                 confirmed = False
                 for attempt in range(2):
                     try:
@@ -1643,7 +1642,7 @@ async def generer_devis_abri(
                             confirmed = True
                             break
                         if attempt == 0:
-                            print(f"    ↺ Absent du panier — nouvelle tentative...")
+                            print("    ↺ Absent du panier — nouvelle tentative...")
                     except Exception as e:
                         print(f"    ⚠ Tentative {attempt + 1}/2 échouée : {e}")
                 if confirmed:
@@ -1739,7 +1738,7 @@ async def generer_devis_studio(
     configurations_supplementaires = configurations_supplementaires or []
     dim_key = f"{largeur}x{profondeur}"
     print(f"\n{'='*60}")
-    print(f"  GÉNÉRATION DE DEVIS STUDIO")
+    print("  GÉNÉRATION DE DEVIS STUDIO")
     print(f"  Client : {client_prenom} {client_nom}")
     print(f"  Studio : {dim_key}")
     if configurations_supplementaires:
@@ -1768,7 +1767,7 @@ async def generer_devis_studio(
             terrasse=terrasse,
             pergola=pergola,
         )
-        prix = await gen.configurer_studio(config)
+        await gen.configurer_studio(config)
 
         await gen.ajouter_au_panier()
         nb_items_panier += 1
@@ -1790,7 +1789,7 @@ async def generer_devis_studio(
                 terrasse=cfg_sup.get("terrasse", ""),
                 pergola=cfg_sup.get("pergola", ""),
             )
-            prix_sup = await gen.configurer_studio(sup_config)
+            await gen.configurer_studio(sup_config)
             await gen.ajouter_au_panier()
             nb_items_panier += 1
             await gen.verifier_panier(nb_attendu=nb_items_panier)
@@ -1799,9 +1798,9 @@ async def generer_devis_studio(
         if produits_complementaires:
             print(f"\n  ─── Produits complémentaires ({len(produits_complementaires)}) ───")
             confirmed_count = nb_items_panier  # Tenir compte des items configurateur déjà au panier
-            for prod in produits_complementaires:
+            for idx, prod in enumerate(produits_complementaires):
                 desc = prod.get("description", prod.get("url", "?").split("/produit/")[-1].strip("/"))
-                print(f"\n  [{confirmed_count - nb_items_panier + 1}/{len(produits_complementaires)}] {desc}")
+                print(f"\n  [{idx + 1}/{len(produits_complementaires)}] {desc}")
                 confirmed = False
                 for attempt in range(2):
                     try:
@@ -1816,7 +1815,7 @@ async def generer_devis_studio(
                             confirmed = True
                             break
                         if attempt == 0:
-                            print(f"    ↺ Absent du panier — nouvelle tentative...")
+                            print("    ↺ Absent du panier — nouvelle tentative...")
                     except Exception as e:
                         print(f"    ⚠ Tentative {attempt + 1}/2 échouée : {e}")
                 if confirmed:
