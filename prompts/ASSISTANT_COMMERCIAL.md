@@ -139,6 +139,7 @@ Pipeline : [Marque]
 ### 2. Abris de jardin (Abri Français)
 
 Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
+**Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier. Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
 
 #### Comparaison Gamme Origine vs Gamme Essentiel
 
@@ -148,7 +149,7 @@ Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (De
 | **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
-| **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement (configs fixes) |
+| **Personnalisation** | ✅ Configurable (ouvertures, plancher, feutre anti-condensation, extension toiture) | ❌ Modèles préconçus uniquement (configs fixes) |
 | **Générateur de devis** | ✅ `generer_devis_abri` | ✅ Via `produits_complementaires` — voir workflow préconçus |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
@@ -158,7 +159,7 @@ Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (De
 #### Gamme Origine (toit plat) — Personnalisable
 
 Code promo **LEROYMERLIN10** (vérifier remise via `verifier_promotions_actives`).
-Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, plancher, bac acier, extension toiture.
+Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, plancher, feutre anti-condensation (bac acier inclus de série), extension toiture.
 → Générer via `generer_devis_abri`. Disponible aussi en modèles préconçus.
 
 **Dimensions disponibles (Gamme Origine — configurateur) :**
@@ -561,7 +562,7 @@ Cordialement,
 |----------|-----------------|
 | Quel bois ? | Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans). |
 | Fondations ? | Pas de dalle nécessaire. Plots béton ou plots réglables suffisants. |
-| Bac acier — pourquoi ? | Anti-condensation sous toiture. Recommandé si utilisation stockage matériaux sensibles. |
+| Bac acier — pourquoi ? | Le bac acier est **INCLUS DE SÉRIE** sur tous les abris. L'option `bac_acier=True` ajoute uniquement le **feutre anti-condensation** sous le bac acier. Recommandé si stockage matériaux sensibles à l'humidité. Dans l'email : écrire "feutre anti-condensation", pas "bac acier". |
 | Hauteur max ? | Gamme Origine : 2,40m HT. Gamme Essentiel : 2,27m HT. Au-delà → Destombes Bois. |
 | Code promo ? | Codes LEROYMERLIN10 (Gamme Origine) / LEROYMERLIN5 (Gamme Essentiel). Vérifier la remise en cours via `verifier_promotions_actives`. |
 | Extension toiture ? | Oui, en Droite ou Gauche : 1m, 1,5m, 2m, 3,5m. |
@@ -738,7 +739,7 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 
 **Produits complémentaires notables :**
 - **Studio — Cloison intérieure** : `rechercher_produits_detail(site="studio", recherche="cloison")`
-- **Abri — Bac acier anti-condensation** : option directe dans `generer_devis_abri` (`bac_acier=True`)
+- **Abri — Feutre anti-condensation** : option directe dans `generer_devis_abri` (`bac_acier=True`) — ⚠ le bac acier est INCLUS DE SÉRIE, cette option ajoute seulement le feutre
 - **Abri — Plancher** : option directe dans `generer_devis_abri` (`plancher="true"`)
 - **Abri — Obstruer les extensions** : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer 16 planches/face (longueur ≥ largeur extension) → passer en `produits_complementaires`
 - **Abri — Bois supplémentaire** : `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer `ceil(m² / (0.130 × longueur))` → passer en `produits_complementaires`
