@@ -70,6 +70,7 @@ Pipeline : [Marque]
 | Info générale | Email A (questions qualificatives + configurateur en ligne) |
 | Suivi devis existant | Email M4 (répondre aux questions du client) |
 | Relance sans réponse | Email J (relance courte) |
+| Appel manqué / message vocal / rappel souhaité (sans détail projet) | ✉ Email K — accusé réception appel + inviter à préciser par mail |
 | Client pro/collectivité | Email M2 (virement/mandat accepté) |
 
 ### ⛔ RÈGLE CRITIQUE — PARAMÈTRES INTERDITS
@@ -489,6 +490,26 @@ que je puisse vous rappeler.
 Cordialement,
 [Signataire] / [Marque]
 ```
+
+### K — Accusé réception appel
+```
+Bonjour,
+
+Nous avons bien reçu votre appel et nous vous en remercions.
+
+N'hésitez pas à nous faire part de votre projet par retour de mail
+(dimensions souhaitées, usage prévu, contraintes éventuelles) afin que
+nous puissions vous accompagner au mieux.
+
+Vous pouvez également nous joindre par téléphone du lundi au vendredi,
+de 9h à 18h, au 07 57 59 05 70.
+
+Cordialement,
+[Signataire] / [Marque]
+```
+> Utiliser quand : appel sortant sans réponse, message vocal, ou résumé IA type "rappel souhaité" sans aucun détail de projet.
+> Si le nom du client est connu → `Bonjour Monsieur/Madame [Nom],` sinon → `Bonjour,`
+> Adapter la marque et le signataire au pipeline de l'opportunité.
 
 ### M2 — Pro / Collectivité
 ```
