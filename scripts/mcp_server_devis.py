@@ -54,7 +54,7 @@ try:
         generer_devis_pergola, generer_devis_terrasse,
         generer_devis_cloture, generer_devis_terrasse_detail,
     )
-    from generateur_devis_auto import generer_devis_abri, generer_devis_studio
+    from generateur_devis_auto import generer_devis_abri as _gen_abri, generer_devis_studio as _gen_studio
     _GENERATORS_AVAILABLE = True
     _GENERATORS_IMPORT_ERR = None
 except Exception as _import_exc:
@@ -112,9 +112,9 @@ async def _generer_direct(type_devis: str, params: dict,
         elif type_devis == "terrasse_detail":
             fp, _ = await generer_devis_terrasse_detail(**params)
         elif type_devis == "abri":
-            fp = await generer_devis_abri(**params)
+            fp = await _gen_abri(**params)
         elif type_devis == "studio":
-            fp = await generer_devis_studio(**params)
+            fp = await _gen_studio(**params)
         else:
             raise ValueError(f"Type de devis inconnu: {type_devis}")
 
@@ -1017,9 +1017,12 @@ async def generer_devis_abri(
         configs_sup = []
 
     # ── Auto-calcul planches pour extensions + bois supplémentaire ──
+    # Exécuté dans un thread pour ne pas bloquer l'event loop asyncio
+    # (_auto_planches_pour_extensions fait des appels HTTP synchrones via urllib)
     if obstruer_extensions or bois_supplementaire_m2 > 0:
         try:
-            planches_auto = _auto_planches_pour_extensions(
+            planches_auto = await asyncio.to_thread(
+                _auto_planches_pour_extensions,
                 extension_principale=extension_toiture if obstruer_extensions else "",
                 configs_sup=configs_sup if obstruer_extensions else [],
                 bois_supplementaire_m2=bois_supplementaire_m2,
