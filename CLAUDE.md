@@ -71,7 +71,7 @@ Corps: …
 |-----------|--------|
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
-| Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** `generer_devis_abri` avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
+| Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** à l'outil correspondant (`generer_devis_abri`, `generer_devis_studio`, `generer_devis_pergola_bois`, `generer_devis_terrasse_bois`, `generer_devis_cloture_bois`) avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
 | Client veut obstruer/fermer le fond des extensions | ✅ `generer_devis_abri` avec `obstruer_extensions=True` — planches calculées et ajoutées automatiquement |
 | Client veut du bois en plus (jardinières, étagères…) | ✅ `generer_devis_abri` avec `bois_supplementaire_m2=10` — planches calculées et ajoutées automatiquement |
 | Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis_abri` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
@@ -602,30 +602,33 @@ generer_devis_abri(
 ## STRUCTURE DU PROJET
 
 ```
-scripts/
-├── utils_playwright.py           # Utilitaires partagés : fermer_popups + appliquer_code_promo
-├── generateur_devis_auto.py      # Abri + Studio : WPC Booster (config + images) → cart
-│                                 # Délègue la génération PDF à _generer_devis_via_generateur (3sites.py)
-├── generateur_devis_3sites.py    # Pergola + Terrasse + Clôture + PDF de tous les sites
-│                                 # _generer_devis_via_generateur(devis_path=...) : commun Abri/Studio/Pergola/Terrasse/Clôture
-└── mcp_server_devis.py           # Serveur MCP exposant 9 outils à Claude :
-                                  #   verifier_promotions_actives (scrape 5 sites en parallèle via ThreadPoolExecutor)
-                                  #   rechercher_produits_detail (API live + cache 5min)
-                                  #   generer_devis_abri (auto-planches extensions + bois supplémentaire)
-                                  #   generer_devis_studio
-                                  #   generer_devis_pergola_bois
-                                  #   generer_devis_terrasse_bois
-                                  #   generer_devis_terrasse_bois_detail (quantités exactes)
-                                  #   generer_devis_cloture_bois
-                                  #   lister_devis_generes (log JSON + scan ~/Downloads)
-                                  #
-                                  # Appel DIRECT des générateurs (import Python, pas subprocess)
-                                  # asyncio.shield : tâche continue en arrière-plan si timeout 55s
-                                  # Log structuré : ~/Downloads/devis_log.json (client, type, date, taille)
+scripts/                             # ← SOURCE DE VÉRITÉ — tout le code est ici
+├── utils_playwright.py              # Utilitaires partagés : fermer_popups + appliquer_code_promo
+├── generateur_devis_auto.py         # Abri + Studio : WPC Booster (config + images) → cart
+├── generateur_devis_3sites.py       # Pergola + Terrasse + Clôture + PDF commun tous sites
+├── inspect_wapf_all.py              # Script utilitaire (inspection champs WAPF)
+└── mcp_server_devis.py              # Serveur MCP exposant 12 outils à Claude :
+                                     #   verifier_promotions_actives
+                                     #   rechercher_produits_detail (API WC live + cache 5min)
+                                     #   generer_devis_abri (auto-planches + configurations_supplementaires)
+                                     #   generer_devis_studio (configurations_supplementaires)
+                                     #   generer_devis_pergola_bois (configurations_supplementaires)
+                                     #   generer_devis_terrasse_bois (configurations_supplementaires)
+                                     #   generer_devis_terrasse_bois_detail (quantités exactes)
+                                     #   generer_devis_cloture_bois (configurations_supplementaires)
+                                     #   lister_sites
+                                     #   lister_devis_generes
 prompts/
-└── ASSISTANT_COMMERCIAL.md       # Instructions personnalisées du projet claude.ai
-CLAUDE.md                         # Ce fichier (instructions Claude Code)
-requirements.txt                  # Dépendances Python
+├── ASSISTANT_COMMERCIAL.md          # Instructions personnalisées du projet claude.ai
+└── FAQ_TECHNIQUE.md                 # FAQ technique produits
+tests/                               # Tests pytest (mockent Playwright + MCP)
+├── conftest.py
+├── test_mcp_server.py
+└── test_utils_playwright.py
+CLAUDE.md                            # Ce fichier (instructions Claude Code)
+pyproject.toml                       # Config projet + pytest + ruff
+requirements.txt                     # Dépendances Python
+requirements-dev.txt                 # Dépendances dev (pytest)
 ```
 
 ---

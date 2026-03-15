@@ -9,9 +9,14 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+# Ajouter scripts/ au PYTHONPATH pour que les imports fonctionnent
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 
 # ─── Fixtures de données client ──────────────────────────────────────────────

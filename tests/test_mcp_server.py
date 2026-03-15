@@ -38,8 +38,8 @@ _mock_gen_auto.generer_devis_abri = AsyncMock(return_value="/tmp/test.pdf")
 _mock_gen_auto.generer_devis_studio = AsyncMock(return_value="/tmp/test.pdf")
 sys.modules.setdefault("generateur_devis_auto", _mock_gen_auto)
 
-# Mock utils_playwright aussi (importé par generateur_devis_3sites)
-sys.modules.setdefault("utils_playwright", MagicMock())
+# utils_playwright est disponible via scripts/ (ajouté au path dans conftest.py)
+# Ne PAS le mocker — il est importable directement.
 
 
 class TestLogDevis:
@@ -97,8 +97,8 @@ class TestGenererDirect:
     """Tests pour _generer_direct (retour immédiat)."""
 
     @pytest.mark.asyncio
-    async def test_retour_immediat(self) -> None:
-        """_generer_direct retourne immédiatement avec status='en_cours'."""
+    async def test_retour_pdf_non_existant(self) -> None:
+        """_generer_direct retourne une erreur si le PDF n'existe pas."""
         import mcp_server_devis as mcp
         import asyncio
 
@@ -115,11 +115,44 @@ class TestGenererDirect:
             )
             data = json.loads(result_str)
 
-            assert data["success"] is True
-            assert data["status"] == "en_cours"
-            assert "task_id" in data
+            # Le mock retourne /tmp/test.pdf qui n'existe pas → PDF non trouvé
+            assert data["success"] is False
+            assert "PDF non trouvé" in data.get("error", "")
         finally:
             mcp._GENERATORS_AVAILABLE = orig_available
+
+    @pytest.mark.asyncio
+    async def test_retour_pdf_existant(self, tmp_path) -> None:
+        """_generer_direct retourne le PDF si le fichier existe."""
+        import mcp_server_devis as mcp
+        import asyncio
+
+        pdf = tmp_path / "devis_test.pdf"
+        pdf.write_bytes(b"%PDF-1.4 test content")
+
+        orig_available = mcp._GENERATORS_AVAILABLE
+        mcp._GENERATORS_AVAILABLE = True
+
+        # Patch _run_generator to return an existing PDF path
+        async def fake_gen(*a, **kw):
+            return str(pdf)
+
+        orig_run = mcp._run_generator
+        mcp._run_generator = fake_gen
+
+        try:
+            result_str = await asyncio.wait_for(
+                mcp._generer_direct("pergola", {}, "Jean", "Dupont"),
+                timeout=2.0,
+            )
+            data = json.loads(result_str)
+
+            assert data["success"] is True
+            assert data["filepath"] == str(pdf)
+            assert "size_kb" in data
+        finally:
+            mcp._GENERATORS_AVAILABLE = orig_available
+            mcp._run_generator = orig_run
 
     @pytest.mark.asyncio
     async def test_generateurs_non_disponibles(self) -> None:
