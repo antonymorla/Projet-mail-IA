@@ -447,7 +447,7 @@ Livraison **4-5 semaines gratuite**. Paiement 3× sans frais.
 ### Abris de jardin (Abri Français)
 
 Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
-**Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier. Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
+**Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier — **disponible uniquement sur la Gamme Origine** (pas sur Essentiel). Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
 
 #### Comparaison Gamme Origine vs Gamme Essentiel
 
@@ -457,7 +457,8 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 | **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
-| **Personnalisation** | ✅ Configurable (ouvertures, plancher, bac acier, extension toiture) | ❌ Modèles préconçus uniquement (configs porte+fenêtre fixes) |
+| **Personnalisation** | ✅ Configurable (ouvertures, plancher, feutre anti-condensation, extension toiture) | ❌ Modèles préconçus uniquement (configs porte+fenêtre fixes) |
+| **Feutre anti-condensation** | ✅ Disponible (`bac_acier=True`) | ❌ Non disponible |
 | **Générateur de devis** | ✅ `generer_devis_abri` | ✅ Via `produits_complementaires` — voir workflow préconçus ci-dessous |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Fondations** | Pas de dalle nécessaire — plots béton ou réglables | Pas de dalle nécessaire — plots béton ou réglables |

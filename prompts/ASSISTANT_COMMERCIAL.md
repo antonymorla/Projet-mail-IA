@@ -139,7 +139,7 @@ Pipeline : [Marque]
 ### 2. Abris de jardin (Abri Français)
 
 Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
-**Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier. Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
+**Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier — **disponible uniquement sur la Gamme Origine** (pas sur Essentiel). Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
 
 #### Comparaison Gamme Origine vs Gamme Essentiel
 
@@ -150,6 +150,7 @@ Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (De
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
 | **Personnalisation** | ✅ Configurable (ouvertures, plancher, feutre anti-condensation, extension toiture) | ❌ Modèles préconçus uniquement (configs fixes) |
+| **Feutre anti-condensation** | ✅ Disponible (`bac_acier=True`) | ❌ Non disponible |
 | **Générateur de devis** | ✅ `generer_devis_abri` | ✅ Via `produits_complementaires` — voir workflow préconçus |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
