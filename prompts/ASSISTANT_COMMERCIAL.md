@@ -72,6 +72,21 @@ Pipeline : [Marque]
 | Relance sans réponse | Email J (relance courte) |
 | Client pro/collectivité | Email M2 (virement/mandat accepté) |
 
+### ⛔ RÈGLE CRITIQUE — PARAMÈTRES INTERDITS
+
+> **NE JAMAIS INVENTER de paramètres** qui n'existent pas dans la signature des outils MCP.
+> Les paramètres `obstruer_extensions`, `bois_supplementaire_m2`, `ajouter_planches`, etc. **N'EXISTENT PAS**.
+> Les outils MCP acceptent UNIQUEMENT les paramètres documentés ci-dessous.
+>
+> **Quand le client veut des planches, du bois supplémentaire, ou obstruer une extension :**
+> 1. **APPELER** `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → obtenir `url`, `variation_id`, `attribut_selects`
+> 2. **CALCULER** les quantités (16 planches/face pour obstruction, `ceil(m² / (0.130 × longueur))` pour bois supplémentaire)
+> 3. **PASSER** le résultat dans `produits_complementaires` de `generer_devis_abri` en JSON complet :
+>    `[{"url": "...", "variation_id": 12345, "quantite": 51, "attribut_selects": {"attribute_pa_longueur": "4-2-m"}, "description": "51 planches 27×130 autoclave 4,2m"}]`
+>
+> **Cette règle s'applique à TOUS les outils de génération, TOUTES les marques.**
+> Si un produit complémentaire est demandé → `rechercher_produits_detail` d'abord → `produits_complementaires` ensuite. Pas de raccourci.
+
 ---
 
 ## CATALOGUE PRODUITS DÉTAILLÉ

@@ -806,6 +806,10 @@ async def generer_devis_abri(
 ) -> str:
     """Génère un devis PDF abri de jardin sur abri-francais.fr.
 
+    ⛔ PARAMÈTRES INTERDITS : obstruer_extensions, bois_supplementaire_m2, ajouter_planches N'EXISTENT PAS.
+    Pour ajouter des planches/bois/obstruction → appeler rechercher_produits_detail AVANT puis passer
+    le résultat dans produits_complementaires avec url, variation_id, quantite, attribut_selects, description.
+
     Args:
         largeur: "4,35M", "4,70M", "5,50M", etc.
         profondeur: "2,00m", "2,15m", "3,30m", "3,45m", etc.
@@ -815,10 +819,11 @@ async def generer_devis_abri(
         extension_toiture: "" ou "Droite 1 M"|"Gauche 2 M"|"Droite 3,5 M" etc.
         plancher: "true" ou "false"
         bac_acier: True pour bac acier anti-condensation
-        produits_complementaires: JSON array produits au même panier. Utiliser rechercher_produits_detail d'abord.
-            Format: [{"url":"...","variation_id":123,"quantite":N,"attribut_selects":{},"description":"..."}]
-            Pour obstruer extensions ou ajouter du bois : appeler rechercher_produits_detail(site="abri",
-            recherche="planche 27x130") AVANT, calculer les quantités, et les passer ici.
+        produits_complementaires: JSON array produits au même panier. ⚠ OBLIGATOIRE d'appeler
+            rechercher_produits_detail AVANT pour obtenir url + variation_id + attribut_selects.
+            Format: [{"url":"...","variation_id":123,"quantite":N,"attribut_selects":{...},"description":"..."}]
+            Planches obstruction extension : 16 planches/face, longueur >= largeur extension.
+            Bois supplémentaire : ceil(m² / (0.130 × longueur_planche)) planches.
         produits_uniquement: True = skip configurateur, ajouter UNIQUEMENT produits_complementaires (Gamme Essentiel)
         configurations_supplementaires: JSON array de configs supplémentaires pour multi-abri sur 1 PDF.
             Ex: [{"largeur":"4,70M","profondeur":"3,45m","ouvertures":[...],"extension_toiture":"Gauche 3,5 M","bac_acier":true,"plancher":false}]
