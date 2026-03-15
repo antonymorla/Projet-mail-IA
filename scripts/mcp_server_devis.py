@@ -209,12 +209,17 @@ def _chercher_planches_27x130(base_url: str) -> list:
     """
     try:
         products = _woo_api_get(base_url, "products", {"search": "planche", "per_page": 20})
+        print(f"  [auto-planches] API retourné {len(products)} produit(s) pour 'planche'")
         # Chercher le produit "planche 27x130" ou "planche 27×130"
         for p in products:
             name = p.get("name", "").lower()
+            print(f"  [auto-planches] Produit: {name}")
             if "27" in name and ("130" in name or "×130" in name or "x130" in name):
+                print(f"  [auto-planches] ✓ Match trouvé: {p.get('name', '')} (id={p.get('id')})")
+                raw_variations = p.get("variations", [])
+                print(f"  [auto-planches] {len(raw_variations)} variation(s) inline")
                 variations = []
-                for v in p.get("variations", []):
+                for v in raw_variations:
                     # Extraire la longueur depuis les attributs
                     longueur = None
                     attr_selects = {}
@@ -247,10 +252,12 @@ def _chercher_planches_27x130(base_url: str) -> list:
                             "attr_selects": attr_selects,
                         })
 
+                print(f"  [auto-planches] {len(variations)} variation(s) avec longueur parsée")
                 url = f"{base_url}/produit/{p['slug']}/"
                 return sorted(variations, key=lambda x: x["longueur_m"]), url
-    except Exception:
-        pass
+        print("  [auto-planches] ⚠ Aucun produit ne matche '27' + '130'")
+    except Exception as e:
+        print(f"  [auto-planches] ❌ Erreur API: {e}")
     return [], ""
 
 
@@ -265,6 +272,8 @@ def _auto_planches_pour_extensions(
 
     Retourne une liste de dicts produits_complementaires prêts à l'emploi.
     """
+    print(f"  [auto-planches] Démarrage: ext_principale='{extension_principale}', "
+          f"configs_sup={len(configs_sup or [])}, bois_sup_m2={bois_supplementaire_m2}")
     # Collecter toutes les extensions à obstruer
     extensions = []
     largeur_main = _extraire_largeur_extension(extension_principale)
@@ -276,12 +285,16 @@ def _auto_planches_pour_extensions(
             extensions.append(l)
 
     if not extensions and bois_supplementaire_m2 <= 0:
+        print("  [auto-planches] Rien à faire (pas d'extension, pas de bois sup)")
         return []
 
+    print(f"  [auto-planches] Extensions détectées: {extensions}")
     # Chercher les planches 27×130 disponibles
     variations, product_url = _chercher_planches_27x130(site_base_url)
     if not variations or not product_url:
+        print("  [auto-planches] ⚠ Aucune variation planche trouvée — abandon")
         return []
+    print(f"  [auto-planches] ✓ {len(variations)} variations trouvées, url={product_url}")
 
     # Hauteur intérieure abri Gamme Origine : ~2050mm
     # nb_planches par face = ceil(2050 / 130) = 16
@@ -355,6 +368,9 @@ def _auto_planches_pour_extensions(
             "description": desc,
         })
 
+    print(f"  [auto-planches] ✅ Résultat: {len(result)} produit(s) complémentaire(s)")
+    for r in result:
+        print(f"    → {r['description']} (variation_id={r['variation_id']}, qté={r['quantite']})")
     return result
 
 
@@ -1030,8 +1046,13 @@ async def generer_devis_abri(
             )
             if planches_auto:
                 produits_list.extend(planches_auto)
+                print(f"  [auto-planches] ✅ {len(planches_auto)} produit(s) ajouté(s) à produits_list (total: {len(produits_list)})")
+            else:
+                print("  [auto-planches] ⚠ Fonction retournée mais liste vide")
         except Exception as e:
-            print(f"  ⚠ Auto-planches échoué: {e}")  # Log l'erreur au lieu de la masquer
+            import traceback
+            print(f"  ⚠ Auto-planches échoué: {e}")
+            traceback.print_exc()
 
     try:
         # Parser les ouvertures (JSON string → list)
