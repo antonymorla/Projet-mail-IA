@@ -62,10 +62,6 @@ except Exception as _import_exc:
     _GENERATORS_IMPORT_ERR = str(_import_exc)
 
 
-# Background tasks — référence pour éviter le GC avant la fin de génération
-_background_tasks: dict = {}
-_bg_task_counter = 0
-
 # Log structuré des devis générés
 _DEVIS_LOG_FILE = os.path.expanduser("~/Downloads/devis_log.json")
 
@@ -92,59 +88,39 @@ def _log_devis(filepath: str, type_devis: str, client_prenom: str, client_nom: s
         pass  # log non-bloquant
 
 
-async def _run_generator(type_devis: str, params: dict) -> str:
-    """Appelle directement la fonction de génération appropriée."""
-    if type_devis == "pergola":
-        fp, _ = await generer_devis_pergola(**params)
-    elif type_devis == "terrasse":
-        fp, _ = await generer_devis_terrasse(**params)
-    elif type_devis == "cloture":
-        fp, _ = await generer_devis_cloture(**params)
-    elif type_devis == "terrasse_detail":
-        fp, _ = await generer_devis_terrasse_detail(**params)
-    elif type_devis == "abri":
-        fp = await generer_devis_abri(**params)
-    elif type_devis == "studio":
-        fp = await generer_devis_studio(**params)
-    else:
-        raise ValueError(f"Type de devis inconnu: {type_devis}")
-    return fp
-
-
 async def _generer_direct(type_devis: str, params: dict,
                            client_prenom: str, client_nom: str) -> str:
     """Génère un devis en appelant directement les fonctions de génération.
 
-    Timeout de 240s (4 min) — laisse le temps au navigateur de configurer
-    les produits, ajouter au panier et générer le PDF.
+    Appel direct sans wrapper asyncio.create_task/shield — le navigateur
+    tourne dans le même contexte async que le MCP handler.
+    Le timeout est géré par Claude Desktop (timeout: 300000 dans la config).
     """
-    global _bg_task_counter
-
     if not _GENERATORS_AVAILABLE:
         return json.dumps({
             "success": False,
             "error": f"Générateurs non importés : {_GENERATORS_IMPORT_ERR}",
         })
 
-    task = asyncio.create_task(_run_generator(type_devis, params))
-
-    # Stocker la référence pour éviter le GC si timeout
-    _bg_task_counter += 1
-    task_id = f"{type_devis}_{client_prenom}_{client_nom}_{_bg_task_counter}"
-    _background_tasks[task_id] = task
-
-    def _on_task_done(t):
-        _background_tasks.pop(task_id, None)
-        if t.exception():
-            print(f"  ❌ Erreur arrière-plan ({task_id}): {t.exception()}")
-
-    task.add_done_callback(_on_task_done)
-
     try:
-        # 240s = largement suffisant pour multi-config + produits complémentaires
-        filepath = await asyncio.wait_for(asyncio.shield(task), timeout=240)
+        if type_devis == "pergola":
+            fp, _ = await generer_devis_pergola(**params)
+        elif type_devis == "terrasse":
+            fp, _ = await generer_devis_terrasse(**params)
+        elif type_devis == "cloture":
+            fp, _ = await generer_devis_cloture(**params)
+        elif type_devis == "terrasse_detail":
+            fp, _ = await generer_devis_terrasse_detail(**params)
+        elif type_devis == "abri":
+            fp = await generer_devis_abri(**params)
+        elif type_devis == "studio":
+            fp = await generer_devis_studio(**params)
+        else:
+            raise ValueError(f"Type de devis inconnu: {type_devis}")
 
-        if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
+        filepath = str(fp) if fp else ""
+
+        if filepath.endswith(".pdf") and os.path.exists(filepath):
             size_kb = os.path.getsize(filepath) / 1024
             _log_devis(filepath, type_devis, client_prenom, client_nom)
             return json.dumps({
@@ -156,19 +132,8 @@ async def _generer_direct(type_devis: str, params: dict,
             })
         return json.dumps({"success": False, "error": f"PDF non trouvé : {filepath!r}"})
 
-    except asyncio.TimeoutError:
-        # Le task continue en arrière-plan — retourner "en_cours"
-        nom = f"{client_prenom}_{client_nom}".replace(" ", "_")
-        return json.dumps({
-            "success": True,
-            "status": "en_cours",
-            "message": (
-                f"Génération démarrée en arrière-plan (prend ~2 min). "
-                f"Appelez lister_devis_generes dans 1-2 minutes pour récupérer le PDF de {nom}."
-            ),
-        })
     except Exception as e:
-        print(f"  ❌ Erreur _generer_direct ({type_devis}): {e}")
+        print(f"  ❌ Erreur génération {type_devis}: {e}")
         return json.dumps({"success": False, "error": str(e)})
 
 
