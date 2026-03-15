@@ -155,7 +155,9 @@ generer_devis_abri(
     code_promo="",         # ex: "LEROYMERLIN10"
     ouvertures='[{"type": "Porte double Vitrée", "face": "Face 1", "position": "Centre"}]',
     plancher="",           # "true" | "false"
-    bac_acier=False,
+    bac_acier=False,       # ⚠ Bac acier INCLUS DE SÉRIE sur tous les abris — cette option ajoute
+                           # le FEUTRE anti-condensation uniquement. Dans l'email : "option feutre
+                           # anti-condensation" (pas "bac acier" car déjà inclus de base).
     extension_toiture="",  # "" | "Droite 1 M" | "Gauche 2 M" | "Droite 3,5 M" | etc.
     produits_complementaires='[]',      # JSON array — utiliser rechercher_produits_detail d'abord
     produits_uniquement=False,          # True = Gamme Essentiel (skip configurateur)
@@ -445,6 +447,7 @@ Livraison **4-5 semaines gratuite**. Paiement 3× sans frais.
 ### Abris de jardin (Abri Français)
 
 Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
+**Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier. Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
 
 #### Comparaison Gamme Origine vs Gamme Essentiel
 

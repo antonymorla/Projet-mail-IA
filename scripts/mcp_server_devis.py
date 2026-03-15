@@ -823,7 +823,9 @@ async def generer_devis_abri(
             Faces: Face 1|Face 2|Droite|Gauche|Fond 1|Fond 2. Positions: Centre|Gauche|Droite
         extension_toiture: "" ou "Droite 1 M"|"Gauche 2 M"|"Droite 3,5 M" etc.
         plancher: "true" ou "false"
-        bac_acier: True pour bac acier anti-condensation
+        bac_acier: Option feutre anti-condensation UNIQUEMENT. Le bac acier est INCLUS DE SÉRIE
+            sur tous les abris. Ce paramètre ajoute seulement le feutre protecteur sous le bac acier.
+            Dans l'email, écrire "option feutre anti-condensation" et NON "bac acier" (déjà inclus).
         produits_complementaires: JSON array produits au même panier. ⚠ OBLIGATOIRE d'appeler
             rechercher_produits_detail AVANT pour obtenir url + variation_id + attribut_selects.
             Format: [{"url":"...","variation_id":123,"quantite":N,"attribut_selects":{...},"description":"..."}]
