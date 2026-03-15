@@ -1030,8 +1030,8 @@ async def generer_devis_abri(
             )
             if planches_auto:
                 produits_list.extend(planches_auto)
-        except Exception:
-            pass  # En cas d'erreur API, on continue sans les planches auto
+        except Exception as e:
+            print(f"  ⚠ Auto-planches échoué: {e}")  # Log l'erreur au lieu de la masquer
 
     try:
         # Parser les ouvertures (JSON string → list)
