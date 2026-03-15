@@ -115,12 +115,8 @@ async def _generer_direct(type_devis: str, params: dict,
                            client_prenom: str, client_nom: str) -> str:
     """Génère un devis en appelant directement les fonctions de génération.
 
-    Avantages vs subprocess :
-    - Pas de délai de démarrage de processus Python
-    - Pas de sérialisation/parsing stdout
-    - Pas de retry FS pour le fichier (filepath retourné directement)
-    - Chrome visible : même session macOS WindowServer
-    - asyncio.shield : le task continue en arrière-plan si timeout 55s
+    Timeout de 240s (4 min) — laisse le temps au navigateur de configurer
+    les produits, ajouter au panier et générer le PDF.
     """
     global _bg_task_counter
 
@@ -136,11 +132,17 @@ async def _generer_direct(type_devis: str, params: dict,
     _bg_task_counter += 1
     task_id = f"{type_devis}_{client_prenom}_{client_nom}_{_bg_task_counter}"
     _background_tasks[task_id] = task
-    task.add_done_callback(lambda t: _background_tasks.pop(task_id, None))
+
+    def _on_task_done(t):
+        _background_tasks.pop(task_id, None)
+        if t.exception():
+            print(f"  ❌ Erreur arrière-plan ({task_id}): {t.exception()}")
+
+    task.add_done_callback(_on_task_done)
 
     try:
-        # asyncio.shield empêche l'annulation du task interne quand wait_for expire
-        filepath = await asyncio.wait_for(asyncio.shield(task), timeout=55)
+        # 240s = largement suffisant pour multi-config + produits complémentaires
+        filepath = await asyncio.wait_for(asyncio.shield(task), timeout=240)
 
         if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
             size_kb = os.path.getsize(filepath) / 1024
@@ -166,6 +168,7 @@ async def _generer_direct(type_devis: str, params: dict,
             ),
         })
     except Exception as e:
+        print(f"  ❌ Erreur _generer_direct ({type_devis}): {e}")
         return json.dumps({"success": False, "error": str(e)})
 
 
