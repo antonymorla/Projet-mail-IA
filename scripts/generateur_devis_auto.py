@@ -1045,27 +1045,27 @@ class GenerateurDevis:
             return
         await _appliquer_code_promo_utils(self.page, code_promo)
 
-    async def _scraper_date_livraison(self) -> str:
+    async def _scraper_date_livraison(self) -> tuple:
         """Scrape la date de livraison estimée depuis la page panier.
 
         Délègue à _traiter_panier() de generateur_devis_3sites.py qui contient
         la logique exhaustive de scraping (sélecteurs plugins WPC, Pi, YITH,
         patterns date français, dump diagnostic).
 
-        Returns: date de livraison estimée (str) ou "" si non trouvée.
+        Returns: (date_livraison, diag_lines) — date estimée et diagnostic si non trouvée.
         """
         try:
             from generateur_devis_3sites import _traiter_panier
-            date_livraison = await _traiter_panier(
+            date_livraison, diag_lines = await _traiter_panier(
                 page=self.page,
                 site_url=self.base_url,
                 code_promo="",       # déjà appliqué avant cet appel
                 mode_livraison="",   # ne pas changer
             )
-            return date_livraison or ""
+            return date_livraison or "", diag_lines or []
         except Exception as e:
             print(f"  ⚠ Erreur scraping date livraison : {e}")
-            return ""
+            return "", []
 
     async def _wait_for_preview_images(self):
         """Attend que toutes les images du preview du configurateur soient chargées.
@@ -1676,7 +1676,7 @@ async def generer_devis_abri(
         await gen._appliquer_code_promo(code_promo)
 
         # Scraper la date de livraison estimée depuis le panier
-        date_livraison = await gen._scraper_date_livraison()
+        date_livraison, diag_lines = await gen._scraper_date_livraison()
 
         client = Client(
             nom=client_nom,
@@ -1695,7 +1695,7 @@ async def generer_devis_abri(
             print(f"  📅 Livraison estimée : {date_livraison}")
         print(f"{'='*60}\n")
 
-        return filepath, date_livraison
+        return filepath, date_livraison, diag_lines
 
     except Exception as e:
         print(f"\n  ❌ Erreur : {e}")
@@ -1854,7 +1854,7 @@ async def generer_devis_studio(
         await gen._appliquer_code_promo(code_promo)
 
         # Scraper la date de livraison estimée depuis le panier
-        date_livraison = await gen._scraper_date_livraison()
+        date_livraison, diag_lines = await gen._scraper_date_livraison()
 
         client = Client(
             nom=client_nom,
@@ -1873,7 +1873,7 @@ async def generer_devis_studio(
             print(f"  📅 Livraison estimée : {date_livraison}")
         print(f"{'='*60}\n")
 
-        return filepath, date_livraison
+        return filepath, date_livraison, diag_lines
 
     except Exception as e:
         print(f"\n  ❌ Erreur : {e}")

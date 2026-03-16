@@ -103,18 +103,19 @@ async def _generer_direct(type_devis: str, params: dict,
 
     try:
         date_livraison = ""
+        diag_lines = []
         if type_devis == "pergola":
-            fp, date_livraison = await generer_devis_pergola(**params)
+            fp, date_livraison, diag_lines = await generer_devis_pergola(**params)
         elif type_devis == "terrasse":
-            fp, date_livraison = await generer_devis_terrasse(**params)
+            fp, date_livraison, diag_lines = await generer_devis_terrasse(**params)
         elif type_devis == "cloture":
-            fp, date_livraison = await generer_devis_cloture(**params)
+            fp, date_livraison, diag_lines = await generer_devis_cloture(**params)
         elif type_devis == "terrasse_detail":
-            fp, date_livraison = await generer_devis_terrasse_detail(**params)
+            fp, date_livraison, diag_lines = await generer_devis_terrasse_detail(**params)
         elif type_devis == "abri":
-            fp, date_livraison = await _gen_abri(**params)
+            fp, date_livraison, diag_lines = await _gen_abri(**params)
         elif type_devis == "studio":
-            fp, date_livraison = await _gen_studio(**params)
+            fp, date_livraison, diag_lines = await _gen_studio(**params)
         else:
             raise ValueError(f"Type de devis inconnu: {type_devis}")
 
@@ -132,6 +133,10 @@ async def _generer_direct(type_devis: str, params: dict,
             }
             if date_livraison:
                 result["date_livraison_estimee"] = date_livraison
+            elif diag_lines:
+                # Inclure le diagnostic pour que Claude Desktop puisse voir
+                # ce qui est affiché dans le panier et aider à cibler le sélecteur
+                result["_diagnostic_panier"] = diag_lines[:20]
             return json.dumps(result)
         return json.dumps({"success": False, "error": f"PDF non trouvé : {filepath!r}"})
 

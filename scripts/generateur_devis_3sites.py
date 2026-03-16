@@ -392,7 +392,7 @@ async def _traiter_panier(
     page, site_url: str,
     code_promo: str = "",
     mode_livraison: str = "",
-) -> str:
+) -> tuple:
     """Traite le panier : code promo, méthode de livraison, date estimée.
 
     Navigue vers /panier/ pour appliquer le code promo, changer la méthode
@@ -401,7 +401,8 @@ async def _traiter_panier(
     mode_livraison : "" (ne pas changer) | "retrait" (local pickup)
                      | "livraison" (transport à domicile)
 
-    Returns: date_livraison (str) — date estimée affichée dans le panier, ou ""
+    Returns: (date_livraison, diagnostic) — date estimée affichée dans le panier,
+             et diagnostic (liste de lignes) si la date n'est pas trouvée.
     """
     panier_url = site_url.rstrip("/") + "/panier/"
     try:
@@ -409,7 +410,7 @@ async def _traiter_panier(
         await page.wait_for_timeout(1500)
     except Exception as e:
         print(f"    ⚠ Impossible de charger le panier ({e})")
-        return
+        return "", []
 
     # ── 1. Code promo ────────────────────────────────────────────────────────
     await appliquer_code_promo(page, code_promo)
@@ -567,39 +568,76 @@ async def _traiter_panier(
                     date_livraison = raw[:100].strip()
 
             print(f"  ➜ Date de livraison estimée : {date_livraison}")
-        else:
-            # ─── Diagnostic : dumper le contenu des zones panier pour debug ───
-            print("  ⚠ Aucune date de livraison trouvée — dump diagnostic :")
-            try:
-                diag = await page.evaluate("""
-                    () => {
-                        const zones = document.querySelectorAll(
-                            '.cart_totals, .cart-collaterals, .woocommerce-shipping-totals, ' +
-                            'tr.shipping, #shipping_method, .shipping'
-                        );
-                        const results = [];
-                        for (const z of zones) {
-                            const text = (z.innerText || '').trim();
-                            if (text) results.push(z.tagName + '.' + z.className.substring(0,50) + ' → ' + text.substring(0, 300));
-                        }
-                        // Aussi chercher tout élément avec "livr" ou "date" dans le texte
-                        const all = document.body ? document.body.innerText : '';
-                        const lines = all.split('\\n').filter(l =>
-                            /livr|date|estim|délai|expédi/i.test(l) && l.trim().length > 5 && l.trim().length < 200
-                        );
-                        if (lines.length > 0) results.push('--- Lignes pertinentes ---', ...lines.slice(0, 10));
-                        return results.join('\\n');
+            return date_livraison, []
+
+        # ─── Diagnostic : dumper le contenu des zones panier ───
+        # Les infos sont retournées dans le JSON MCP pour que Claude Desktop les voie
+        diag_lines = []
+        print("  ⚠ Aucune date de livraison trouvée — dump diagnostic :")
+        try:
+            diag = await page.evaluate("""
+                () => {
+                    const results = [];
+
+                    // 1. Dump toutes les zones panier
+                    const zones = document.querySelectorAll(
+                        '.cart_totals, .cart-collaterals, .woocommerce-shipping-totals, ' +
+                        'tr.shipping, #shipping_method, .shipping, .order-total, ' +
+                        '.woocommerce-shipping-destination'
+                    );
+                    for (const z of zones) {
+                        const text = (z.innerText || '').trim();
+                        if (text) results.push('[ZONE] ' + z.tagName + '.' + z.className.substring(0,80) + ' → ' + text.substring(0, 400));
                     }
-                """) or "(vide)"
-                for line in diag.split('\n')[:15]:
-                    print(f"    | {line}")
-            except Exception:
-                pass
+
+                    // 2. Dump tous les éléments contenant des classes avec "date", "delivery", "livr", "shipping", "estim"
+                    const allEls = document.querySelectorAll('*');
+                    for (const el of allEls) {
+                        const cls = el.className && typeof el.className === 'string' ? el.className : '';
+                        if (/date|deliver|livr|shipping|estim|delay|delai|dispatch|expedi/i.test(cls)) {
+                            const text = (el.innerText || '').trim().substring(0, 200);
+                            if (text && text.length > 3) {
+                                results.push('[CLASS] ' + el.tagName + '.' + cls.substring(0, 80) + ' → ' + text);
+                            }
+                        }
+                    }
+
+                    // 3. Chercher toutes les lignes du body contenant des mots-clés pertinents
+                    const all = document.body ? document.body.innerText : '';
+                    const lines = all.split('\\n').filter(l =>
+                        /livr|date|estim|délai|expédi|semaine|jours?\\s+ouvr/i.test(l) &&
+                        l.trim().length > 5 && l.trim().length < 300
+                    );
+                    if (lines.length > 0) {
+                        results.push('[LIGNES PERTINENTES]');
+                        for (const l of lines.slice(0, 15)) results.push('  ' + l.trim());
+                    }
+
+                    // 4. Lister TOUTES les classes CSS présentes dans cart_totals
+                    const cartTotals = document.querySelector('.cart_totals');
+                    if (cartTotals) {
+                        const allClasses = new Set();
+                        cartTotals.querySelectorAll('*').forEach(el => {
+                            if (el.className && typeof el.className === 'string') {
+                                el.className.split(/\\s+/).forEach(c => { if (c) allClasses.add(c); });
+                            }
+                        });
+                        results.push('[CLASSES cart_totals] ' + [...allClasses].join(', '));
+                    }
+
+                    return results;
+                }
+            """) or []
+            diag_lines = diag if isinstance(diag, list) else [str(diag)]
+            for line in diag_lines[:20]:
+                print(f"    | {line}")
+        except Exception as e_diag:
+            diag_lines = [f"Erreur diagnostic : {e_diag}"]
 
     except Exception as e:
         print(f"  ⚠ Impossible de scraper la date de livraison : {e}")
 
-    return date_livraison
+    return date_livraison, diag_lines
 
 
 async def _generer_devis_via_generateur(
@@ -1225,7 +1263,7 @@ async def generer_devis_pergola(
                 await _ajouter_produits_complementaires(page, produits_list, site_url=SITE_URL)
 
             # ── Panier : code promo, livraison, date estimée ─────────────
-            date_livraison = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
+            date_livraison, _diag = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
 
             # ── Générer le devis via le générateur officiel ───────────────
             timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -1238,7 +1276,7 @@ async def generer_devis_pergola(
 
             elapsed = time.time() - start_time
             print(f"\n  ✅ DEVIS PERGOLA EN {elapsed:.1f}s — {filepath}")
-            return filepath, date_livraison
+            return filepath, date_livraison, _diag
 
         except Exception as e:
             print(f"\n  ❌ Erreur pergola : {e}")
@@ -1720,7 +1758,7 @@ async def generer_devis_terrasse(
             await _verifier_panier(page, SITE_URL, nb_attendu=nb_attendu)
 
             # ── Panier : code promo, livraison, date estimée ──────────────────
-            date_livraison = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
+            date_livraison, _diag = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
 
             # ── Générer le devis ──────────────────────────────────────────────
             timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -1733,7 +1771,7 @@ async def generer_devis_terrasse(
 
             elapsed = time.time() - start_time
             print(f"\n  ✅ DEVIS TERRASSE EN {elapsed:.1f}s — {filepath}")
-            return filepath, date_livraison
+            return filepath, date_livraison, _diag
 
         except Exception as e:
             print(f"\n  ❌ Erreur terrasse : {e}")
@@ -1800,7 +1838,7 @@ async def generer_devis_terrasse_detail(
             await _ajouter_produits_complementaires(page, produits, site_url=SITE_URL)
 
             # 2. Panier : code promo, livraison, date estimée
-            date_livraison = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
+            date_livraison, _diag = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
 
             # 3. Générer le devis via WQG /generateur-de-devis/
             timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -1816,7 +1854,7 @@ async def generer_devis_terrasse_detail(
 
             elapsed = time.time() - start_time
             print(f"\n  ✅ DEVIS TERRASSE DÉTAIL EN {elapsed:.1f}s — {filepath}")
-            return filepath, date_livraison
+            return filepath, date_livraison, _diag
 
         except Exception as e:
             print(f"\n  ❌ Erreur terrasse détail : {e}")
@@ -2025,7 +2063,7 @@ async def generer_devis_cloture(
                 await _ajouter_produits_complementaires(page, produits_list, site_url=SITE_URL)
 
             # Panier : code promo, livraison, date estimée
-            date_livraison = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
+            date_livraison, _diag = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
 
             # Générer le devis via le générateur officiel
             timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -2038,7 +2076,7 @@ async def generer_devis_cloture(
 
             elapsed = time.time() - start_time
             print(f"\n  ✅ DEVIS CLÔTURE EN {elapsed:.1f}s — {filepath}")
-            return filepath, date_livraison
+            return filepath, date_livraison, _diag
 
         except Exception as e:
             print(f"\n  ❌ Erreur clôture : {e}")

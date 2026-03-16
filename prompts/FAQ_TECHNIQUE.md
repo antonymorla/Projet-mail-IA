@@ -237,7 +237,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 | Pin 27mm Thermotraité | Cl.3 | 8-12 ans | Dégriseur 1-2x/an ou saturateur 3-5 ans |
 | Frake | Cl.3 | 10-15 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
 | Jatoba | Cl.4 | 20-25 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
-| Cumaru | Cl.5 | 25-35 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
+| Cumaru | Cl.4 | 25-35 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
 | Padouk | Cl.4 | 20-25 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
 | Ipé | Cl.5 | 30-40 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
 
