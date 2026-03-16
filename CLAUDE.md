@@ -78,7 +78,7 @@ Corps: …
 | Client veut obstruer/fermer le fond des extensions | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer quantités (16 planches/face, longueur ≥ largeur extension) → passer en `produits_complementaires` |
 | Client veut du bois en plus (jardinières, étagères…) | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer `nb = ceil(m² / (0.130 × longueur))` → passer en `produits_complementaires` |
 | Client veut 1 abri configuré + 1 abri préconçu | ✅ `generer_devis_abri` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
-| **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
+| **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — ⚠ vérifier que le client n'a pas déjà appliqué la majoration 10% — email : préciser que la majoration de 10% est une préconisation (pas une obligation) et que les finitions ne sont pas incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ `generer_devis_terrasse_bois(nb_lames=X)` — le configurateur accepte directement le nb de lames, la quantité au panier = nb_lames |
 | **Terrasse — client donne quantités exactes (lames + lambourdes + vis…)** | ✅ **Demander au commercial** : configurateur, au détail, ou les deux ? — voir section TERRASSE ci-dessous |
 | **Terrasse — client veut 2+ zones/configs sur le même devis** | ✅ `generer_devis_terrasse_bois` avec `configurations_supplementaires` — voir section TERRASSE ci-dessous |
@@ -494,7 +494,13 @@ Le configurateur `generer_devis_terrasse_bois` propose **2 modes** :
 
 4. **Si configurateur en mode nb_lames** :
    - Passer directement `nb_lames=X` — la quantité au panier = X lames exactement
-   - Les accessoires ne sont PAS inclus → les mentionner dans l'email si nécessaire
+   - Les accessoires (lambourdes, plots, vis) ne sont PAS inclus dans ce mode
+   - **Obligatoire dans l'email** : calculer et mentionner les accessoires préconisés :
+     - Plots : `nb_plots = surface_estimée × 4` (surface_estimée = nb_lames × 0.145 × longueur)
+     - Lambourdes : `ml_lambourdes = surface_estimée × 3`
+     - Visserie : `nb_boites = ceil(surface_estimée × 35 / 200)`
+   - **Préciser dans l'email** que c'est une préconisation de notre part, pas une obligation, mais qu'il vaut mieux prévoir plus que pas assez
+   - Si le client a 2+ zones → utiliser `configurations_supplementaires` avec `nb_lames=X` pour chaque zone (supporté)
 
 5. **Si au détail** (`generer_devis_terrasse_bois_detail`) :
    - `rechercher_produits_detail(site="terrasse", recherche="[essence] au detail")` pour obtenir les URLs et variation_ids
@@ -525,6 +531,14 @@ generer_devis_terrasse_bois(
 ```
 
 > ⚠ **Ne JAMAIS dupliquer les lignes par zone** — toujours regrouper les produits identiques (même variation_id) en additionnant les quantités (si fallback détail).
+
+### ⛔ RÈGLE — MAJORATION 10% TERRASSE
+
+> **En mode m², toujours appliquer une majoration de +10%** sur la surface pour anticiper les coupes et pertes.
+> - Formule : `quantite = surface_client × 1.10`
+> - **⚠ Vérifier que le client n'a pas déjà appliqué cette majoration lui-même** (ex : client dit "18m² avec marge" ou "j'ai déjà compté 10% de plus"). Si c'est le cas, NE PAS doubler la majoration.
+> - **Dans l'email** : toujours préciser que la majoration de 10% est une **préconisation de notre part** pour anticiper les coupes, mais que ce n'est **pas une obligation**. Il vaut mieux prévoir un peu plus que pas assez.
+> - **Exemple email** : "Nous avons prévu une surface de 22m² (soit +10% par rapport aux 20m² de votre projet) afin d'anticiper les éventuelles coupes et ajustements. Cette marge est une préconisation de notre part ; vous êtes libre de l'ajuster selon votre souhait."
 
 ---
 

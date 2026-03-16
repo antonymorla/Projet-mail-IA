@@ -1593,11 +1593,21 @@ async def generer_devis_terrasse(
                 densite_lambourdes = cfg_sup.get("densite_lambourdes", "simple")
                 essence_val, longueur_field = TERRASSE_ESSENCE_MAP[essence]
                 sup_quantite = cfg_sup.get("quantite", 1)
-                await _configurer_wapf_et_ajouter(
-                    quantite_m2=sup_quantite,
-                    avec_lambourdes=True,
-                    avec_plots=True,
-                )
+                sup_nb_lames = cfg_sup.get("nb_lames", 0)
+                if sup_nb_lames > 0:
+                    # Mode nb_lames direct : quantité exacte de lames, sans accessoires
+                    await _configurer_wapf_et_ajouter(
+                        quantite_m2=1,  # ignoré en mode direct
+                        nb_lames_direct=sup_nb_lames,
+                        item_label=f"Config sup {idx_sup + 1} — {sup_nb_lames} lames",
+                    )
+                else:
+                    # Mode surface m² : avec lambourdes + plots auto-calculés
+                    await _configurer_wapf_et_ajouter(
+                        quantite_m2=sup_quantite,
+                        avec_lambourdes=True,
+                        avec_plots=True,
+                    )
 
             # ── Produits complémentaires ───────────────────────────────────────
             produits_list = json.loads(produits_complementaires) if produits_complementaires and produits_complementaires != "[]" else []
