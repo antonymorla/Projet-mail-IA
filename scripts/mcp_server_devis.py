@@ -102,18 +102,19 @@ async def _generer_direct(type_devis: str, params: dict,
         })
 
     try:
+        date_livraison = ""
         if type_devis == "pergola":
-            fp, _ = await generer_devis_pergola(**params)
+            fp, date_livraison = await generer_devis_pergola(**params)
         elif type_devis == "terrasse":
-            fp, _ = await generer_devis_terrasse(**params)
+            fp, date_livraison = await generer_devis_terrasse(**params)
         elif type_devis == "cloture":
-            fp, _ = await generer_devis_cloture(**params)
+            fp, date_livraison = await generer_devis_cloture(**params)
         elif type_devis == "terrasse_detail":
-            fp, _ = await generer_devis_terrasse_detail(**params)
+            fp, date_livraison = await generer_devis_terrasse_detail(**params)
         elif type_devis == "abri":
-            fp = await _gen_abri(**params)
+            fp, date_livraison = await _gen_abri(**params)
         elif type_devis == "studio":
-            fp = await _gen_studio(**params)
+            fp, date_livraison = await _gen_studio(**params)
         else:
             raise ValueError(f"Type de devis inconnu: {type_devis}")
 
@@ -122,13 +123,16 @@ async def _generer_direct(type_devis: str, params: dict,
         if filepath.endswith(".pdf") and os.path.exists(filepath):
             size_kb = os.path.getsize(filepath) / 1024
             _log_devis(filepath, type_devis, client_prenom, client_nom)
-            return json.dumps({
+            result = {
                 "success": True,
                 "filepath": filepath,
                 "filename": os.path.basename(filepath),
                 "size_kb": round(size_kb, 1),
                 "message": f"Devis {type_devis} généré pour {client_prenom} {client_nom}",
-            })
+            }
+            if date_livraison:
+                result["date_livraison_estimee"] = date_livraison
+            return json.dumps(result)
         return json.dumps({"success": False, "error": f"PDF non trouvé : {filepath!r}"})
 
     except Exception as e:

@@ -111,6 +111,19 @@ Corps: …
 > Les outils sont exposés par `scripts/mcp_server_devis.py`.
 > Les PDF sont sauvegardés dans `~/Downloads/` (glisser directement dans Odoo).
 > Mentionner le chemin du PDF dans l'email (en PJ).
+>
+> **Réponse JSON** de tous les outils `generer_devis_*` :
+> ```json
+> {
+>     "success": true,
+>     "filepath": "/path/to/devis.pdf",
+>     "filename": "devis_Dupont_Jean_20260316.pdf",
+>     "size_kb": 450.5,
+>     "message": "Devis terrasse généré pour Jean Dupont",
+>     "date_livraison_estimee": "22/04/2026"  // ← si disponible dans le panier
+> }
+> ```
+> **⚠ RÈGLE** : si `date_livraison_estimee` est présent dans la réponse, **l'utiliser dans l'email** au client (ex : "livraison estimée au 22/04/2026"). Si absent, indiquer "4 à 5 semaines".
 
 ### Tableau des outils disponibles
 
@@ -744,7 +757,7 @@ Cordialement,
 ### Règles absolues
 
 1. Ne jamais inventer un prix → générer le devis ou renvoyer vers le configurateur
-2. Délai livraison : toujours **"4 à 5 semaines"** — jamais de date précise
+2. Délai livraison : **utiliser la `date_livraison_estimee`** retournée par l'outil de génération de devis si elle est présente dans le JSON de réponse. Si absente, indiquer **"4 à 5 semaines"**. Ne jamais inventer de date.
 3. Ne jamais valider une commande par email → renvoyer vers le site
 4. Urbanisme → toujours renvoyer à la mairie (ne jamais trancher)
 5. Portée pergola > 5m (ou > 4m si ventelles perpendiculaires à la muralière) ou hauteur abri > 2,65m → orienter vers Destombes Bois

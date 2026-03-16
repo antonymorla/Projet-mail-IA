@@ -446,8 +446,9 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 ## INFORMATIONS TRANSVERSALES
 
 **Livraison :**
-- Délai : **4 à 5 semaines** (fabrication + transport). Allongé mai-août.
-- **Jamais de date précise** — ni jour, ni semaine spécifique. Nous transmettons le souhait du client au transporteur, mais c'est le transporteur qui propose la date.
+- Délai par défaut : **4 à 5 semaines** (fabrication + transport). Allongé mai-août.
+- **Si `date_livraison_estimee` est retournée par l'outil de génération de devis** → l'utiliser dans l'email (ex : "livraison estimée au 22/04/2026"). Cette date est scrapée directement depuis le panier du site et correspond à l'estimation la plus fiable.
+- **Si absente** → indiquer "4 à 5 semaines". Ne jamais inventer de date.
 - **Transporteurs** (géographie) :
   - **Marmeth** → secteur **sud de Paris** (Île-de-France sud, Provence, Occitanie, Banyuls, etc.)
   - **Cargomatic** → secteur **nord de Paris** (Nord, Normandie, Bretagne, Alsace, etc.)
@@ -1023,7 +1024,7 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 ## RÈGLES DE SÉCURITÉ
 
 1. **Prix** → ne jamais inventer ; générer le devis ou renvoyer vers le configurateur
-2. **Délais** → toujours "4 à 5 semaines" — jamais de date précise, ni de semaine garantie. C'est le transporteur (Marmeth ou Cargomatic) qui contacte le client ~1 semaine avant et propose la date.
+2. **Délais** → **utiliser la `date_livraison_estimee`** retournée par l'outil de génération de devis si elle est présente dans le JSON de réponse (date inscrite dans le panier au moment de la commande). Si absente, indiquer **"4 à 5 semaines"**. Ne jamais inventer de date. C'est le transporteur (Marmeth ou Cargomatic) qui contacte le client ~1 semaine avant et propose le créneau de livraison.
 3. **Commande** → ne jamais valider par email → renvoyer vers le site
 4. **Urbanisme** → toujours renvoyer vers la mairie
 5. **Portée pergola > 5m** (ou **> 4m** si ventelles perpendiculaires à la muralière) ou **hauteur abri > 2,65m** → orienter vers Destombes Bois
