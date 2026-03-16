@@ -1206,7 +1206,9 @@ async def generer_devis_terrasse(
         densite_lambourdes  : "simple" (3ml/m²) | "double" (6ml/m²)
         configurations_supplementaires : JSON array de configs supplémentaires.
             Chaque élément est un dict avec les mêmes clés : {"essence": "...", "longueur": "...",
-            "quantite": N, "lambourdes": "...", ...}
+            "quantite": N, "nb_lames": N, "lambourdes": "...", ...}
+            Supporte les 2 modes : quantite (m², avec accessoires auto) ou
+            nb_lames (nombre exact de lames, sans accessoires).
         client_*            : coordonnées client
 
     Retourne : chemin vers le PDF

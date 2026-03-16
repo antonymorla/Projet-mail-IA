@@ -69,10 +69,10 @@ Pipeline : [Marque]
 | Client veut obstruer/fermer le fond des extensions | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer 16 planches/face (longueur ≥ largeur extension) → passer en `produits_complementaires` |
 | Client veut du bois en plus (jardinières, étagères…) | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer `ceil(m² / (0.130 × longueur))` → passer en `produits_complementaires` |
 | Client veut 1 abri configuré + 1 modèle préconçu sur le même devis | ✅ `generer_devis_abri` pour le configuré + `rechercher_produits_detail` pour le préconçu → `produits_complementaires` |
-| **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
-| **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
-| **Terrasse — client donne quantités exactes (lames + lambourdes + vis…)** | ✅ **Workflow "configurateur d'abord"** — voir section Terrasse ci-dessous |
-| **Terrasse — client veut 2+ zones/configs sur le même devis** | ✅ `generer_devis_terrasse_bois` avec `configurations_supplementaires` — voir section Terrasse ci-dessous |
+| **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — ⚠ vérifier que le client n'a pas déjà appliqué la majoration 10% — email : préciser que la majoration est une préconisation (pas une obligation) et que les finitions ne sont pas incluses |
+| **Terrasse — client donne nb_lames seulement** | ✅ `generer_devis_terrasse_bois(nb_lames=X)` — le configurateur accepte directement le nb de lames, la quantité au panier = nb_lames. Calculer et mentionner les accessoires préconisés dans l'email |
+| **Terrasse — client donne quantités exactes (lames + lambourdes + vis…)** | ✅ **Demander au commercial** : configurateur, au détail, ou les deux ? — voir section Terrasse ci-dessous |
+| **Terrasse — client veut 2+ zones/configs sur le même devis** | ✅ `generer_devis_terrasse_bois` avec `configurations_supplementaires` (supporte `quantite` et `nb_lames`) — voir section Terrasse ci-dessous |
 | **Terrasse — devis comparatif essences différentes** | ✅ Recalculer nb_lames selon longueurs dispo de chaque essence (longueurs ≠ entre Pin et exotiques) |
 | **Client demande un modèle préconçu (Essentiel ou Haut de Gamme)** | ✅ `rechercher_produits_detail(site="abri", recherche="essentiel …")` → trouver url + variation_id → `generer_devis_abri` avec `produits_complementaires` |
 | Client avec budget serré sans modèle précis | ✉ Proposer Gamme Essentiel — lister les modèles via `rechercher_produits_detail` + email A |
@@ -259,24 +259,45 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 
 #### Configurateur sur-mesure (WAPF) — à utiliser EN PRIORITÉ
 
-⚠ **Règle principale : TOUJOURS tenter `generer_devis_terrasse_bois` EN PREMIER.** Ce configurateur supporte `configurations_supplementaires` (multi-zones sur 1 PDF) et gère automatiquement les calculs d'accessoires. Toutes les essences sont disponibles (Pin, Cumaru, Ipé, Jatoba, Padouk, Frake). Les plots sont un **paramètre natif** du configurateur — les inclure directement via `plots="6 à 9 cm"` etc., jamais via `produits_complementaires`.
+Ce configurateur supporte `configurations_supplementaires` (multi-zones sur 1 PDF) et gère automatiquement les calculs d'accessoires en mode m². Toutes les essences sont disponibles (Pin, Cumaru, Ipé, Jatoba, Padouk, Frake). Les plots sont un **paramètre natif** du configurateur — les inclure directement via `plots="6 à 9 cm"` etc., jamais via `produits_complementaires`.
 
-> ⚠ **RÈGLE CRITIQUE — TOUJOURS CONVERTIR EN m²** : le configurateur travaille en **surface m²**, PAS en nombre de lames. Quand le client donne un nombre de lames :
-> - **Formule** : `surface_m² = nb_lames × 0.145 × longueur_lame`
-> - **Passer** `quantite=surface_m²` (arrondi au m² supérieur), **JAMAIS** `nb_lames=X`
-> - Si le client indique lui-même une surface → utiliser la surface du client directement
-> - **Exemple** : 21 lames de 2,75m → `quantite = ceil(21 × 0.145 × 2.75)` = **9 m²**. Mais le client dit "zone de 8m²" → utiliser **8**
+### Les 2 modes du configurateur WAPF
 
-> ⚠ **TOUJOURS vérifier les longueurs en stock** via `rechercher_produits_detail(site="terrasse", recherche="[essence]")` avant de générer un devis terrasse. Les longueurs dépendent du stock et ne doivent JAMAIS être hardcodées. Le configurateur peut aussi accepter des longueurs non listées dans l'API — tenter le configurateur d'abord, fallback uniquement si erreur.
+Le configurateur `generer_devis_terrasse_bois` propose **2 modes** :
+
+| Mode | Paramètre | Ce qui est ajouté au panier | Accessoires (lambourdes, plots, vis) |
+|------|-----------|----------------------------|--------------------------------------|
+| **Surface m²** | `quantite=X` (en m²) | Lames calculées automatiquement | ✅ Ajoutés automatiquement selon la surface |
+| **Nombre de lames** | `nb_lames=X` | Exactement X lames | ❌ Non ajoutés — à calculer et mentionner dans l'email |
+
+> **Mode m²** : le client donne une surface → `quantite=surface`. Le configurateur calcule lames + lambourdes + plots + vis automatiquement.
+> **Mode nb_lames** : le client donne un nombre de lames exact → `nb_lames=X`. La quantité au panier correspond exactement au nombre de lames demandé. Les accessoires ne sont PAS inclus → calculer et mentionner les préconisations dans l'email.
+
+> ⚠ **TOUJOURS vérifier les longueurs en stock** via `rechercher_produits_detail(site="terrasse", recherche="[essence]")` avant de générer un devis terrasse. Les longueurs dépendent du stock et ne doivent JAMAIS être hardcodées. Le configurateur peut aussi accepter des longueurs non listées dans l'API — ne pas décider de passer en fallback détail uniquement parce qu'une longueur semble absente.
 
 | Situation client | Paramètres à utiliser |
 |------------------|-----------------------|
-| Surface en m² | `quantite=X` |
-| Nombre exact de lames (sans lambourdes) | Convertir en m² : `quantite=ceil(nb_lames × 0.145 × longueur)` |
-| Nombre exact de lames + lambourdes | Convertir lames en m² : `quantite=surface_m²` |
-| 2+ zones/configs différentes | `configurations_supplementaires` avec `quantite=surface_m²` pour chaque zone |
+| Surface en m² | `quantite=X` (le configurateur gère les accessoires) |
+| Nombre exact de lames (sans lambourdes) | `nb_lames=X` — accessoires à mentionner dans l'email |
+| Nombre exact de lames + surface connue | `quantite=surface_m²` (mode m² si accessoires souhaités) OU `nb_lames=X` (mode direct) |
+| 2+ zones/configs différentes | `configurations_supplementaires` avec `quantite=surface_m²` ou `nb_lames=X` pour chaque zone |
 | Plots réglables | `plots="6 à 9 cm"` (ou autre hauteur) — **toujours en paramètre direct** |
 | Visserie | `visserie="Vis Inox 5x50mm"` etc. |
+
+### Mode nb_lames — accessoires préconisés dans l'email
+
+Quand on utilise `nb_lames`, les accessoires ne sont pas inclus. **Calculer et mentionner dans l'email** :
+- Plots : `nb_plots = surface_estimée × 4` (surface_estimée = nb_lames × 0.145 × longueur)
+- Lambourdes : `ml_lambourdes = surface_estimée × 3`
+- Visserie : `nb_boites = ceil(surface_estimée × 35 / 200)`
+- **Préciser** que c'est une préconisation, pas une obligation, mais qu'il vaut mieux prévoir plus que pas assez
+
+### Majoration 10% — mode m²
+
+En mode m², **toujours appliquer +10%** sur la surface pour anticiper les coupes et pertes :
+- Formule : `quantite = surface_client × 1.10`
+- ⚠ Vérifier que le client n'a pas déjà appliqué cette majoration (ex : "j'ai compté 10% de marge")
+- Dans l'email : préciser que c'est une **préconisation** (pas une obligation), il vaut mieux prévoir plus que pas assez
 
 **Préconisations terrasse (densités par m²) :**
 - **Plots** : **4 plots par m²** → `nb_plots = surface_m² × 4`
@@ -296,22 +317,35 @@ generer_devis_terrasse_bois(
 ```
 → Le PDF inclura lames + lambourdes + plots. **Ne pas chercher les plots au-détail séparément.**
 
-#### Workflow "Configurateur d'abord" — quantités exactes et multi-zones
+#### Workflow terrasse — Choix commercial : configurateur, détail, ou les deux
 
-> ⚠ **Quand un client donne des quantités exactes (lames, lambourdes, vis), ne PAS aller directement vers `generer_devis_terrasse_bois_detail`.** Tenter d'abord le configurateur qui supporte `configurations_supplementaires`.
+> ⚠ **RÈGLE PRINCIPALE** : quand un client donne des quantités (lames, lambourdes, vis…), **toujours demander au commercial** quelle approche il préfère avant de générer un devis :
+> 1. **Configurateur** (`generer_devis_terrasse_bois`) — PDF propre, accessoires auto-calculés (mode m²) ou lames exactes (mode nb_lames)
+> 2. **Au détail** (`generer_devis_terrasse_bois_detail`) — quantités exactes du client, produit par produit
+> 3. **Les deux** — 2 devis séparés pour comparer les prix
+>
+> **Ne JAMAIS décider seul** de l'approche — c'est le commercial qui choisit.
 
 **Étapes obligatoires :**
 
 1. **Vérifier les longueurs en stock** : `rechercher_produits_detail(site="terrasse", recherche="[essence]")` — les longueurs dépendent du stock, ne jamais les hardcoder.
 
-2. **TOUJOURS tenter le configurateur** → `generer_devis_terrasse_bois` avec `quantite=surface_m²` :
-   - Convertir les quantités de lames en m² : `surface = nb_lames × 0.145 × longueur`
-   - Si 2+ zones → utiliser `configurations_supplementaires` avec `quantite=surface_m²` pour chaque zone
-   - **Avantage** : 1 seul devis PDF propre avec toutes les zones
+2. **Demander au commercial** quelle approche il souhaite (configurateur m², configurateur nb_lames, au détail, ou les deux pour comparer).
 
-3. **Fallback `generer_devis_terrasse_bois_detail` UNIQUEMENT si le configurateur retourne une erreur** (PAS parce qu'une longueur semble absente de l'API) :
+3. **Si configurateur en mode m²** :
+   - Client donne une surface → `quantite=surface` (le configurateur gère les accessoires)
+   - Client donne un nb_lames sans surface → convertir : `surface_m² = nb_lames × 0.145 × longueur_lame`
+   - Si 2+ zones → utiliser `configurations_supplementaires` avec `quantite=surface_m²` pour chaque zone
+   - **Avantage** : 1 seul devis PDF propre avec toutes les zones, accessoires calculés automatiquement
+
+4. **Si configurateur en mode nb_lames** :
+   - Passer directement `nb_lames=X` — la quantité au panier = X lames exactement
+   - Les accessoires ne sont PAS inclus → les calculer et mentionner dans l'email
+   - Si 2+ zones → utiliser `configurations_supplementaires` avec `nb_lames=X` pour chaque zone
+
+5. **Si au détail** (`generer_devis_terrasse_bois_detail`) :
    - Chercher les produits au détail : `rechercher_produits_detail(site="terrasse", recherche="[essence] au detail")`
-   - **Regrouper les quantités identiques** : si 2 zones utilisent le même produit (même variation_id), **additionner les quantités** en une seule ligne
+   - **Regrouper les quantités identiques** : si 2 zones utilisent le même produit, **additionner les quantités** en une seule ligne
    - Passer toutes les lignes dans un **SEUL appel** `generer_devis_terrasse_bois_detail`
    - Si une longueur n'est pas disponible au détail → prendre la longueur supérieure la plus proche
 
@@ -349,7 +383,9 @@ generer_devis_terrasse_bois_detail(
 → ⚠ `produits_complementaires` sur terrasse : ajoutés au panier WC mais **absents du PDF** — ne pas utiliser pour plots, visserie ou lames.
 
 **Ne pas mélanger configurateur et détail sur le même devis :**
-→ Si le commercial demande 2 devis (un avec quantités conseillées, un avec quantités exactes du client), faire **2 appels séparés** — ne pas mélanger les deux approches.
+→ **Si le commercial choisit "les deux"**, faire **2 appels séparés** (JAMAIS mélanger sur le même devis) :
+→ Devis 1 : `generer_devis_terrasse_bois` (configurateur)
+→ Devis 2 : `generer_devis_terrasse_bois_detail` (quantités exactes)
 
 **Règle prix — toujours comparer configurateur vs détail :**
 → Les longueurs sont normalement les mêmes sur les deux canaux. Toujours proposer le **prix le moins cher** au client.
@@ -805,7 +841,10 @@ Les largeurs et profondeurs ne sont pas librement combinables. Le configurateur 
 > ⛔ **CHECKLIST SUR-MESURE PERGOLA — 2 erreurs fréquentes :**
 > 1. **Oublier `sur_mesure=True`** → les dimensions hors-tout sont ignorées
 > 2. **Mettre le sur-mesure en `produits_complementaires`** → c'est un paramètre NATIF, PAS un produit
-> On peut ne remplir qu'UNE seule dimension hors-tout (celle qui diffère du standard). Pas obligé de remplir les 3.
+> On n'est PAS obligé de remplir les 3 dimensions — seules celles qui diffèrent du standard sont nécessaires. Toute combinaison est valide :
+>    - Largeur seule, profondeur seule, hauteur seule
+>    - Largeur + profondeur, largeur + hauteur, profondeur + hauteur
+>    - Les 3 ensemble
 
 > ⛔ **PERGOLA DIMENSIONS (largeur vs profondeur) :**
 > - La **LARGEUR** = la plus grande dimension (en facade, le long du mur). La **PROFONDEUR** = la plus petite (max 5m).

@@ -646,7 +646,9 @@ async def generer_devis_terrasse_bois(
                                       "attribut_selects": {}, "description": "..."}]
         configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
                            est un dict avec les mêmes clés : {"essence": "...", "longueur": "...",
-                           "quantite": N, "lambourdes": "...", ...}
+                           "quantite": N, "nb_lames": N, "lambourdes": "...", ...}
+                           Supporte les 2 modes : quantite (m², avec accessoires auto) ou
+                           nb_lames (nombre exact de lames, sans accessoires).
                            Permet de mettre plusieurs terrasses sur le même devis PDF.
 
     Returns:
