@@ -9,7 +9,7 @@ Usage:
     python3 scripts/test_date_livraison.py --screenshot   # sauvegarde une capture du panier
 
 Ce script :
-1. Ajoute un produit au panier via API WooCommerce (add-to-cart) ou sélection variation
+1. Navigue vers la boutique du site, trouve un produit, l'ajoute au panier
 2. Appelle _traiter_panier() avec le bon chemin panier pour scraper la date
 3. Affiche le résultat + diagnostic si date non trouvée
 4. Optionnellement sauvegarde une capture d'écran du panier
@@ -26,173 +26,191 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from playwright.async_api import async_playwright
 from utils_playwright import fermer_popups
 
-# Config par site — URL produit + méthode d'ajout au panier
+# Config par site — page boutique + chemin panier
 SITES = {
     "abri": {
         "name": "Abri Français",
         "url": "https://www.xn--abri-franais-sdb.fr",
         "panier_path": "/votre-panier/",
-        # Ajout via URL add-to-cart directe (planche 27x130 — produit simple avec variation)
-        "add_to_cart_url": "https://www.xn--abri-franais-sdb.fr/?add-to-cart=46498&variation_id=53608&attribute_pa_longueur=4-2-m",
-        "product_url": None,
-        "select_variation": {},
+        # Page catégorie avec des produits simples (Gamme Essentiel)
+        "shop_url": "https://www.xn--abri-franais-sdb.fr/product-category/nos-produits/modeles-preconcus/abris-de-jardin-essentiel/",
     },
     "studio": {
         "name": "Studio Français",
         "url": "https://xn--studio-franais-qjb.fr",
         "panier_path": "/panier/",
-        # Ajout via URL add-to-cart directe (cloison intérieure studio)
-        "add_to_cart_url": "https://xn--studio-franais-qjb.fr/?add-to-cart=3227",
-        "product_url": None,
-        "select_variation": {},
+        "shop_url": "https://xn--studio-franais-qjb.fr/boutique/",
     },
     "pergola": {
         "name": "Ma Pergola Bois",
         "url": "https://mapergolabois.fr",
         "panier_path": "/panier/",
-        # Ajout via URL add-to-cart (bardage pergola)
-        "add_to_cart_url": "https://www.mapergolabois.fr/?add-to-cart=1488",
-        "product_url": None,
-        "select_variation": {},
+        "shop_url": "https://www.mapergolabois.fr/boutique/",
     },
     "terrasse": {
         "name": "Terrasse en Bois",
         "url": "https://terrasseenbois.fr",
         "panier_path": "/panier/",
-        "add_to_cart_url": None,
-        "product_url": "https://www.terrasseenbois.fr/produit/choisissez-vos-plots-plastiques-reglables/",
-        "select_variation": {
-            "#pa_hauteur-de-plots,#attribute_pa_hauteur_de_plots,#attribute_pa_hauteur-de-plots": "2-a-4-cm",
-        },
+        "shop_url": "https://www.terrasseenbois.fr/boutique/",
     },
     "cloture": {
         "name": "Clôture Bois",
         "url": "https://cloturebois.fr",
         "panier_path": "/panier/",
-        # Ajout via URL add-to-cart (pied galvanisé)
-        "add_to_cart_url": "https://cloturebois.fr/?add-to-cart=879",
-        "product_url": None,
-        "select_variation": {},
+        "shop_url": "https://cloturebois.fr/boutique/",
     },
 }
 
 
-async def add_product_via_url(page, add_to_cart_url: str, site_url: str, panier_path: str) -> bool:
-    """Ajoute un produit au panier via l'URL WooCommerce ?add-to-cart=ID."""
-    print(f"  -> Ajout au panier via URL : {add_to_cart_url}")
+async def add_product_from_shop(page, site_url: str, shop_url: str, panier_path: str) -> bool:
+    """Navigue vers la boutique, trouve un produit et l'ajoute au panier.
+
+    Stratégie en 3 étapes :
+    1. Chercher un bouton AJAX "Ajouter au panier" sur la page boutique (produits simples)
+    2. Si pas de bouton AJAX, cliquer sur le 1er produit et ajouter depuis la page produit
+    3. Vérifier que le panier contient au moins 1 article
+    """
+    print(f"  -> Navigation boutique : {shop_url}")
     try:
-        await page.goto(add_to_cart_url, wait_until="load", timeout=30000)
-        await page.wait_for_timeout(3000)
-        await fermer_popups(page)
-
-        # Vérifier si on est redirigé vers le panier ou si un message de succès est affiché
-        current_url = page.url
-        if "/panier" in current_url or "/votre-panier" in current_url or "/cart" in current_url:
-            print("  OK Redirigé vers le panier (produit ajouté)")
-            return True
-
-        # Vérifier message WooCommerce
-        msg = page.locator('.woocommerce-message')
-        if await msg.count() > 0:
-            txt = await msg.first.text_content()
-            print(f"  OK Message WC : {txt[:80]}")
-            return True
-
-        # Vérifier en navigant vers le panier
-        panier_url = site_url.rstrip("/") + panier_path
-        await page.goto(panier_url, wait_until="load", timeout=20000)
-        await page.wait_for_timeout(2000)
-        await fermer_popups(page)
-
-        # Vérifier s'il y a des produits dans le panier
-        has_items = await page.evaluate("""
-            () => {
-                const rows = document.querySelectorAll('.cart_item, .woocommerce-cart-form__cart-item, tr.cart-item');
-                return rows.length > 0;
-            }
-        """)
-        if has_items:
-            print("  OK Produit trouvé dans le panier")
-            return True
-
-        print("  WARN Panier possiblement vide après ajout")
-        return False
+        await page.goto(shop_url, wait_until="load", timeout=30000)
     except Exception as e:
-        print(f"  ERREUR Ajout au panier : {e}")
+        print(f"  ERREUR Navigation boutique : {e}")
         return False
-
-
-async def add_product_via_form(page, product_url: str, select_variation: dict) -> bool:
-    """Navigue vers un produit, sélectionne la variation, et clique Ajouter au panier."""
-    print(f"  -> Navigation vers le produit : {product_url}")
-    await page.goto(product_url, wait_until="load", timeout=30000)
     await page.wait_for_timeout(2000)
     await fermer_popups(page)
 
-    # Sélectionner les variations (dropdowns)
-    if select_variation:
-        for selector_combo, value in select_variation.items():
-            selectors = [s.strip() for s in selector_combo.split(",")]
-            print(f"  -> Sélection variation {selectors} = {value}")
-            found = False
-            for selector in selectors:
-                try:
-                    select_el = page.locator(selector)
-                    if await select_el.count() > 0:
-                        await select_el.select_option(value=value)
-                        await page.wait_for_timeout(1500)
-                        print(f"    OK Variation sélectionnée via {selector}")
-                        found = True
-                        break
-                except Exception:
-                    pass
-            if not found:
-                print(f"    WARN Aucun sélecteur trouvé — dump des <select> disponibles :")
-                selects = await page.evaluate("""
-                    () => {
-                        return Array.from(document.querySelectorAll('select')).map(s =>
-                            '#' + s.id + ' / name=' + s.name + ' -> [' +
-                            Array.from(s.options).map(o => o.value).join(', ') + ']'
-                        );
+    # ── Stratégie 1 : bouton AJAX "Ajouter au panier" sur la page archive ──
+    # WooCommerce met data-product_id sur les boutons add_to_cart sur les pages archive
+    ajax_btn = page.locator('a.add_to_cart_button[data-product_id]').first
+    if await ajax_btn.count() > 0:
+        product_id = await ajax_btn.get_attribute('data-product_id')
+        print(f"  -> Clic AJAX ajout au panier (product_id={product_id})...")
+        try:
+            await ajax_btn.scroll_into_view_if_needed()
+            await ajax_btn.click()
+            await page.wait_for_timeout(3000)
+            # WooCommerce ajoute la classe "added" après l'AJAX
+            added_btn = page.locator(f'a.add_to_cart_button.added[data-product_id="{product_id}"]')
+            if await added_btn.count() > 0:
+                print(f"  OK Produit {product_id} ajouté via AJAX")
+                return True
+            # Vérifier aussi le badge panier
+            print(f"  OK Clic effectué sur produit {product_id} (on continue)")
+            return True
+        except Exception as e:
+            print(f"  WARN AJAX échoué : {e}")
+
+    # ── Stratégie 2 : naviguer vers le 1er produit de la liste ──
+    product_link = page.locator('a.woocommerce-LoopProduct-link, ul.products li.product a[href*="/produit/"]').first
+    if await product_link.count() > 0:
+        href = await product_link.get_attribute('href')
+        print(f"  -> Navigation vers produit : {href}")
+        try:
+            await page.goto(href, wait_until="load", timeout=30000)
+        except Exception as e:
+            print(f"  ERREUR Navigation produit : {e}")
+            return False
+        await page.wait_for_timeout(2000)
+        await fermer_popups(page)
+
+        # Sur la page produit : si c'est un produit variable, sélectionner la 1ère variation
+        selects = page.locator('table.variations select, .variations select')
+        select_count = await selects.count()
+        if select_count > 0:
+            for i in range(select_count):
+                sel = selects.nth(i)
+                # Sélectionner la 1ère option non-vide
+                first_option = await sel.evaluate("""
+                    el => {
+                        for (const opt of el.options) {
+                            if (opt.value && opt.value !== '') return opt.value;
+                        }
+                        return '';
                     }
                 """)
-                for s in selects[:8]:
-                    print(f"      {s}")
+                if first_option:
+                    sel_id = await sel.get_attribute('id') or '?'
+                    print(f"  -> Variation #{sel_id} = {first_option}")
+                    await sel.select_option(value=first_option)
+                    await page.wait_for_timeout(1500)
 
-    # Cliquer sur Ajouter au panier
-    await page.wait_for_timeout(1000)
-    btn = page.locator('button.single_add_to_cart_button').first
-    if await btn.count() > 0:
-        is_disabled = await btn.is_disabled()
-        if is_disabled:
-            print("    WARN Bouton désactivé — attente 3s...")
-            await page.wait_for_timeout(3000)
+        # Cliquer sur Ajouter au panier
+        btn = page.locator('button.single_add_to_cart_button').first
+        if await btn.count() > 0:
             is_disabled = await btn.is_disabled()
+            if is_disabled:
+                await page.wait_for_timeout(3000)
+                is_disabled = await btn.is_disabled()
 
-        if not is_disabled:
-            await btn.scroll_into_view_if_needed()
-            await btn.click()
-            await page.wait_for_timeout(3000)
-
-            try:
-                await page.wait_for_selector(
-                    '.woocommerce-message, .added_to_cart, .woocommerce-notices-wrapper a',
-                    timeout=5000,
-                )
-                print("  OK Produit ajouté au panier")
+            if not is_disabled:
+                await btn.scroll_into_view_if_needed()
+                await btn.click()
+                await page.wait_for_timeout(3000)
+                print("  OK Clic 'Ajouter au panier' effectué")
                 return True
-            except Exception:
-                if "/panier" in page.url or "/cart" in page.url:
-                    print("  OK Redirigé vers le panier")
-                    return True
-                print("  WARN Pas de confirmation (on continue)")
-                return True
+            else:
+                print("  WARN Bouton désactivé")
         else:
-            print("  ERREUR Bouton toujours désactivé")
-            return False
-    else:
-        print("  ERREUR Bouton 'Ajouter au panier' non trouvé")
-        return False
+            print("  WARN Pas de bouton 'Ajouter au panier' sur la page produit")
+
+    # ── Stratégie 3 (fallback) : essayer d'ajouter via wc-ajax ──
+    # Chercher n'importe quel product_id dans le HTML de la page
+    print("  -> Fallback : recherche product_id dans le HTML...")
+    product_id = await page.evaluate("""
+        () => {
+            // Chercher dans les boutons add_to_cart
+            const btn = document.querySelector('[data-product_id]');
+            if (btn) return btn.getAttribute('data-product_id');
+            // Chercher dans les formulaires
+            const input = document.querySelector('input[name="add-to-cart"], input[name="product_id"]');
+            if (input) return input.value;
+            // Chercher dans le body class (WooCommerce met postid-XXXX)
+            const m = document.body.className.match(/postid-(\\d+)/);
+            if (m) return m[1];
+            return '';
+        }
+    """)
+    if product_id:
+        print(f"  -> Ajout via wc-ajax (product_id={product_id})...")
+        result = await page.evaluate("""
+            async (pid) => {
+                try {
+                    const fd = new FormData();
+                    fd.append('product_id', pid);
+                    fd.append('quantity', '1');
+                    const r = await fetch('/?wc-ajax=add_to_cart', {method: 'POST', body: fd});
+                    const j = await r.json();
+                    return JSON.stringify(j);
+                } catch(e) {
+                    return 'error:' + e.message;
+                }
+            }
+        """, product_id)
+        print(f"  -> Réponse wc-ajax : {str(result)[:150]}")
+        if result and 'error' not in str(result).lower()[:20]:
+            return True
+
+    print("  WARN Aucun produit ajouté au panier")
+    return False
+
+
+async def verify_cart_has_items(page, site_url: str, panier_path: str) -> bool:
+    """Vérifie que le panier contient au moins un article."""
+    panier_url = site_url.rstrip("/") + panier_path
+    await page.goto(panier_url, wait_until="load", timeout=20000)
+    await page.wait_for_timeout(2000)
+    await fermer_popups(page)
+
+    has_items = await page.evaluate("""
+        () => {
+            const items = document.querySelectorAll(
+                '.cart_item, .woocommerce-cart-form__cart-item, tr.cart-item, ' +
+                '.woocommerce-cart-form .product-name'
+            );
+            return items.length;
+        }
+    """)
+    return has_items > 0
 
 
 async def test_site(site_key: str, site_info: dict, browser, save_screenshot: bool = False):
@@ -210,24 +228,21 @@ async def test_site(site_key: str, site_info: dict, browser, save_screenshot: bo
 
     try:
         # 1. Ajouter un produit au panier
-        added = False
-        if site_info.get("add_to_cart_url"):
-            added = await add_product_via_url(
-                page,
-                site_info["add_to_cart_url"],
-                site_info["url"],
-                site_info["panier_path"],
-            )
-        elif site_info.get("product_url"):
-            added = await add_product_via_form(
-                page,
-                site_info["product_url"],
-                site_info.get("select_variation", {}),
-            )
-        else:
-            print("  WARN Pas de produit de test pour ce site — panier vide")
+        added = await add_product_from_shop(
+            page,
+            site_info["url"],
+            site_info["shop_url"],
+            site_info["panier_path"],
+        )
 
-        if not added:
+        if added:
+            # Vérifier que le panier contient réellement un article
+            has_items = await verify_cart_has_items(page, site_info["url"], site_info["panier_path"])
+            if has_items:
+                print("  OK Panier vérifié : au moins 1 article")
+            else:
+                print("  WARN Panier semble vide malgré l'ajout")
+        else:
             print("  WARN Impossible d'ajouter un produit — test avec panier vide")
 
         # 2. Appeler _traiter_panier avec le bon chemin
@@ -313,15 +328,14 @@ async def main():
         site_name = SITES[site_key]["name"]
         panier = SITES[site_key]["panier_path"]
         if date:
-            print(f"  OK  {site_name:25s} ({panier:20s}) -> {date}")
+            print(f"  OK   {site_name:25s} ({panier:20s}) -> {date}")
         else:
             print(f"  FAIL {site_name:25s} ({panier:20s}) -> aucune date")
     print(f"{'='*70}")
 
-    # Code de sortie : 0 si toutes les dates sont trouvées, 1 sinon
     all_found = all(d for d in results.values())
     if all_found:
-        print("  SUCCES : toutes les dates de livraison ont été trouvées")
+        print("  SUCCES : toutes les dates de livraison ont ete trouvees")
     else:
         missing = [k for k, v in results.items() if not v]
         print(f"  ECHEC : dates manquantes pour : {', '.join(missing)}")
