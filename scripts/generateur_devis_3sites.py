@@ -469,6 +469,9 @@ async def _traiter_panier(
                     // WPC Estimated Delivery Date (WPClever)
                     '.wpced', '.wpced-text', '.wpced-dates', '.wpced-date',
                     '[class*="wpced"]',
+                    // WooCommerce cart delivery date (custom row in cart_totals)
+                    '.woocommerce-cart__delivery-date',
+                    'tr.woocommerce-cart__delivery-date td',
                     // Plugins génériques date livraison
                     '.delivery-date', '.estimated-delivery',
                     '[class*="delivery-date"]', '.order-delivery-date',
