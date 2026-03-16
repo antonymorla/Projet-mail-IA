@@ -1056,11 +1056,13 @@ class GenerateurDevis:
         """
         try:
             from generateur_devis_3sites import _traiter_panier
+            panier_path = self.site_config.get("panier", "/panier/")
             date_livraison, diag_lines = await _traiter_panier(
                 page=self.page,
                 site_url=self.base_url,
                 code_promo="",       # déjà appliqué avant cet appel
                 mode_livraison="",   # ne pas changer
+                panier_path=panier_path,
             )
             return date_livraison or "", diag_lines or []
         except Exception as e:

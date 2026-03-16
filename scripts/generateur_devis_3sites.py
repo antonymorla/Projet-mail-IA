@@ -392,19 +392,21 @@ async def _traiter_panier(
     page, site_url: str,
     code_promo: str = "",
     mode_livraison: str = "",
+    panier_path: str = "/panier/",
 ) -> tuple:
     """Traite le panier : code promo, méthode de livraison, date estimée.
 
-    Navigue vers /panier/ pour appliquer le code promo, changer la méthode
+    Navigue vers la page panier pour appliquer le code promo, changer la méthode
     de livraison, et scraper la date de livraison estimée.
 
+    panier_path : chemin du panier (ex: "/panier/", "/votre-panier/")
     mode_livraison : "" (ne pas changer) | "retrait" (local pickup)
                      | "livraison" (transport à domicile)
 
     Returns: (date_livraison, diagnostic) — date estimée affichée dans le panier,
              et diagnostic (liste de lignes) si la date n'est pas trouvée.
     """
-    panier_url = site_url.rstrip("/") + "/panier/"
+    panier_url = site_url.rstrip("/") + panier_path
     try:
         await page.goto(panier_url, wait_until="load", timeout=25000)
         await page.wait_for_timeout(1500)
