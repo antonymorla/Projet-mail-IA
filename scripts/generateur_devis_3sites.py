@@ -461,42 +461,141 @@ async def _traiter_panier(
     try:
         date_livraison = await page.evaluate("""
             () => {
-                // Sélecteurs spécifiques plugin date
+                // ─── Étape 1 : sélecteurs spécifiques (plugins connus) ───
                 const specific = [
+                    // WPC Estimated Delivery Date (WPClever)
+                    '.wpced', '.wpced-text', '.wpced-dates', '.wpced-date',
+                    '[class*="wpced"]',
+                    // Plugins génériques date livraison
                     '.delivery-date', '.estimated-delivery',
                     '[class*="delivery-date"]', '.order-delivery-date',
+                    // Pi WebSolution / PluginHive
+                    '.pi-edd', '[class*="pi-edd"]',
+                    '.phive-delivery', '[class*="phive"]',
+                    // YITH Delivery Date
+                    '.ywedd', '[class*="ywedd"]',
+                    // WooCommerce Estimated Delivery
+                    '.wc-estimated-delivery', '[class*="estimated-delivery"]',
+                    '[class*="estimated_delivery"]',
+                    // CodeCanyon / Magerips
+                    '.rp-delivery', '[class*="rp_delivery"]', '[class*="rp-delivery"]',
+                    // Generic delivery/shipping classes
+                    '[class*="shipping-date"]', '[class*="shipping_date"]',
+                    '[class*="dispatch-date"]', '[class*="dispatch_date"]',
+                    '[class*="date-livraison"]', '[class*="date_livraison"]',
+                    '[class*="delai-livraison"]', '[class*="delai_livraison"]',
                 ];
                 for (const sel of specific) {
-                    const el = document.querySelector(sel);
-                    if (el && el.textContent.trim()) return el.textContent.trim();
+                    try {
+                        const el = document.querySelector(sel);
+                        if (el && el.textContent.trim().length > 3) return 'SEL:' + sel + ':' + el.textContent.trim();
+                    } catch(e) {}
                 }
-                // Chercher pattern date dans la section livraison
+
+                // ─── Étape 2 : chercher dans les zones panier connues ───
                 const zones = document.querySelectorAll(
-                    '.woocommerce-shipping-totals, #shipping_method, .cart_totals, .cart-collaterals'
+                    '.woocommerce-shipping-totals, #shipping_method, .cart_totals, ' +
+                    '.cart-collaterals, .shipping, tr.shipping, .woocommerce-shipping-destination, ' +
+                    '.order-total, .cart-subtotal, .woocommerce-cart-form'
                 );
                 for (const zone of zones) {
                     const text = zone.innerText || zone.textContent || '';
                     // DD/MM/YYYY ou DD-MM-YYYY
                     const m1 = text.match(/\\b(\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})\\b/);
-                    if (m1) return m1[0];
-                    // "avant le X mois YYYY" / "livré le X mois YYYY"
-                    const m2 = text.match(/(?:avant le|livr[ée]|estimé)[^\\n]{0,30}(\\d{1,2}\\s+\\w{3,}\\s+\\d{4})/i);
-                    if (m2) return m2[1];
+                    if (m1) return 'ZONE_DATE:' + m1[0];
+                    // "22 avril 2026" — date en français
+                    const mois = '(?:janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)';
+                    const reFr = new RegExp('(\\\\d{1,2}\\\\s+' + mois + '\\\\s+\\\\d{4})', 'i');
+                    const m2 = text.match(reFr);
+                    if (m2) return 'ZONE_DATE_FR:' + m2[1];
+                    // "avant le X mois YYYY" / "livré le X mois"
+                    const m3 = text.match(/(?:avant le|livr[ée]|estim[ée])[^\\n]{0,40}(\\d{1,2}\\s+\\w{3,}\\s+\\d{4})/i);
+                    if (m3) return 'ZONE_CONTEXT:' + m3[1];
                 }
-                // Chercher dans tout le corps (large filet)
+
+                // ─── Étape 3 : chercher dans tout le body ───
                 const full = document.body ? (document.body.innerText || '') : '';
-                const m3 = full.match(/(?:livr[ée][es]?|estimé[e]?s?|délai)[^\\n]{0,60}(\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})/i);
-                if (m3) return m3[1];
+
+                // Pattern DD/MM/YYYY avec contexte livraison
+                const m4 = full.match(/(?:livr[ée][es]?|estim[ée][e]?s?|d[eé]lai|exp[eé]di|dispatch)[^\\n]{0,60}(\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})/i);
+                if (m4) return 'BODY_DATE:' + m4[1];
+
+                // Pattern DD/MM/YYYY sans contexte (dans tout le body)
+                const m5 = full.match(/\\b(\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})\\b/);
+                if (m5) return 'BODY_ANY_DATE:' + m5[0];
+
+                // Pattern "22 avril 2026" en français dans tout le body
+                const moisFull = 'janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre';
+                const reFr2 = new RegExp('(\\\\d{1,2}\\\\s+(?:' + moisFull + ')\\\\s+\\\\d{4})', 'i');
+                const m6 = full.match(reFr2);
+                if (m6) return 'BODY_DATE_FR:' + m6[1];
+
                 return '';
             }
         """) or ""
+
+        # Parser le résultat tagué pour extraire la date
         if date_livraison:
-            # Extraire uniquement la date DD/MM/YYYY si le sélecteur a retourné tout le texte de l'élément
+            tag = date_livraison.split(':')[0] if ':' in date_livraison else ''
+            raw = ':'.join(date_livraison.split(':')[2:]) if date_livraison.count(':') >= 2 else date_livraison.split(':', 1)[-1] if ':' in date_livraison else date_livraison
+            print(f"  ➜ Date livraison trouvée [{tag}] : {raw[:200]}")
+
+            # Extraire la date DD/MM/YYYY ou DD-MM-YYYY
             import re as _re
-            _m = _re.search(r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}', date_livraison)
+            _m = _re.search(r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}', raw)
             if _m:
                 date_livraison = _m.group(0)
+            else:
+                # Essayer date en français "22 avril 2026"
+                _m2 = _re.search(
+                    r'(\d{1,2})\s+(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)\s+(\d{4})',
+                    raw, _re.IGNORECASE
+                )
+                if _m2:
+                    mois_map = {
+                        'janvier': '01', 'février': '02', 'fevrier': '02', 'mars': '03',
+                        'avril': '04', 'mai': '05', 'juin': '06', 'juillet': '07',
+                        'août': '08', 'aout': '08', 'septembre': '09', 'octobre': '10',
+                        'novembre': '11', 'décembre': '12', 'decembre': '12',
+                    }
+                    jour = _m2.group(1).zfill(2)
+                    mois_num = mois_map.get(_m2.group(2).lower(), '00')
+                    annee = _m2.group(3)
+                    date_livraison = f"{jour}/{mois_num}/{annee}"
+                else:
+                    # Garder le texte brut (il contient une info utile même si pas au format date)
+                    date_livraison = raw[:100].strip()
+
             print(f"  ➜ Date de livraison estimée : {date_livraison}")
+        else:
+            # ─── Diagnostic : dumper le contenu des zones panier pour debug ───
+            print("  ⚠ Aucune date de livraison trouvée — dump diagnostic :")
+            try:
+                diag = await page.evaluate("""
+                    () => {
+                        const zones = document.querySelectorAll(
+                            '.cart_totals, .cart-collaterals, .woocommerce-shipping-totals, ' +
+                            'tr.shipping, #shipping_method, .shipping'
+                        );
+                        const results = [];
+                        for (const z of zones) {
+                            const text = (z.innerText || '').trim();
+                            if (text) results.push(z.tagName + '.' + z.className.substring(0,50) + ' → ' + text.substring(0, 300));
+                        }
+                        // Aussi chercher tout élément avec "livr" ou "date" dans le texte
+                        const all = document.body ? document.body.innerText : '';
+                        const lines = all.split('\\n').filter(l =>
+                            /livr|date|estim|délai|expédi/i.test(l) && l.trim().length > 5 && l.trim().length < 200
+                        );
+                        if (lines.length > 0) results.push('--- Lignes pertinentes ---', ...lines.slice(0, 10));
+                        return results.join('\\n');
+                    }
+                """) or "(vide)"
+                for line in diag.split('\n')[:15]:
+                    print(f"    | {line}")
+            except Exception:
+                pass
+
     except Exception as e:
         print(f"  ⚠ Impossible de scraper la date de livraison : {e}")
 

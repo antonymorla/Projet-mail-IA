@@ -1048,62 +1048,24 @@ class GenerateurDevis:
     async def _scraper_date_livraison(self) -> str:
         """Scrape la date de livraison estimée depuis la page panier.
 
-        Navigue vers /panier/ si nécessaire, puis cherche la date via
-        les mêmes sélecteurs que generateur_devis_3sites._traiter_panier().
+        Délègue à _traiter_panier() de generateur_devis_3sites.py qui contient
+        la logique exhaustive de scraping (sélecteurs plugins WPC, Pi, YITH,
+        patterns date français, dump diagnostic).
 
         Returns: date de livraison estimée (str) ou "" si non trouvée.
         """
-        panier_path = self.site_config.get("panier", "/panier/")
-        cart_url = self.base_url + panier_path
-        if panier_path.strip("/") not in self.page.url:
-            try:
-                await self.page.goto(cart_url, wait_until="load", timeout=25000)
-                await self.page.wait_for_timeout(1500)
-            except Exception as e:
-                print(f"    ⚠ Impossible de charger le panier pour la date : {e}")
-                return ""
-
-        date_livraison = ""
         try:
-            date_livraison = await self.page.evaluate("""
-                () => {
-                    // Sélecteurs spécifiques plugin date
-                    const specific = [
-                        '.delivery-date', '.estimated-delivery',
-                        '[class*="delivery-date"]', '.order-delivery-date',
-                    ];
-                    for (const sel of specific) {
-                        const el = document.querySelector(sel);
-                        if (el && el.textContent.trim()) return el.textContent.trim();
-                    }
-                    // Chercher pattern date dans la section livraison
-                    const zones = document.querySelectorAll(
-                        '.woocommerce-shipping-totals, #shipping_method, .cart_totals, .cart-collaterals'
-                    );
-                    for (const zone of zones) {
-                        const text = zone.innerText || zone.textContent || '';
-                        const m1 = text.match(/\\b(\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})\\b/);
-                        if (m1) return m1[0];
-                        const m2 = text.match(/(?:avant le|livr[ée]|estimé)[^\\n]{0,30}(\\d{1,2}\\s+\\w{3,}\\s+\\d{4})/i);
-                        if (m2) return m2[1];
-                    }
-                    // Chercher dans tout le corps (large filet)
-                    const full = document.body ? (document.body.innerText || '') : '';
-                    const m3 = full.match(/(?:livr[ée][es]?|estimé[e]?s?|délai)[^\\n]{0,60}(\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{4})/i);
-                    if (m3) return m3[1];
-                    return '';
-                }
-            """) or ""
-            if date_livraison:
-                import re as _re
-                _m = _re.search(r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}', date_livraison)
-                if _m:
-                    date_livraison = _m.group(0)
-                print(f"  ➜ Date de livraison estimée : {date_livraison}")
+            from generateur_devis_3sites import _traiter_panier
+            date_livraison = await _traiter_panier(
+                page=self.page,
+                site_url=self.base_url,
+                code_promo="",       # déjà appliqué avant cet appel
+                mode_livraison="",   # ne pas changer
+            )
+            return date_livraison or ""
         except Exception as e:
-            print(f"  ⚠ Impossible de scraper la date de livraison : {e}")
-
-        return date_livraison
+            print(f"  ⚠ Erreur scraping date livraison : {e}")
+            return ""
 
     async def _wait_for_preview_images(self):
         """Attend que toutes les images du preview du configurateur soient chargées.
