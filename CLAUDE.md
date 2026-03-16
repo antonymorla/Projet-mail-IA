@@ -297,11 +297,41 @@ generer_devis_pergola_bois(
 - **Pied de poteau** → `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
 - **Bâche** → `rechercher_produits_detail(site="pergola", recherche="bache")`
 
+**Voilage pergola — règles de calcul :**
+- Chaque voilage = **1m de large** × longueur choisie (dans les variations produit)
+- Pour couvrir X mètres de largeur → il faut **X voilages**
+- La longueur de chaque voilage = la profondeur de la pergola (ou le côté perpendiculaire)
+- **Exemple** : pergola 4m × 5m → **4 voilages de 5m** (pas 2 voilages de dimensions variées)
+- Toujours vérifier les longueurs disponibles via `rechercher_produits_detail(site="pergola", recherche="voilage")`
+
 **Bâche pergola — règles :**
 - Tailles fixes disponibles (ex : 3×5m, 4×5m, 5×5m). Vérifier via `rechercher_produits_detail`.
 - Pour une pergola sur-mesure : **combiner** 2 bâches pour couvrir la largeur (ex : pergola 6,16m → 1 bâche 4×5 + 1 bâche 3×5)
 - ⚠ Les bâches peuvent être en **rupture de stock** → délai allongé pour la commande complète (livraison tout en même temps)
 - Toujours préciser dans l'email : "Merci d'indiquer dans les annotations de commande que les bâches sont d'un seul tenant et sur mesure aux dimensions de la pergola [L×P], comme convenu avec notre équipe."
+
+### ⛔ RÈGLE CRITIQUE — PERGOLA DIMENSIONS (largeur vs profondeur)
+
+> **La LARGEUR est la dimension la plus grande** (en facade, le long du mur pour une adossée). La **PROFONDEUR est la plus petite** (max 5m). Si le client dit "4m par 2m", c'est `largeur="4m"` et `profondeur="2m"` — PAS l'inverse.
+>
+> **Indices contextuels pour identifier la largeur :**
+> - "en longitudinale" / "le long de" / "en facade" → c'est la LARGEUR
+> - "en profondeur" / "en avancée" / "en saillie" → c'est la PROFONDEUR
+> - La plus grande dimension est TOUJOURS la largeur (profondeur max = 5m)
+
+### ⛔ CHECKLIST SUR-MESURE PERGOLA — OBLIGATOIRE
+
+> Quand les dimensions client ne correspondent PAS exactement à une taille standard (2m, 3m, 4m...) :
+>
+> 1. ✅ `sur_mesure=True` — OBLIGATOIRE (ne jamais oublier)
+> 2. ✅ `largeur_hors_tout="X.XX"` — dimension exacte en mètres
+> 3. ✅ `profondeur_hors_tout="X.XX"` — dimension exacte en mètres
+> 4. ✅ `largeur` et `profondeur` → taille standard **juste AU-DESSUS** des dimensions sur-mesure
+>
+> **Les 3 paramètres (`sur_mesure`, `largeur_hors_tout`, `profondeur_hors_tout`) sont INDISSOCIABLES.**
+> Si l'un est absent, le sur-mesure ne s'active pas correctement.
+>
+> **Exemple** : client veut 4m × 1,50m → `largeur="4m"`, `profondeur="2m"`, `sur_mesure=True`, `largeur_hors_tout="4"`, `profondeur_hors_tout="1.50"`
 
 **Calcul poteaux lamellé-collé :**
 - Si `nb_poteaux_lamelle_colle=0`, le script tente de lire la description de variation
@@ -418,49 +448,48 @@ generer_devis_terrasse_bois_detail(
 
 > ⚠ **RÈGLE PRINCIPALE** : quand un client donne des quantités exactes (lames, lambourdes, vis), **ne pas aller directement vers `generer_devis_terrasse_bois_detail`**. Tenter d'abord le configurateur WAPF (`generer_devis_terrasse_bois`) qui supporte `configurations_supplementaires` (multi-zones sur 1 PDF).
 
+> ⚠ **RÈGLE CRITIQUE — TOUJOURS CONVERTIR EN m²** : le configurateur WAPF travaille par **surface en m²**, pas par nombre de lames. Quand le client donne un nombre de lames :
+> - **Formule** : `surface_m² = nb_lames × 0.145 × longueur_lame`
+> - **Passer** `quantite=surface_m²` (arrondi au m² supérieur), PAS `nb_lames=X`
+> - Le paramètre `nb_lames` existe mais le configurateur le convertit en m² — passer directement la surface en `quantite` est plus fiable et évite les erreurs de calcul interne.
+> - **Exemple** : 21 lames de 2,75m → `quantite = ceil(21 × 0.145 × 2.75)` = **9 m²** (arrondi). Mais le client dit 8m² → utiliser la surface indiquée par le client si elle est cohérente.
+
 **Étapes obligatoires :**
 
-1. **Vérifier les longueurs disponibles dans le configurateur** via `rechercher_produits_detail(site="terrasse", recherche="[essence]")` — comparer les longueurs demandées par le client avec celles du configurateur WAPF.
+1. **TOUJOURS tenter le configurateur WAPF en premier** (`generer_devis_terrasse_bois`). Le configurateur accepte **plus de longueurs** que celles listées dans le catalogue au détail — ne PAS se fier uniquement aux longueurs retournées par `rechercher_produits_detail`. Le WAPF peut accepter des longueurs intermédiaires (ex : 2,45m, 2,75m pour Cumaru) même si elles ne sont pas visibles dans l'API produits.
 
-2. **Si les longueurs matchent** → utiliser `generer_devis_terrasse_bois` :
-   - Passer `nb_lames=X`, `nb_lambourdes=Y`, `visserie="Vis Inox 5x60mm"` etc.
+2. **Utiliser `generer_devis_terrasse_bois`** avec `quantite=surface_m²` :
+   - Convertir les quantités de lames en m² : `surface = nb_lames × 0.145 × longueur`
    - Si le client a 2+ zones → utiliser `configurations_supplementaires` pour tout mettre sur 1 PDF
    - **Avantage** : 1 seul devis PDF propre avec toutes les zones, le configurateur calcule automatiquement les quantités d'accessoires
 
-3. **Si les longueurs NE matchent PAS** (ex : client demande 2,75m mais configurateur n'a que 1.25, 1.85, 2.15, 3.05, 3.65) → **fallback** vers `generer_devis_terrasse_bois_detail` :
+3. **Fallback vers `generer_devis_terrasse_bois_detail` UNIQUEMENT si le configurateur WAPF échoue** (erreur retournée par l'outil) :
    - `rechercher_produits_detail(site="terrasse", recherche="[essence] au detail")` pour obtenir les URLs et variation_ids du catalogue au détail
    - **Regrouper les quantités** : si 2 zones utilisent le même produit (même longueur), **additionner les quantités** en une seule ligne (ex : 8 lambourdes zone 1 + 16 lambourdes zone 2 = 24 lambourdes total)
    - Passer toutes les lignes dans un **SEUL appel** `generer_devis_terrasse_bois_detail`
 
-**Exemple concret — Client avec 2 zones, longueurs hors configurateur :**
+**Exemple concret — Client avec 2 zones, configurateur WAPF :**
 
 Le client demande :
-- Zone 1 : 21 lames Cumaru 2,75m + 8 lambourdes 3,05m + 2 boîtes vis 5×60
-- Zone 2 : 46 lames Cumaru 2,45m + 16 lambourdes 3,05m + 3 boîtes vis 5×60
+- Zone 1 : 21 lames Cumaru 2,75m (≈ 8m²)
+- Zone 2 : 46 lames Cumaru 2,45m (≈ 16m²)
 
-Étape 1 : Vérifier → le configurateur WAPF Cumaru n'a pas 2,75m ni 2,45m → fallback détail.
+Étape 1 : Convertir en m² :
+- Zone 1 : `21 × 0.145 × 2.75` ≈ **8 m²**
+- Zone 2 : `46 × 0.145 × 2.45` ≈ **16 m²**
 
-Étape 2 : Regrouper les quantités identiques :
-- Lames 2,75m : 21 (une seule zone)
-- Lames 2,45m : 46 (une seule zone)
-- Lambourdes 3,05m : 8 + 16 = **24** (regroupées)
-- Vis 5×60mm : 2 + 3 = **5 boîtes** (regroupées)
-
-Étape 3 : UN SEUL appel avec 4 lignes :
+Étape 2 : UN SEUL appel configurateur :
 ```python
-generer_devis_terrasse_bois_detail(
-    produits='[
-        {"url": "...", "variation_id": 89494, "quantite": 21, "attribut_selects": {...}, "description": "21 lames Cumaru 2,75m (zone 1 — 8m²)"},
-        {"url": "...", "variation_id": 89493, "quantite": 46, "attribut_selects": {...}, "description": "46 lames Cumaru 2,45m (zone 2 — 16m²)"},
-        {"url": "...", "variation_id": 89624, "quantite": 24, "attribut_selects": {...}, "description": "24 lambourdes Niove 40×60 3,05m"},
-        {"url": "...", "variation_id": ...,   "quantite": 5,  "attribut_selects": {},    "description": "5 boîtes vis Inox 5×60mm"}
-    ]',
-    code_promo="LEROYMERLIN10",
+generer_devis_terrasse_bois(
+    essence="CUMARU", longueur="2.75", quantite=8,
+    configurations_supplementaires='[{
+        "essence": "CUMARU", "longueur": "2.45", "quantite": 16
+    }]',
     client_nom="Delrue", client_prenom="Valérie", ...
 )
 ```
 
-> ⚠ **Ne JAMAIS dupliquer les lignes par zone** — toujours regrouper les produits identiques (même variation_id) en additionnant les quantités.
+> ⚠ **Ne JAMAIS dupliquer les lignes par zone** — toujours regrouper les produits identiques (même variation_id) en additionnant les quantités (si fallback détail).
 
 ---
 
