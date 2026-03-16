@@ -28,19 +28,18 @@ SITES = {
     "terrasse": {
         "name": "Terrasse en Bois",
         "url": "https://terrasseenbois.fr",
-        "product_url": "https://www.terrasseenbois.fr/produit/plots-de-terrasse-reglables/",
+        "product_url": "https://www.terrasseenbois.fr/produit/choisissez-vos-plots-plastiques-reglables/",
         "select_variation": {
             # Sélecteur CSS du <select> → valeur à choisir
-            "#pa_hauteur-de-plots": "2-a-4-cm",
+            # Essayer les 2 formats WooCommerce : id="pa_xxx" ou id="attribute_pa_xxx"
+            "#pa_hauteur-de-plots,#attribute_pa_hauteur_de_plots": "2-a-4-cm",
         },
     },
     "pergola": {
         "name": "Ma Pergola Bois",
         "url": "https://mapergolabois.fr",
-        "product_url": "https://www.mapergolabois.fr/produit/pied-de-poteau-reglable/",
-        "select_variation": {
-            "#pa_type-de-pied-de-poteau": "pied-de-poteau-reglable-12-a-18-cm",
-        },
+        "product_url": "https://www.mapergolabois.fr/produit/pergola-bois-en-kit/",
+        "select_variation": {},  # Configurateur WAPF, pas de variation simple
     },
     "cloture": {
         "name": "Clôture Bois",
@@ -50,10 +49,7 @@ SITES = {
     "abri": {
         "name": "Abri Français",
         "url": "https://www.xn--abri-franais-sdb.fr",
-        "product_url": "https://www.xn--abri-franais-sdb.fr/produit/planche-bois-autoclave-classe-3-27x130mm/",
-        "select_variation": {
-            "#pa_longueur": "2-m",
-        },
+        "product_url": None,  # Configurateur WPC, pas de produit simple pour test
     },
     "studio": {
         "name": "Studio Français",
@@ -72,38 +68,34 @@ async def add_product_to_cart(page, product_url: str, select_variation: dict) ->
 
     # Sélectionner les variations (dropdowns)
     if select_variation:
-        for selector, value in select_variation.items():
-            print(f"  ➜ Sélection variation {selector} = {value}")
-            try:
-                # Essayer le <select> natif
-                select_el = page.locator(selector)
-                if await select_el.count() > 0:
-                    await select_el.select_option(value=value)
-                    await page.wait_for_timeout(1500)
-                    print(f"    ✓ Variation sélectionnée")
-                else:
-                    # Essayer aussi avec attribute_ prefix (WooCommerce alternative)
-                    alt_selector = selector.replace("#pa_", "#attribute_pa_")
-                    select_el = page.locator(alt_selector)
+        for selector_combo, value in select_variation.items():
+            # selector_combo peut contenir plusieurs sélecteurs séparés par virgule
+            selectors = [s.strip() for s in selector_combo.split(",")]
+            print(f"  ➜ Sélection variation {selectors} = {value}")
+            found = False
+            for selector in selectors:
+                try:
+                    select_el = page.locator(selector)
                     if await select_el.count() > 0:
                         await select_el.select_option(value=value)
                         await page.wait_for_timeout(1500)
-                        print(f"    ✓ Variation sélectionnée (alt)")
-                    else:
-                        print(f"    ⚠ Sélecteur {selector} non trouvé")
-                        # Dump les selects disponibles pour debug
-                        selects = await page.evaluate("""
-                            () => {
-                                return Array.from(document.querySelectorAll('select')).map(s =>
-                                    s.id + ' / ' + s.name + ' → [' +
-                                    Array.from(s.options).map(o => o.value).join(', ') + ']'
-                                );
-                            }
-                        """)
-                        for s in selects[:5]:
-                            print(f"      Trouvé : {s}")
-            except Exception as e:
-                print(f"    ⚠ Erreur sélection variation : {e}")
+                        print(f"    ✓ Variation sélectionnée via {selector}")
+                        found = True
+                        break
+                except Exception:
+                    pass
+            if not found:
+                print(f"    ⚠ Aucun sélecteur trouvé — dump des <select> disponibles :")
+                selects = await page.evaluate("""
+                    () => {
+                        return Array.from(document.querySelectorAll('select')).map(s =>
+                            '#' + s.id + ' / name=' + s.name + ' → [' +
+                            Array.from(s.options).map(o => o.value).join(', ') + ']'
+                        );
+                    }
+                """)
+                for s in selects[:8]:
+                    print(f"      {s}")
 
     # Cliquer sur Ajouter au panier
     await page.wait_for_timeout(1000)
