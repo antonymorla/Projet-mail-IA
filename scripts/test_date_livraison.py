@@ -5,9 +5,10 @@ Test diagnostic — vérifie la détection de date de livraison sur tous les sit
 Usage:
     python3 scripts/test_date_livraison.py              # teste les 5 sites
     python3 scripts/test_date_livraison.py terrasse      # teste un seul site
+    python3 scripts/test_date_livraison.py terrasse --headless
 
 Ce script :
-1. Ajoute un produit simple au panier de chaque site
+1. Ajoute un produit au panier via sélection variation + clic bouton
 2. Appelle _traiter_panier() pour scraper la date
 3. Affiche le résultat + diagnostic si date non trouvée
 """
@@ -22,34 +23,133 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from playwright.async_api import async_playwright
 from utils_playwright import fermer_popups
 
-# Config par site — URL produit simple + URL panier
+# Config par site — URL produit + sélection variation
 SITES = {
     "terrasse": {
         "name": "Terrasse en Bois",
         "url": "https://terrasseenbois.fr",
-        "add_to_cart_url": "https://www.terrasseenbois.fr/produit/plots-de-terrasse-reglables/?attribute_pa_hauteur-de-plots=2-a-4-cm",
+        "product_url": "https://www.terrasseenbois.fr/produit/plots-de-terrasse-reglables/",
+        "select_variation": {
+            # Sélecteur CSS du <select> → valeur à choisir
+            "#pa_hauteur-de-plots": "2-a-4-cm",
+        },
     },
     "pergola": {
         "name": "Ma Pergola Bois",
         "url": "https://mapergolabois.fr",
-        "add_to_cart_url": "https://www.mapergolabois.fr/produit/pied-de-poteau-reglable/?attribute_pa_type-de-pied-de-poteau=pied-de-poteau-reglable-12-a-18-cm",
+        "product_url": "https://www.mapergolabois.fr/produit/pied-de-poteau-reglable/",
+        "select_variation": {
+            "#pa_type-de-pied-de-poteau": "pied-de-poteau-reglable-12-a-18-cm",
+        },
     },
     "cloture": {
         "name": "Clôture Bois",
         "url": "https://cloturebois.fr",
-        "add_to_cart_url": None,  # Pas de produit simple, on teste juste le panier
+        "product_url": None,
     },
     "abri": {
         "name": "Abri Français",
         "url": "https://www.xn--abri-franais-sdb.fr",
-        "add_to_cart_url": None,  # Le panier est sur /votre-panier/
+        "product_url": "https://www.xn--abri-franais-sdb.fr/produit/planche-bois-autoclave-classe-3-27x130mm/",
+        "select_variation": {
+            "#pa_longueur": "2-m",
+        },
     },
     "studio": {
         "name": "Studio Français",
         "url": "https://xn--studio-franais-qjb.fr",
-        "add_to_cart_url": None,
+        "product_url": None,
     },
 }
+
+
+async def add_product_to_cart(page, product_url: str, select_variation: dict) -> bool:
+    """Navigue vers un produit, sélectionne la variation, et clique Ajouter au panier."""
+    print(f"  ➜ Navigation vers le produit : {product_url}")
+    await page.goto(product_url, wait_until="load", timeout=30000)
+    await page.wait_for_timeout(2000)
+    await fermer_popups(page)
+
+    # Sélectionner les variations (dropdowns)
+    if select_variation:
+        for selector, value in select_variation.items():
+            print(f"  ➜ Sélection variation {selector} = {value}")
+            try:
+                # Essayer le <select> natif
+                select_el = page.locator(selector)
+                if await select_el.count() > 0:
+                    await select_el.select_option(value=value)
+                    await page.wait_for_timeout(1500)
+                    print(f"    ✓ Variation sélectionnée")
+                else:
+                    # Essayer aussi avec attribute_ prefix (WooCommerce alternative)
+                    alt_selector = selector.replace("#pa_", "#attribute_pa_")
+                    select_el = page.locator(alt_selector)
+                    if await select_el.count() > 0:
+                        await select_el.select_option(value=value)
+                        await page.wait_for_timeout(1500)
+                        print(f"    ✓ Variation sélectionnée (alt)")
+                    else:
+                        print(f"    ⚠ Sélecteur {selector} non trouvé")
+                        # Dump les selects disponibles pour debug
+                        selects = await page.evaluate("""
+                            () => {
+                                return Array.from(document.querySelectorAll('select')).map(s =>
+                                    s.id + ' / ' + s.name + ' → [' +
+                                    Array.from(s.options).map(o => o.value).join(', ') + ']'
+                                );
+                            }
+                        """)
+                        for s in selects[:5]:
+                            print(f"      Trouvé : {s}")
+            except Exception as e:
+                print(f"    ⚠ Erreur sélection variation : {e}")
+
+    # Cliquer sur Ajouter au panier
+    await page.wait_for_timeout(1000)
+    btn = page.locator('button.single_add_to_cart_button').first
+    if await btn.count() > 0:
+        # Vérifier que le bouton n'est pas désactivé
+        is_disabled = await btn.is_disabled()
+        if is_disabled:
+            print("    ⚠ Bouton désactivé — attente 3s...")
+            await page.wait_for_timeout(3000)
+            is_disabled = await btn.is_disabled()
+
+        if not is_disabled:
+            await btn.scroll_into_view_if_needed()
+            await btn.click()
+            await page.wait_for_timeout(3000)
+
+            # Vérifier l'ajout
+            try:
+                await page.wait_for_selector(
+                    '.woocommerce-message, .added_to_cart, .woocommerce-notices-wrapper a',
+                    timeout=5000,
+                )
+                print("  ✅ Produit ajouté au panier")
+                return True
+            except Exception:
+                # Vérifier quand même si on est redirigé vers le panier
+                if "/panier" in page.url or "/cart" in page.url:
+                    print("  ✅ Redirigé vers le panier (produit probablement ajouté)")
+                    return True
+                print("  ⚠ Pas de confirmation d'ajout (peut-être ajouté quand même)")
+                return True  # On continue quand même
+        else:
+            print("  ❌ Bouton toujours désactivé — variation non sélectionnée correctement")
+            return False
+    else:
+        print("  ❌ Bouton 'Ajouter au panier' non trouvé")
+        # Dump les boutons disponibles
+        buttons = await page.evaluate("""
+            () => Array.from(document.querySelectorAll('button, input[type=submit]'))
+                .map(b => b.tagName + '.' + b.className.substring(0,60) + ' → ' + (b.textContent || b.value || '').trim().substring(0,50))
+                .slice(0, 10)
+        """)
+        for b in buttons:
+            print(f"    Trouvé : {b}")
+        return False
 
 
 async def test_site(site_key: str, site_info: dict, browser):
@@ -65,28 +165,22 @@ async def test_site(site_key: str, site_info: dict, browser):
     page = await context.new_page()
 
     try:
-        # Ajouter un produit au panier si disponible
-        if site_info.get("add_to_cart_url"):
-            print(f"  ➜ Ajout produit test...")
-            try:
-                await page.goto(site_info["add_to_cart_url"], wait_until="load", timeout=30000)
-                await page.wait_for_timeout(2000)
-                await fermer_popups(page)
-
-                btn = page.locator('button.single_add_to_cart_button').first
-                if await btn.count() > 0:
-                    await btn.click()
-                    await page.wait_for_timeout(3000)
-                    print("  ✅ Produit ajouté au panier")
-                else:
-                    print("  ⚠ Bouton ajout panier non trouvé")
-            except Exception as e:
-                print(f"  ⚠ Erreur ajout produit : {e}")
+        # Ajouter un produit au panier
+        if site_info.get("product_url"):
+            added = await add_product_to_cart(
+                page,
+                site_info["product_url"],
+                site_info.get("select_variation", {}),
+            )
+            if not added:
+                print("  ⚠ Impossible d'ajouter un produit — le panier sera vide")
+        else:
+            print("  ⚠ Pas de produit de test pour ce site — panier vide")
 
         # Appeler _traiter_panier
         from generateur_devis_3sites import _traiter_panier
 
-        print(f"  ➜ Appel _traiter_panier()...")
+        print(f"\n  ➜ Appel _traiter_panier()...")
         date_livraison, diag_lines = await _traiter_panier(
             page=page,
             site_url=site_info["url"],
@@ -100,7 +194,7 @@ async def test_site(site_key: str, site_info: dict, browser):
             print(f"\n  ❌ DATE NON TROUVÉE")
             if diag_lines:
                 print(f"\n  📋 Diagnostic ({len(diag_lines)} lignes) :")
-                for line in diag_lines[:25]:
+                for line in diag_lines[:30]:
                     print(f"    {line}")
             else:
                 print("  (aucun diagnostic retourné)")
@@ -114,10 +208,11 @@ async def test_site(site_key: str, site_info: dict, browser):
 
 
 async def main():
-    target = sys.argv[1] if len(sys.argv) > 1 else None
+    # Filtrer les arguments (ignorer les flags --headless)
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    target = args[0] if args else None
 
     async with async_playwright() as p:
-        # headless=False pour voir le navigateur (debug)
         headless = "--headless" in sys.argv
         print(f"  Mode : {'headless' if headless else 'visible (navigateur affiché)'}")
         print(f"  Tip : ajouter --headless pour lancer sans navigateur\n")
