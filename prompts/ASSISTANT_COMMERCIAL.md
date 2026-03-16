@@ -267,7 +267,7 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 > - Si le client indique lui-même une surface → utiliser la surface du client directement
 > - **Exemple** : 21 lames de 2,75m → `quantite = ceil(21 × 0.145 × 2.75)` = **9 m²**. Mais le client dit "zone de 8m²" → utiliser **8**
 
-> ⚠ **Le configurateur accepte TOUTES les longueurs** disponibles pour chaque essence, y compris des longueurs intermédiaires non listées dans `rechercher_produits_detail`. Ne JAMAIS passer en fallback détail uniquement parce qu'une longueur n'apparaît pas dans l'API produits. Tenter le configurateur d'abord — fallback uniquement si erreur.
+> ⚠ **TOUJOURS vérifier les longueurs en stock** via `rechercher_produits_detail(site="terrasse", recherche="[essence]")` avant de générer un devis terrasse. Les longueurs dépendent du stock et ne doivent JAMAIS être hardcodées. Le configurateur peut aussi accepter des longueurs non listées dans l'API — tenter le configurateur d'abord, fallback uniquement si erreur.
 
 | Situation client | Paramètres à utiliser |
 |------------------|-----------------------|
@@ -278,16 +278,19 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 | Plots réglables | `plots="6 à 9 cm"` (ou autre hauteur) — **toujours en paramètre direct** |
 | Visserie | `visserie="Vis Inox 5x50mm"` etc. |
 
-**Calcul visserie terrasse :**
-- Densité recommandée : **35 vis par m²** (pas 12)
-- Boîte standard : 200 vis → `nb_boites = ceil(surface_m² × 35 / 200)`
+**Préconisations terrasse (densités par m²) :**
+- **Plots** : **4 plots par m²** → `nb_plots = surface_m² × 4`
+- **Lambourdes** : **3 mètres linéaires par m²** → `ml_lambourdes = surface_m² × 3`
+- **Visserie** : **35 vis par m²** — Boîte standard : 200 vis → `nb_boites = ceil(surface_m² × 35 / 200)`
 
-**Exemple — client demande 70 lames Cumaru 3m (surface ≈ 31m²) + 25 lambourdes + plots 6-9 cm :**
+**Exemple — client demande 70 lames Cumaru (surface ≈ 31m²) + 25 lambourdes + plots 6-9 cm :**
 ```
+# 1. Vérifier longueurs en stock : rechercher_produits_detail(site="terrasse", recherche="cumaru")
+# 2. Utiliser la longueur retournée par l'API
 generer_devis_terrasse_bois(
-    essence="CUMARU", longueur="3.05",
+    essence="CUMARU", longueur="<longueur_en_stock>",
     quantite=31, lambourdes="Bois exotique Niove 40x60",
-    lambourdes_longueur="3.05", nb_lambourdes=25,
+    lambourdes_longueur="<longueur_en_stock>", nb_lambourdes=25,
     plots="6 à 9 cm"
 )
 ```
@@ -299,7 +302,7 @@ generer_devis_terrasse_bois(
 
 **Étapes obligatoires :**
 
-1. **Vérifier les longueurs** : `rechercher_produits_detail(site="terrasse", recherche="[essence]")` → comparer les longueurs demandées par le client avec celles du configurateur WAPF.
+1. **Vérifier les longueurs en stock** : `rechercher_produits_detail(site="terrasse", recherche="[essence]")` — les longueurs dépendent du stock, ne jamais les hardcoder.
 
 2. **TOUJOURS tenter le configurateur** → `generer_devis_terrasse_bois` avec `quantite=surface_m²` :
    - Convertir les quantités de lames en m² : `surface = nb_lames × 0.145 × longueur`
@@ -312,17 +315,17 @@ generer_devis_terrasse_bois(
    - Passer toutes les lignes dans un **SEUL appel** `generer_devis_terrasse_bois_detail`
    - Si une longueur n'est pas disponible au détail → prendre la longueur supérieure la plus proche
 
-**Exemple — 2 zones Cumaru (21 lames 2,75m = 8m² + 46 lames 2,45m = 16m²) :**
+**Exemple — 2 zones Cumaru (8m² + 16m²) :**
 ```
+# 1. Vérifier longueurs en stock via rechercher_produits_detail
 generer_devis_terrasse_bois(
-    essence="CUMARU", longueur="2.75", quantite=8,
+    essence="CUMARU", longueur="<longueur_stock_zone1>", quantite=8,
     configurations_supplementaires='[{
-        "essence": "CUMARU", "longueur": "2.45", "quantite": 16
+        "essence": "CUMARU", "longueur": "<longueur_stock_zone2>", "quantite": 16
     }]',
     client_nom="Delrue", ...
 )
 ```
-> Le configurateur WAPF accepte 2,75m et 2,45m même s'ils n'apparaissent pas dans `rechercher_produits_detail`.
 
 **Exemple — fallback détail (le configurateur a retourné une erreur) :**
 ```
@@ -339,14 +342,19 @@ generer_devis_terrasse_bois_detail(
 > ⚠ Lambourdes regroupées (8+16=24) et vis regroupées (2+3=5) — ne JAMAIS dupliquer les lignes par zone.
 
 **Quand utiliser `rechercher_produits_detail(site="terrasse")` :**
+→ **TOUJOURS avant un devis terrasse** — pour vérifier les longueurs en stock (elles varient selon le stock).
 → Pour trouver le **prix unitaire** d'un produit à communiquer dans un email.
 → Pour trouver les `variation_id` et `url` en cas de fallback vers `generer_devis_terrasse_bois_detail`.
-→ ⚠ Les longueurs retournées par l'API ne sont PAS exhaustives — le configurateur WAPF accepte plus de longueurs.
 → ⚠ Lames Pin (21mm, 27mm) **non disponibles** au-détail — toujours passer par le configurateur.
 → ⚠ `produits_complementaires` sur terrasse : ajoutés au panier WC mais **absents du PDF** — ne pas utiliser pour plots, visserie ou lames.
 
 **Ne pas mélanger configurateur et détail sur le même devis :**
 → Si le commercial demande 2 devis (un avec quantités conseillées, un avec quantités exactes du client), faire **2 appels séparés** — ne pas mélanger les deux approches.
+
+**Règle prix — toujours comparer configurateur vs détail :**
+→ Les longueurs sont normalement les mêmes sur les deux canaux. Toujours proposer le **prix le moins cher** au client.
+→ Comparer le prix du configurateur avec le prix au détail et choisir l'option la plus avantageuse — le client ne doit pas se sentir perdant.
+→ Si une longueur est en rupture → prendre la longueur en stock la plus proche et informer le client.
 
 #### Kits terrasse préconçus (WooCommerce)
 Surfaces fixes : **10 / 20 / 40 / 60 / 80 m²** — utiliser uniquement si le client veut exactement ces surfaces.
@@ -794,11 +802,10 @@ Les largeurs et profondeurs ne sont pas librement combinables. Le configurateur 
 
 **Sur-mesure pergola :** Sélectionner la variation standard ≥ dimensions souhaitées, activer `sur_mesure=True`, entrer les dimensions réelles exactes dans `largeur_hors_tout`, `profondeur_hors_tout`, `hauteur_hors_tout`.
 
-> ⛔ **CHECKLIST SUR-MESURE PERGOLA — 3 erreurs fréquentes :**
+> ⛔ **CHECKLIST SUR-MESURE PERGOLA — 2 erreurs fréquentes :**
 > 1. **Oublier `sur_mesure=True`** → les dimensions hors-tout sont ignorées
-> 2. **Oublier `largeur_hors_tout` ou `profondeur_hors_tout`** → les 3 paramètres sont INDISSOCIABLES
-> 3. **Mettre le sur-mesure en `produits_complementaires`** → c'est un paramètre NATIF, PAS un produit
-> Vérifier les 3 paramètres (`sur_mesure`, `largeur_hors_tout`, `profondeur_hors_tout`) avant chaque appel.
+> 2. **Mettre le sur-mesure en `produits_complementaires`** → c'est un paramètre NATIF, PAS un produit
+> On peut ne remplir qu'UNE seule dimension hors-tout (celle qui diffère du standard). Pas obligé de remplir les 3.
 
 > ⛔ **PERGOLA DIMENSIONS (largeur vs profondeur) :**
 > - La **LARGEUR** = la plus grande dimension (en facade, le long du mur). La **PROFONDEUR** = la plus petite (max 5m).
@@ -806,7 +813,7 @@ Les largeurs et profondeurs ne sont pas librement combinables. Le configurateur 
 > - Vérification : `profondeur` ≤ 5m ET `largeur` ≥ `profondeur`. Si inversé → prix et structure faux.
 
 **Exemple :** Client veut 8,79 × 4,99 m → sélectionner 9 × 5 m, `sur_mesure=True`, `largeur_hors_tout="8.79"`, `profondeur_hors_tout="4.99"`.
-**Exemple :** Client veut "1,50m × 4m en longitudinale" → `largeur="4m"`, `profondeur="2m"`, `sur_mesure=True`, `largeur_hors_tout="4"`, `profondeur_hors_tout="1.50"`.
+**Exemple :** Client veut "1,50m × 4m en longitudinale" → `largeur="4m"`, `profondeur="2m"`, `sur_mesure=True`, `profondeur_hors_tout="1.50"` (largeur 4m = standard, pas besoin de `largeur_hors_tout`).
 
 ---
 
@@ -991,4 +998,4 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 13. **Claustras pergola = option native** du configurateur — ne jamais les ajouter en `produits_complementaires`. Le bardage (panneau plein) est un produit séparé → `produits_complementaires`.
 14. **Vérifier l'historique des commandes** : avant de générer un devis, lire TOUT l'historique emails pour vérifier si le client a déjà commandé le produit en question (confirmation de commande, numéro de commande, paiement effectué). Ne JAMAIS regénérer un devis pour un produit déjà commandé.
 15. **Transcriptions IA (résumés d'appels, messages vocaux)** : les mots peuvent être mal transcrits. Ne jamais prendre une formulation de transcription IA au pied de la lettre — interpréter le sens dans le contexte technique du produit et, en cas de doute, demander confirmation.
-16. **Longueur indisponible au détail** : si une longueur demandée n'est pas disponible, **toujours prendre la longueur supérieure la plus proche**. Informer le client dans l'email.
+16. **Longueur indisponible** : si une longueur demandée est en rupture de stock, prendre la longueur en stock la plus proche. **Toujours comparer les prix configurateur vs détail** et proposer l'option la moins chère. Informer le client dans l'email.
