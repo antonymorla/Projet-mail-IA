@@ -10,7 +10,8 @@ Usage:
 
 Ce script :
 1. Navigue vers la page boutique, clique sur le 1er produit, sélectionne la
-   1ère variation disponible, et clique "Ajouter au panier"
+   1ère variation via JavaScript (les selects sont souvent cachés par les swatches),
+   et clique "Ajouter au panier"
 2. Appelle _traiter_panier() avec le bon chemin panier pour scraper la date
 3. Affiche le résultat + diagnostic si date non trouvée
 """
@@ -26,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from playwright.async_api import async_playwright
 from utils_playwright import fermer_popups
 
-# Config par site
+# Config par site — shop_url pointe vers une catégorie avec des produits ajoutables
 SITES = {
     "abri": {
         "name": "Abri Français",
@@ -38,7 +39,8 @@ SITES = {
         "name": "Studio Français",
         "url": "https://xn--studio-franais-qjb.fr",
         "panier_path": "/panier/",
-        "shop_url": "https://xn--studio-franais-qjb.fr/boutique/",
+        # Catégorie "accessoires" contient des produits simples ajoutables
+        "shop_url": "https://xn--studio-franais-qjb.fr/product-category/accessoires/",
     },
     "pergola": {
         "name": "Ma Pergola Bois",
@@ -50,7 +52,8 @@ SITES = {
         "name": "Terrasse en Bois",
         "url": "https://terrasseenbois.fr",
         "panier_path": "/panier/",
-        "shop_url": "https://www.terrasseenbois.fr/boutique/",
+        # Catégorie plots — produits variables simples (1 seul attribut)
+        "shop_url": "https://www.terrasseenbois.fr/product-category/plots-terrasse/",
     },
     "cloture": {
         "name": "Clôture Bois",
@@ -72,24 +75,24 @@ async def find_product_url(page, shop_url: str) -> str:
     await page.wait_for_timeout(2000)
     await fermer_popups(page)
 
-    # Trouver le 1er lien vers un produit
     href = await page.evaluate("""
         () => {
-            // Chercher les liens produits sur la page archive WooCommerce
-            const links = document.querySelectorAll(
-                'ul.products li.product a[href*="/produit/"], ' +
-                '.products .product a.woocommerce-LoopProduct-link, ' +
-                'a.woocommerce-loop-product__link'
-            );
-            for (const link of links) {
-                const href = link.href || '';
-                if (href.includes('/produit/') || href.includes('/product/')) {
-                    return href;
+            // Liens produits WooCommerce
+            const selectors = [
+                'ul.products li.product a[href*="/produit/"]',
+                '.products .product a.woocommerce-LoopProduct-link',
+                'a.woocommerce-loop-product__link',
+                'a[href*="/produit/"]',
+            ];
+            for (const sel of selectors) {
+                const links = document.querySelectorAll(sel);
+                for (const link of links) {
+                    const href = link.href || '';
+                    if (href.includes('/produit/') || href.includes('/product/')) {
+                        return href;
+                    }
                 }
             }
-            // Fallback : n'importe quel lien contenant /produit/
-            const allLinks = document.querySelectorAll('a[href*="/produit/"]');
-            if (allLinks.length > 0) return allLinks[0].href;
             return '';
         }
     """)
@@ -100,8 +103,43 @@ async def find_product_url(page, shop_url: str) -> str:
     return href
 
 
+async def select_variations_js(page) -> int:
+    """Sélectionne toutes les variations via JavaScript (contourne les selects cachés).
+
+    Retourne le nombre de variations sélectionnées.
+    """
+    result = await page.evaluate("""
+        () => {
+            // Trouver tous les selects de variation WooCommerce
+            const selects = document.querySelectorAll(
+                'table.variations select, .variations select, form.variations_form select'
+            );
+            let selected = 0;
+            for (const sel of selects) {
+                // Trouver la 1ère option non-vide
+                let firstValue = '';
+                for (const opt of sel.options) {
+                    if (opt.value && opt.value !== '') {
+                        firstValue = opt.value;
+                        break;
+                    }
+                }
+                if (firstValue && sel.value !== firstValue) {
+                    sel.value = firstValue;
+                    sel.dispatchEvent(new Event('change', {bubbles: true}));
+                    selected++;
+                } else if (firstValue && sel.value === firstValue) {
+                    selected++;  // déjà sélectionné
+                }
+            }
+            return selected;
+        }
+    """)
+    return result
+
+
 async def add_product_to_cart(page, product_url: str) -> bool:
-    """Navigue vers la page produit, sélectionne les variations, ajoute au panier."""
+    """Navigue vers la page produit, sélectionne les variations via JS, ajoute au panier."""
     print(f"  -> Navigation produit : {product_url}")
     try:
         await page.goto(product_url, wait_until="load", timeout=30000)
@@ -111,76 +149,55 @@ async def add_product_to_cart(page, product_url: str) -> bool:
     await page.wait_for_timeout(2000)
     await fermer_popups(page)
 
-    # Sélectionner les variations (dropdowns WooCommerce)
-    variation_selects = await page.evaluate("""
+    # Sélectionner les variations via JavaScript (les selects sont souvent cachés par swatches)
+    nb_selected = await select_variations_js(page)
+    if nb_selected > 0:
+        print(f"  -> {nb_selected} variation(s) sélectionnée(s) via JS")
+        # Attendre que WooCommerce mette à jour le prix et active le bouton
+        await page.wait_for_timeout(3000)
+        # Re-sélectionner au cas où WooCommerce a reset certains selects (cascade)
+        nb2 = await select_variations_js(page)
+        if nb2 > nb_selected:
+            print(f"  -> +{nb2 - nb_selected} variation(s) supplémentaire(s) après cascade")
+            await page.wait_for_timeout(2000)
+    else:
+        print("  -> Pas de variation (produit simple)")
+
+    # Vérifier les variations sélectionnées pour debug
+    variations_debug = await page.evaluate("""
         () => {
             const selects = document.querySelectorAll(
-                'table.variations select, .variations select, ' +
-                'form.variations_form select'
+                'table.variations select, .variations select'
             );
-            const result = [];
-            for (const sel of selects) {
-                const options = [];
-                for (const opt of sel.options) {
-                    if (opt.value && opt.value !== '') {
-                        options.push(opt.value);
-                    }
-                }
-                if (options.length > 0) {
-                    result.push({
-                        id: sel.id || '',
-                        name: sel.name || '',
-                        first_value: options[0],
-                        count: options.length
-                    });
-                }
-            }
-            return result;
+            return Array.from(selects).map(s => ({
+                id: s.id,
+                value: s.value,
+                visible: s.offsetParent !== null
+            }));
         }
     """)
-
-    if variation_selects:
-        print(f"  -> {len(variation_selects)} variation(s) à sélectionner")
-        for v in variation_selects:
-            selector = f"#{v['id']}" if v['id'] else f"select[name='{v['name']}']"
-            print(f"     {selector} -> {v['first_value']} ({v['count']} options)")
-            try:
-                sel = page.locator(selector).first
-                if await sel.count() > 0:
-                    await sel.select_option(value=v['first_value'])
-                    await page.wait_for_timeout(1500)
-                else:
-                    # Fallback par name
-                    sel2 = page.locator(f"select[name='{v['name']}']").first
-                    if await sel2.count() > 0:
-                        await sel2.select_option(value=v['first_value'])
-                        await page.wait_for_timeout(1500)
-            except Exception as e:
-                print(f"     WARN Sélection variation échouée : {e}")
-    else:
-        print("  -> Pas de variation (produit simple ou configurateur)")
-
-    # Attendre que le bouton soit actif (WooCommerce désactive le bouton
-    # jusqu'à ce que toutes les variations soient sélectionnées)
-    await page.wait_for_timeout(2000)
+    for v in variations_debug:
+        vis = "visible" if v["visible"] else "hidden"
+        print(f"     #{v['id']} = '{v['value']}' ({vis})")
 
     # Cliquer sur "Ajouter au panier"
     btn = page.locator('button.single_add_to_cart_button').first
     if await btn.count() == 0:
-        # Essayer d'autres sélecteurs
-        btn = page.locator('input[type="submit"].single_add_to_cart_button, button[name="add-to-cart"]').first
+        btn = page.locator(
+            'input[type="submit"].single_add_to_cart_button, '
+            'button[name="add-to-cart"]'
+        ).first
 
     if await btn.count() > 0:
-        btn_text = await btn.text_content() or ""
+        btn_text = (await btn.text_content() or "").strip()[:40]
         is_disabled = await btn.is_disabled()
-        print(f"  -> Bouton trouvé : '{btn_text.strip()[:40]}' (disabled={is_disabled})")
+        print(f"  -> Bouton : '{btn_text}' (disabled={is_disabled})")
 
         if is_disabled:
-            # Attendre encore un peu
             await page.wait_for_timeout(3000)
             is_disabled = await btn.is_disabled()
             if is_disabled:
-                print("  WARN Bouton toujours désactivé après attente")
+                print("  WARN Bouton désactivé — variations probablement incomplètes")
                 return False
 
         await btn.scroll_into_view_if_needed()
@@ -188,32 +205,62 @@ async def add_product_to_cart(page, product_url: str) -> bool:
         await page.wait_for_timeout(3000)
 
         # Vérifier l'ajout
-        current_url = page.url
-        if "/panier" in current_url or "/votre-panier" in current_url or "/cart" in current_url:
+        url = page.url
+        if "/panier" in url or "/votre-panier" in url or "/cart" in url:
             print("  OK Redirigé vers le panier")
             return True
 
         msg = page.locator('.woocommerce-message')
         if await msg.count() > 0:
-            txt = await msg.first.text_content()
-            print(f"  OK Message : {txt.strip()[:80]}")
+            txt = (await msg.first.text_content() or "").strip()[:80]
+            print(f"  OK Message : {txt}")
             return True
 
-        # Parfois WC ne redirige pas et n'affiche pas de message mais l'ajout fonctionne
+        # Vérifier erreur WooCommerce
+        err = page.locator('.woocommerce-error')
+        if await err.count() > 0:
+            txt = (await err.first.text_content() or "").strip()[:80]
+            print(f"  WARN Erreur WC : {txt}")
+            return False
+
         print("  OK Clic effectué (vérification panier à suivre)")
         return True
     else:
-        print("  WARN Pas de bouton 'Ajouter au panier' trouvé")
-        # Dump des boutons présents pour debug
-        buttons = await page.evaluate("""
-            () => Array.from(document.querySelectorAll('button, input[type=submit]'))
-                .map(b => (b.className || '').substring(0,60) + ' : ' +
-                    (b.textContent || b.value || '').trim().substring(0,40))
-                .filter(s => s.length > 5)
-                .slice(0, 5)
+        # Pas de bouton standard — essayer ajout via wc-ajax
+        print("  WARN Pas de bouton standard — tentative wc-ajax")
+        product_id = await page.evaluate("""
+            () => {
+                const input = document.querySelector(
+                    'input[name="add-to-cart"], input[name="product_id"], ' +
+                    'button[name="add-to-cart"]'
+                );
+                if (input) return input.value || input.getAttribute('value') || '';
+                const m = document.body.className.match(/postid-(\\d+)/);
+                return m ? m[1] : '';
+            }
         """)
-        for b in buttons:
-            print(f"     Bouton : {b}")
+        if product_id:
+            result = await page.evaluate("""
+                async (pid) => {
+                    try {
+                        const fd = new FormData();
+                        fd.append('product_id', pid);
+                        fd.append('quantity', '1');
+                        const r = await fetch('/?wc-ajax=add_to_cart', {
+                            method: 'POST', body: fd
+                        });
+                        const j = await r.json();
+                        return JSON.stringify(j);
+                    } catch(e) {
+                        return 'error:' + e.message;
+                    }
+                }
+            """, product_id)
+            print(f"  -> wc-ajax (pid={product_id}) : {str(result)[:100]}")
+            if result and 'error' not in str(result).lower()[:20]:
+                return True
+
+        print("  WARN Échec ajout")
         return False
 
 
@@ -225,15 +272,12 @@ async def verify_cart(page, site_url: str, panier_path: str) -> int:
     await page.wait_for_timeout(2000)
     await fermer_popups(page)
 
-    nb_items = await page.evaluate("""
-        () => {
-            const items = document.querySelectorAll(
-                'tr.cart_item, tr.woocommerce-cart-form__cart-item'
-            );
-            return items.length;
-        }
+    nb = await page.evaluate("""
+        () => document.querySelectorAll(
+            'tr.cart_item, tr.woocommerce-cart-form__cart-item'
+        ).length
     """)
-    return nb_items
+    return nb
 
 
 async def test_site(site_key: str, site_info: dict, browser, save_screenshot: bool = False):
@@ -250,14 +294,13 @@ async def test_site(site_key: str, site_info: dict, browser, save_screenshot: bo
     page = await context.new_page()
 
     try:
-        # 1. Trouver un produit depuis la boutique
+        # 1. Trouver un produit
         product_url = await find_product_url(page, site_info["shop_url"])
         if not product_url:
             print("  WARN Aucun produit trouvé — test avec panier vide")
         else:
-            # 2. Ajouter le produit au panier
+            # 2. L'ajouter au panier
             added = await add_product_to_cart(page, product_url)
-
             if added:
                 nb = await verify_cart(page, site_info["url"], site_info["panier_path"])
                 if nb > 0:
@@ -280,15 +323,13 @@ async def test_site(site_key: str, site_info: dict, browser, save_screenshot: bo
             panier_path=panier_path,
         )
 
-        # 4. Screenshot si demandé
+        # 4. Screenshot
         if save_screenshot:
             screenshot_dir = os.path.join(os.path.dirname(__file__), "..", "screenshots")
             os.makedirs(screenshot_dir, exist_ok=True)
-            screenshot_path = os.path.join(
-                screenshot_dir, f"panier_{site_key}_{int(time.time())}.png"
-            )
-            await page.screenshot(path=screenshot_path, full_page=True)
-            print(f"  SCREENSHOT : {screenshot_path}")
+            path = os.path.join(screenshot_dir, f"panier_{site_key}_{int(time.time())}.png")
+            await page.screenshot(path=path, full_page=True)
+            print(f"  SCREENSHOT : {path}")
 
         # 5. Résultat
         if date_livraison:
@@ -351,7 +392,7 @@ async def main():
         name = SITES[site_key]["name"]
         panier = SITES[site_key]["panier_path"]
         status = "OK  " if date else "FAIL"
-        value = date if date else "aucune date"
+        value = date or "aucune date"
         print(f"  {status} {name:25s} {panier:20s} -> {value}")
     print(f"{'='*70}")
 
