@@ -431,9 +431,11 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 → Utiliser `mode_livraison="retrait"` pour supprimer les 99€ du devis PDF.
 → Préciser dans l'email : "Merci d'indiquer dans les annotations de commande lors de votre commande en ligne que vous avez échangé avec notre équipe concernant la livraison à [ville]."
 
-**Date de livraison estimée :**
-→ L'outil retourne `date_livraison_estimee` dans le JSON (scrapée dans le panier WooCommerce).
-→ Si non vide : inclure dans l'email B2 "Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date]."
+**Date de livraison estimée — OBLIGATOIRE dans chaque email avec devis :**
+> ⚠ **RÈGLE ABSOLUE** : après chaque génération de devis, le JSON de réponse contient `date_livraison_estimee` (scrapée dans le panier WooCommerce). **Tu DOIS inclure cette date dans l'email**, avec la formulation :
+> **"Si vous commandez dès aujourd'hui, la livraison est estimée au [date]."**
+> Si `date_livraison_estimee` est absente du JSON (rare), indiquer "4 à 5 semaines".
+> **Ne jamais envoyer un email de devis sans mentionner la date ou le délai de livraison.**
 
 ### Règles promos
 - Ne jamais inventer un code promo — toujours vérifier avec `verifier_promotions_actives`.
@@ -540,7 +542,7 @@ Cordialement,
 
 **Règles :**
 - Mentionner en 1-2 phrases les options pertinentes **non choisies**. Ex : pas de visserie → proposer les vis inox ; pas de lambourdes → rappeler l'option ; pas de plots → mentionner les plots réglables ; pas de code promo → ne pas inventer.
-- Si le JSON retourné contient `date_livraison_estimee` non vide → inclure dans l'email : "Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date]."
+- **OBLIGATOIRE** : inclure la date de livraison dans CHAQUE email de devis → `date_livraison_estimee` du JSON : "Si vous commandez dès aujourd'hui, la livraison est estimée au [date]." Si absente, écrire "4 à 5 semaines".
 - Si le client demande un retrait ou une livraison différente de l'adresse standard → utiliser `mode_livraison="retrait"` ou `"livraison"` dans l'outil MCP. Pour un retrait avec livraison spéciale (ex : autre ville), sélectionner `mode_livraison="retrait"` (supprime les 99€) et préciser dans l'email : "Merci d'indiquer dans les annotations de commande que vous avez échangé avec notre équipe concernant la livraison à [ville]."
 
 ```
@@ -548,7 +550,7 @@ Bonjour Monsieur/Madame [Nom],
 
 Suite à votre demande, veuillez trouver ci-joint votre devis pour [description courte].
 
-[Si date_livraison_estimee reçue] Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date].
+Si vous commandez dès aujourd'hui, la livraison est estimée au [date_livraison_estimee du JSON, ou "4 à 5 semaines" si absente]. ← ⚠ OBLIGATOIRE, ne jamais omettre cette ligne
 
 [Si options non choisies pertinentes → 1 phrase] Par exemple : "Je peux également vous établir un devis incluant les vis inox 5×50mm et/ou les plots réglables si vous souhaitez une installation clé en main."
 
@@ -1024,7 +1026,7 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 ## RÈGLES DE SÉCURITÉ
 
 1. **Prix** → ne jamais inventer ; générer le devis ou renvoyer vers le configurateur
-2. **Délais** → **utiliser la `date_livraison_estimee`** retournée par l'outil de génération de devis si elle est présente dans le JSON de réponse (date inscrite dans le panier au moment de la commande). Si absente, indiquer **"4 à 5 semaines"**. Ne jamais inventer de date. C'est le transporteur (Marmeth ou Cargomatic) qui contacte le client ~1 semaine avant et propose le créneau de livraison.
+2. **Délais** → **OBLIGATOIRE dans chaque email de devis** : utiliser la `date_livraison_estimee` retournée par l'outil. Formulation : "Si vous commandez dès aujourd'hui, la livraison est estimée au [date]." Si absente, indiquer **"4 à 5 semaines"**. Ne jamais inventer de date. Ne jamais envoyer un email de devis sans cette mention. C'est le transporteur (Marmeth ou Cargomatic) qui contacte le client ~1 semaine avant et propose le créneau.
 3. **Commande** → ne jamais valider par email → renvoyer vers le site
 4. **Urbanisme** → toujours renvoyer vers la mairie
 5. **Portée pergola > 5m** (ou **> 4m** si ventelles perpendiculaires à la muralière) ou **hauteur abri > 2,65m** → orienter vers Destombes Bois

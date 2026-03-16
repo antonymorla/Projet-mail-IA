@@ -123,7 +123,7 @@ Corps: …
 >     "date_livraison_estimee": "22/04/2026"  // ← si disponible dans le panier
 > }
 > ```
-> **⚠ RÈGLE** : si `date_livraison_estimee` est présent dans la réponse, **l'utiliser dans l'email** au client (ex : "livraison estimée au 22/04/2026"). Si absent, indiquer "4 à 5 semaines".
+> **⚠ RÈGLE ABSOLUE — OBLIGATOIRE** : après chaque génération de devis, **TOUJOURS inclure la date de livraison dans l'email au client**. Si `date_livraison_estimee` est présent dans le JSON → écrire : **"Si vous commandez dès aujourd'hui, la livraison est estimée au [date]."** Si absent → écrire **"4 à 5 semaines"**. **Ne JAMAIS envoyer un email de devis sans mentionner la date ou le délai de livraison.**
 
 ### Tableau des outils disponibles
 
@@ -757,7 +757,7 @@ Cordialement,
 ### Règles absolues
 
 1. Ne jamais inventer un prix → générer le devis ou renvoyer vers le configurateur
-2. Délai livraison : **utiliser la `date_livraison_estimee`** retournée par l'outil de génération de devis si elle est présente dans le JSON de réponse. Si absente, indiquer **"4 à 5 semaines"**. Ne jamais inventer de date.
+2. Délai livraison : **OBLIGATOIRE dans chaque email de devis** — utiliser la `date_livraison_estimee` du JSON : "Si vous commandez dès aujourd'hui, la livraison est estimée au [date]." Si absente, indiquer **"4 à 5 semaines"**. **Ne JAMAIS envoyer un email de devis sans cette mention.**
 3. Ne jamais valider une commande par email → renvoyer vers le site
 4. Urbanisme → toujours renvoyer à la mairie (ne jamais trancher)
 5. Portée pergola > 5m (ou > 4m si ventelles perpendiculaires à la muralière) ou hauteur abri > 2,65m → orienter vers Destombes Bois
