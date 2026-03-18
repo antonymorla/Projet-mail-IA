@@ -273,7 +273,7 @@ generer_devis_pergola_bois(
     nb_claustra=0,           # Nombre de claustras (modules de 1m chacun)
                              # Ex : pergola 4m de côté → nb_claustra=4 pour remplir un côté
     pente="",                # "" (défaut 5%) | "5%" | "15%" — pente de toiture (champ WAPF field-e8cec8d)
-                             # ⚠ Pente 15% nécessite ventelle="largeur"
+                             # Pente 15% compatible avec toutes les orientations de ventelles
     options_wapf="{}",       # JSON dict de champs WAPF supplémentaires à sélectionner
                              # Auto-détection swatch/input/select — voir inspect_wapf_all.py pour les field_id
                              # Ex : {"e8cec8d": "15%"} — pilote n'importe quel champ WAPF non prévu
@@ -359,20 +359,18 @@ generer_devis_pergola_bois(
 >
 > **Formulation email** : *"Merci d'indiquer dans les annotations de commande que les pergolas doivent être jointes entre elles, afin que nous prévoyions la visserie de jonction nécessaire."*
 
-### ⛔ RÈGLE CRITIQUE — PERGOLA DIMENSIONS (largeur vs profondeur)
+### PERGOLA DIMENSIONS (largeur vs profondeur)
 
-> **La LARGEUR est la dimension la plus grande** (en facade, le long du mur pour une adossée). La **PROFONDEUR est la plus petite** (max 5m). Si le client dit "4m par 2m", c'est `largeur="4m"` et `profondeur="2m"` — PAS l'inverse.
+> **Largeur** = dimension en facade (le long du mur pour une adossée). **Profondeur** = dimension perpendiculaire.
+> Le configurateur accepte toutes les combinaisons valides (largeur de 2m à 10m, profondeur de 2m à 5m), y compris `largeur < profondeur` (ex : 4m × 5m).
 >
 > **Indices contextuels pour identifier la largeur :**
 > - "en longitudinale" / "le long de" / "en facade" / "le long de la pergola existante" → c'est la LARGEUR
 > - "en profondeur" / "en avancée" / "en saillie" → c'est la PROFONDEUR
-> - La plus grande dimension est TOUJOURS la largeur (profondeur max = 5m)
-> - Si le client décrit "X par Y en longitudinale" → X est la LARGEUR (le long), Y est la PROFONDEUR
 >
 > **Vérification obligatoire avant chaque appel :**
-> - Confirmer que `profondeur` ≤ 5m
-> - Confirmer que `largeur` ≥ `profondeur`
-> - Si les dimensions sont inversées, le devis sera faux (prix, structure, ventelles)
+> - Confirmer que `largeur` est entre 2m et 10m
+> - Confirmer que `profondeur` est entre 2m et 5m
 
 ### ⛔ CHECKLIST SUR-MESURE PERGOLA — OBLIGATOIRE (3 ERREURS FRÉQUENTES)
 

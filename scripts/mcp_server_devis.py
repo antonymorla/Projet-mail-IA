@@ -176,21 +176,9 @@ def _valider_pergola(largeur, profondeur, fixation, ventelle, option,
         errors.append(f"claustra_type={claustra_type!r} invalide. Valeurs : {sorted(_PERGOLA_CLAUSTRA_TYPES)}")
     if pente not in _PERGOLA_PENTES:
         errors.append(f"pente={pente!r} invalide. Valeurs : {sorted(_PERGOLA_PENTES)}")
-    # Règle critique : largeur >= profondeur (profondeur max 5m)
-    try:
-        l_val = int(l_norm.replace("m", ""))
-        p_val = int(p_norm.replace("m", ""))
-        if p_val > l_val:
-            errors.append(f"profondeur ({p_val}m) > largeur ({l_val}m). "
-                         "La LARGEUR doit toujours être >= profondeur. Inverser les valeurs.")
-    except ValueError:
-        pass
     # Règle : platelage nécessite ventelle largeur ou profondeur
     if option == "platelage" and ventelle not in ("largeur", "profondeur"):
         errors.append(f"option='platelage' nécessite ventelle='largeur' ou 'profondeur' (reçu: {ventelle!r})")
-    # Règle : pente 15% nécessite ventelle largeur
-    if pente == "15%" and ventelle != "largeur":
-        errors.append(f"pente='15%' nécessite ventelle='largeur' (reçu: {ventelle!r})")
     # Règle : sur_mesure obligatoire si dimensions hors-tout fournies
     if (largeur_hors_tout or profondeur_hors_tout or hauteur_hors_tout) and not sur_mesure:
         errors.append("sur_mesure=True OBLIGATOIRE quand largeur_hors_tout/profondeur_hors_tout/"

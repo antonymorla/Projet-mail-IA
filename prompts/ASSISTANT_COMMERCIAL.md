@@ -1131,7 +1131,7 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 
 | Configurateur | Vérification obligatoire AVANT l'appel |
 |---------------|---------------------------------------|
-| **Pergola** | `rechercher_produits_detail(site="pergola")` si produits complémentaires. Vérifier : largeur ∈ {2m-10m}, profondeur ∈ {2m-5m}, largeur ≥ profondeur, `sur_mesure=True` si dimensions hors-tout, `platelage` → ventelle largeur/profondeur, `pente="15%"` → ventelle largeur |
+| **Pergola** | `rechercher_produits_detail(site="pergola")` si produits complémentaires. Vérifier : largeur ∈ {2m-10m}, profondeur ∈ {2m-5m}, `sur_mesure=True` si dimensions hors-tout, `platelage` → ventelle largeur/profondeur. Note : largeur < profondeur est accepté par le configurateur, pente 15% compatible avec toutes les orientations de ventelles |
 | **Terrasse** | `rechercher_produits_detail(site="terrasse", recherche="[essence]")` pour vérifier **longueurs en stock**. Vérifier : essence dans les 10 valeurs autorisées, lambourdes/plots/visserie dans les valeurs listées |
 | **Terrasse détail** | `rechercher_produits_detail(site="terrasse", recherche="[produit] au detail")` pour obtenir **url + variation_id** exacts — ne JAMAIS les deviner |
 | **Clôture** | Vérifier : modèle (classique/moderne) → les options dépendent du modèle (longeurs, hauteurs, bardages différents) |
