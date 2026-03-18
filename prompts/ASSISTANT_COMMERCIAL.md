@@ -910,6 +910,7 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 - **Pergola — Pied de poteau** : `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
 - **Pergola — Poteaux lamellé-collé** : option directe (`poteau_lamelle_colle=True`) + `nb_poteaux_lamelle_colle=N`
 - **Pergola — Claustra** : option directe (`claustra_type="horizontal"` + `nb_claustra=4`) — ⚠ NE PAS ajouter en produits_complementaires
+- **Pergola — Pente de toiture** : option directe (`pente="15%"`) — ⚠ Pente 15% nécessite `ventelle="largeur"`
 - **Pergola — Bardage** : `rechercher_produits_detail(site="pergola", recherche="bardage")` → ajouter via `produits_complementaires` (pas dans le configurateur WAPF)
 - **Pergola — Bâche** : `rechercher_produits_detail(site="pergola", recherche="bache")` — tailles fixes, combiner si pergola > bâche dispo
 
@@ -918,6 +919,26 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 Quand `poteau_lamelle_colle=True`, le script calcule automatiquement le nombre de poteaux depuis la description de variation. Mais avec 932+ variations, la description peut être absente → comptage = 0 (bug connu).
 
 **Si le comptage échoue** → fournir explicitement : `nb_poteaux_lamelle_colle=4` (lire depuis le PDF d'un devis précédent ou depuis la description produit sur le site). Exemples : 9m×5m adossée → 4 (2 angle + 2 muralière).
+
+### Option pergola pente de toiture
+
+Le configurateur pergola propose 2 pentes : **5%** (défaut) et **15%** (monopente pour carport solaire, etc.).
+
+- `pente=""` → défaut (5%)
+- `pente="15%"` → monopente 15% — ⚠ **nécessite `ventelle="largeur"`** (le configurateur bloque sinon)
+- `pente="5%"` → explicitement 5% (équivalent au défaut)
+
+> **Cas d'usage typique** : carport avec bac acier (`option="carport"`) + pente 15% pour l'écoulement des eaux et le montage de panneaux solaires.
+
+### Option générique `options_wapf` (pergola)
+
+Pour piloter un champ WAPF qui n'a pas de paramètre dédié, utiliser `options_wapf` (JSON dict) :
+```
+options_wapf='{"field_id": "valeur"}'
+```
+- Le handler auto-détecte le type de champ (swatch, input, select)
+- Les `field_id` sont listés dans `scripts/inspect_wapf_all.py`
+- Exemple : `options_wapf='{"e8cec8d": "15%"}'` (équivalent à `pente="15%"`)
 
 ### Multi-configuration sur un même devis (`configurations_supplementaires`)
 
@@ -972,7 +993,7 @@ generer_devis_abri(
 |------|---------------------------------------|
 | Abri | `largeur`, `profondeur`, `ouvertures`, `plancher`, `bac_acier`, `extension_toiture` |
 | Studio | `largeur`, `profondeur`, `menuiseries`, `bardage_exterieur`, `isolation`, `rehausse`, `bardage_interieur`, `finition_plancher`, `terrasse`, `pergola` |
-| Pergola | `largeur`, `profondeur`, `fixation`, `ventelle`, `option`, `poteau_lamelle_colle`, `nb_poteaux_lamelle_colle`, `claustra_type`, `nb_claustra`, `sur_mesure`, `largeur_hors_tout`, `profondeur_hors_tout`, `hauteur_hors_tout` |
+| Pergola | `largeur`, `profondeur`, `fixation`, `ventelle`, `option`, `poteau_lamelle_colle`, `nb_poteaux_lamelle_colle`, `claustra_type`, `nb_claustra`, `sur_mesure`, `largeur_hors_tout`, `profondeur_hors_tout`, `hauteur_hors_tout`, `pente`, `options_wapf` |
 | Terrasse | `essence`, `longueur`, `quantite`, `lambourdes`, `lambourdes_longueur`, `plots`, `visserie`, `densite_lambourdes`, `nb_lames`, `nb_lambourdes` |
 | Clôture | `modele`, `longeur`, `hauteur`, `bardage`, `fixation_sol`, `type_poteaux`, `longueur_lames`, `sens_bardage`, `recto_verso` |
 
