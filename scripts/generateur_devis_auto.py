@@ -522,6 +522,8 @@ class GenerateurDevis:
             """Clique sur option_text dans le groupe group_text.
 
             Découvre les options disponibles dans le groupe avant de cliquer.
+            Vérifie si l'option est DÉJÀ sélectionnée (via wpc-encoded) pour
+            éviter de la désélectionner par un double-clic.
             Lève ValueError si le groupe ou l'option n'existe pas.
             """
             result = await self.page.evaluate("""
@@ -542,6 +544,20 @@ class GenerateurDevis:
                         var items = parent.querySelectorAll(':scope > ul > li.wpc-control-item');
                         return Array.from(items).map(i => i.getAttribute('data-text')).filter(Boolean);
                     }
+                    function isAlreadySelected(item) {
+                        // Vérifier via wpc-encoded si le data-uid de l'item est déjà sélectionné
+                        var uid = item.getAttribute('data-uid');
+                        if (!uid) return false;
+                        var form = document.querySelector('form.cart');
+                        var enc = form ? form.querySelector('[name="wpc-encoded"]') : null;
+                        if (!enc || !enc.value) return false;
+                        try {
+                            var selectedUids = atob(enc.value).split(',').map(function(s) { return s.trim(); });
+                            return selectedUids.indexOf(uid) !== -1;
+                        } catch(e) {
+                            return false;
+                        }
+                    }
                     var allItems = document.querySelectorAll('li.wpc-control-item');
                     var group = null;
                     for (var item of allItems) {
@@ -559,9 +575,14 @@ class GenerateurDevis:
                         var available = listChildren(group);
                         return {error: 'option_not_found', option: args.optionText, group: args.groupText, available_options: available};
                     }
+                    // Vérifier si déjà sélectionné AVANT de cliquer
+                    if (isAlreadySelected(option)) {
+                        var available = listChildren(group);
+                        return {ok: true, already_selected: true, available_options: available};
+                    }
                     clickItem(option);
                     var available = listChildren(group);
-                    return {ok: true, available_options: available};
+                    return {ok: true, already_selected: false, available_options: available};
                 }
             """, {"groupText": group_text, "optionText": option_text})
             if isinstance(result, dict) and result.get("error"):
@@ -577,7 +598,10 @@ class GenerateurDevis:
                         f"Options disponibles : {result.get('available_options', [])}"
                     )
             if isinstance(result, dict) and result.get("ok"):
-                print(f"    ✓ {group_text} → {option_text} (dispo: {result.get('available_options', [])})")
+                if result.get("already_selected"):
+                    print(f"    ✓ {group_text} → {option_text} (déjà sélectionné — clic ignoré)")
+                else:
+                    print(f"    ✓ {group_text} → {option_text} (dispo: {result.get('available_options', [])})")
             await self.page.wait_for_timeout(300)
 
         # Bardage extérieur
