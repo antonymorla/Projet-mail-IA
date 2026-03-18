@@ -1062,3 +1062,62 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 14. **Vérifier l'historique des commandes** : avant de générer un devis, lire TOUT l'historique emails pour vérifier si le client a déjà commandé le produit en question (confirmation de commande, numéro de commande, paiement effectué). Ne JAMAIS regénérer un devis pour un produit déjà commandé.
 15. **Transcriptions IA (résumés d'appels, messages vocaux)** : les mots peuvent être mal transcrits. Ne jamais prendre une formulation de transcription IA au pied de la lettre — interpréter le sens dans le contexte technique du produit et, en cas de doute, demander confirmation.
 16. **Longueur indisponible** : si une longueur demandée est en rupture de stock, prendre la longueur en stock la plus proche. **Toujours comparer les prix configurateur vs détail** et proposer l'option la moins chère. Informer le client dans l'email.
+
+---
+
+## ⛔ RÈGLE GLOBALE — VÉRIFIER LES OPTIONS DISPONIBLES AVANT TOUTE CONFIGURATION
+
+> **AVANT chaque appel à un outil de génération de devis**, vérifier que les paramètres sont valides.
+> Les outils MCP valident les paramètres et retourneront une erreur si une valeur est invalide, avec la liste des valeurs autorisées.
+> Pour éviter les erreurs et les relances inutiles, **toujours vérifier les options AVANT l'appel** :
+
+### Checklist pré-configuration (TOUS les configurateurs)
+
+| Configurateur | Vérification obligatoire AVANT l'appel |
+|---------------|---------------------------------------|
+| **Pergola** | `rechercher_produits_detail(site="pergola")` si produits complémentaires. Vérifier : largeur ∈ {2m-10m}, profondeur ∈ {2m-5m}, largeur ≥ profondeur, `sur_mesure=True` si dimensions hors-tout, `platelage` → ventelle largeur/profondeur, `pente="15%"` → ventelle largeur |
+| **Terrasse** | `rechercher_produits_detail(site="terrasse", recherche="[essence]")` pour vérifier **longueurs en stock**. Vérifier : essence dans les 10 valeurs autorisées, lambourdes/plots/visserie dans les valeurs listées |
+| **Terrasse détail** | `rechercher_produits_detail(site="terrasse", recherche="[produit] au detail")` pour obtenir **url + variation_id** exacts — ne JAMAIS les deviner |
+| **Clôture** | Vérifier : modèle (classique/moderne) → les options dépendent du modèle (longeurs, hauteurs, bardages différents) |
+| **Abri** | Vérifier : ouvertures (type/face/position valides, pas de doublon face+position). Si produits complémentaires → `rechercher_produits_detail(site="abri")` |
+| **Studio** | Vérifier : dimensions (7 largeurs × 4 profondeurs), menuiseries (BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement), bardage/isolation/plancher dans les valeurs listées |
+
+### Valeurs autorisées par outil
+
+**Pergola :**
+- `largeur` : "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "10m"
+- `profondeur` : "2m", "3m", "4m", "5m"
+- `fixation` : "adossee", "independante"
+- `ventelle` : "largeur", "profondeur", "retro", "sans"
+- `option` : "non", "platelage", "voilage", "bioclimatique", "carport", "lattage", "polycarbonate"
+- `claustra_type` : "", "vertical", "horizontal", "lattage"
+- `pente` : "", "5%", "15%"
+
+**Terrasse :**
+- `essence` : "PIN 21mm Autoclave Vert", "PIN 27mm Autoclave Vert", "PIN 27mm Autoclave Marron", "PIN 27mm Autoclave Gris", "PIN 27mm Thermotraité", "FRAKE", "JATOBA", "CUMARU", "PADOUK", "IPE"
+- `lambourdes` : "", "Pin autoclave Vert 45x70", "Pin autoclave Vert 45x145", "Bois exotique Niove 40x60"
+- `plots` : "NON", "2 à 4 cm", "4 à 6 cm", "6 à 9 cm", "9 à 15 cm", "15 à 26 cm"
+- `visserie` : "", "Vis Inox 5x50mm", "Vis Inox 5x60mm", "Fixations invisible Hapax"
+- `densite_lambourdes` : "simple", "double"
+
+**Clôture classique :**
+- `longeur` : "4", "10", "20", "30", "40" — `hauteur` : "1-9" — `bardage` : "27x130", "27x130-gris"
+
+**Clôture moderne :**
+- `longeur` : "5", "10", "20", "30", "40" — `hauteur` : "0-9", "1-9", "2-3" — `bardage` : "20x60", "20x70-brun", "20x70-gris", "20x70-noir", "21x130", "21x145", "45x45-esp0-015m", "45x45-esp0-045m"
+
+**Studio :**
+- `largeur` : "2,2", "3,3", "4,4", "5,5", "6,6", "7,7", "8,8"
+- `profondeur` : "2,4", "3,5", "4,6", "5,7"
+- `bardage_exterieur` : "Gris", "Brun", "Noir", "Vert"
+- `isolation` : "60mm", "100 mm (RE2020)"
+- `bardage_interieur` : "OSB", "Panneaux bois massif (3 plis épicéa)"
+- `plancher` : "Sans plancher", "Plancher standard", "Plancher RE2020", "Plancher porteur"
+- `menuiseries.type` : "PORTE VITREE", "FENETRE SIMPLE", "FENETRE DOUBLE", "BAIE VITREE", "PORTE DOUBLE VITREE"
+- `menuiseries.mur` : "MUR DE FACE", "MUR DE GAUCHE", "MUR DE DROITE", "MUR DU FOND"
+- `menuiseries.materiau` : "PVC", "ALU" — ⚠ BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement
+
+**Abri ouvertures :**
+- `type` : "Porte Vitrée", "Porte Pleine", "Porte double Vitrée", "Porte double Pleine", "Fenêtre Horizontale", "Fenêtre Verticale"
+- `face` : "Face 1", "Face 2", "Droite", "Gauche", "Fond 1", "Fond 2"
+- `position` : "Centre", "Gauche", "Droite" — ⚠ jamais 2 ouvertures sur même face + même position
