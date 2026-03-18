@@ -114,11 +114,14 @@ async def _appliquer_options_wapf(page, options_wapf: dict):
                         swatch.click();
                         return {ok: true, type: 'swatch', label: fieldLabel, value: value};
                     }
-                    // Essayer aussi une correspondance partielle (ex: "15" → "15%")
+                    // Correspondance partielle : "15%" → "Pente 15%", "15" → "Pente 15%"
                     var allLabels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                    var valNorm = value.replace('%', '').trim();
                     for (var lbl of allLabels) {
                         var aria = lbl.getAttribute('aria-label') || '';
-                        if (aria.replace('%', '').trim() === value.replace('%', '').trim()) {
+                        var ariaNorm = aria.replace('%', '').trim();
+                        // Match exact sans % ou contient la valeur (ex: "Pente 15" contient "15")
+                        if (ariaNorm === valNorm || ariaNorm.indexOf(valNorm) !== -1) {
                             lbl.click();
                             return {ok: true, type: 'swatch', label: fieldLabel, value: aria};
                         }
@@ -1293,7 +1296,9 @@ async def _configurer_et_ajouter_pergola(
     # ── Option Pente de toiture ────────────────────────────────
     if pente:
         PENTE_FIELD_ID = "e8cec8d"
-        pente_label = pente if "%" in pente else f"{pente}%"
+        pente_pct = pente if "%" in pente else f"{pente}%"
+        # aria-labels réels : "Pente 5%", "Pente 15%" (pas juste "5%")
+        candidates = [f"Pente {pente_pct}", pente_pct, pente]
         # Vérifier que le champ est visible
         try:
             await page.wait_for_function(
@@ -1303,22 +1308,41 @@ async def _configurer_et_ajouter_pergola(
         except Exception:
             pass
         await page.wait_for_timeout(300)
-        try:
-            await page.click(
-                f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{pente_label}"]',
-                timeout=5000,
-            )
-            print(f"    ✓ Pente de toiture sélectionnée : {pente_label}")
-        except Exception as e:
-            # Fallback : essayer sans le % ou via le handler générique
+        pente_ok = False
+        for candidate in candidates:
             try:
                 await page.click(
-                    f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{pente}"]',
+                    f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{candidate}"]',
                     timeout=3000,
                 )
-                print(f"    ✓ Pente de toiture sélectionnée : {pente}")
+                print(f"    ✓ Pente de toiture sélectionnée : {candidate}")
+                pente_ok = True
+                break
             except Exception:
-                print(f"    ⚠ Pente swatch non trouvé ({pente_label}): {e}")
+                continue
+        if not pente_ok:
+            # Dernier fallback : correspondance partielle via JS
+            js_result = await page.evaluate("""
+                (args) => {
+                    var c = document.querySelector('.wapf-field-container.field-' + args.fid);
+                    if (!c) return {ok: false, error: 'container_not_found'};
+                    var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                    var target = args.pct.replace('%', '').trim();
+                    for (var l of labels) {
+                        var aria = l.getAttribute('aria-label') || '';
+                        if (aria.replace('%', '').trim().indexOf(target) !== -1) {
+                            l.click();
+                            return {ok: true, aria: aria};
+                        }
+                    }
+                    var available = Array.from(labels).map(l => l.getAttribute('aria-label'));
+                    return {ok: false, error: 'no_match', available: available};
+                }
+            """, {"fid": PENTE_FIELD_ID, "pct": pente_pct})
+            if js_result.get("ok"):
+                print(f"    ✓ Pente de toiture sélectionnée (JS) : {js_result['aria']}")
+            else:
+                print(f"    ⚠ Pente swatch non trouvé ({pente_pct}): {js_result}")
         await page.wait_for_timeout(500)
 
     # ── Options WAPF génériques ────────────────────────────────
