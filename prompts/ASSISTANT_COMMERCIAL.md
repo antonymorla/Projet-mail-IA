@@ -850,9 +850,9 @@ Les largeurs et profondeurs ne sont pas librement combinables. Le configurateur 
 >    - Les 3 ensemble
 
 > ⛔ **PERGOLA DIMENSIONS (largeur vs profondeur) :**
-> - La **LARGEUR** = la plus grande dimension (en facade, le long du mur). La **PROFONDEUR** = la plus petite (max 5m).
+> - **Largeur** = dimension en facade (le long du mur pour une adossée). **Profondeur** = dimension perpendiculaire.
 > - "en longitudinale" / "le long de" = LARGEUR. "en profondeur" / "en avancée" = PROFONDEUR.
-> - Vérification : `profondeur` ≤ 5m ET `largeur` ≥ `profondeur`. Si inversé → prix et structure faux.
+> - Vérification : `largeur` ∈ {2m-10m}, `profondeur` ∈ {2m-5m}. Le configurateur accepte `largeur < profondeur` (ex : 4m × 5m).
 
 **Exemple :** Client veut 8,79 × 4,99 m → sélectionner 9 × 5 m, `sur_mesure=True`, `largeur_hors_tout="8.79"`, `profondeur_hors_tout="4.99"`.
 **Exemple :** Client veut "1,50m × 4m en longitudinale" → `largeur="4m"`, `profondeur="2m"`, `sur_mesure=True`, `profondeur_hors_tout="1.50"` (largeur 4m = standard, pas besoin de `largeur_hors_tout`).
@@ -910,7 +910,7 @@ Pour ajouter un produit au détail dans le même devis (ex : cloison studio, pla
 - **Pergola — Pied de poteau** : `rechercher_produits_detail(site="pergola", recherche="pied de poteau")`
 - **Pergola — Poteaux lamellé-collé** : option directe (`poteau_lamelle_colle=True`) + `nb_poteaux_lamelle_colle=N`
 - **Pergola — Claustra** : option directe (`claustra_type="horizontal"` + `nb_claustra=4`) — ⚠ NE PAS ajouter en produits_complementaires
-- **Pergola — Pente de toiture** : option directe (`pente="15%"`) — ⚠ Pente 15% nécessite `ventelle="largeur"`
+- **Pergola — Pente de toiture** : option directe (`pente="15%"`) — compatible avec toutes les orientations de ventelles
 - **Pergola — Bardage** : `rechercher_produits_detail(site="pergola", recherche="bardage")` → ajouter via `produits_complementaires` (pas dans le configurateur WAPF)
 - **Pergola — Bâche** : `rechercher_produits_detail(site="pergola", recherche="bache")` — tailles fixes, combiner si pergola > bâche dispo
 
@@ -925,7 +925,7 @@ Quand `poteau_lamelle_colle=True`, le script calcule automatiquement le nombre d
 Le configurateur pergola propose 2 pentes : **5%** (défaut) et **15%** (monopente pour carport solaire, etc.).
 
 - `pente=""` → défaut (5%)
-- `pente="15%"` → monopente 15% — ⚠ **nécessite `ventelle="largeur"`** (le configurateur bloque sinon)
+- `pente="15%"` → monopente 15% — compatible avec toutes les orientations de ventelles
 - `pente="5%"` → explicitement 5% (équivalent au défaut)
 
 > **Cas d'usage typique** : carport avec bac acier (`option="carport"`) + pente 15% pour l'écoulement des eaux et le montage de panneaux solaires.
