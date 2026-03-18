@@ -345,9 +345,9 @@ generer_devis_pergola_bois(
 > **⚠ Particulièrement important pour Carport et Polycarbonate** (couverture étanche) : le sens d'écoulement détermine où l'eau tombe.
 >
 > **Exemple — Carport 12m × 5m (3 pergolas jointes, pente globale vers le fond sur 5m) :**
-> - Centrale (indépendante, 5m×4m) : `ventelle="largeur"` → pente vers le fond (profondeur 4m) ✓
-> - Gauche (adossée, 5m×4m) : `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
-> - Droite (adossée, 5m×4m) : `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
+> - Centrale (indépendante, 4m×5m) : `largeur="4m"`, `profondeur="5m"`, `ventelle="largeur"` → pente vers le fond (profondeur 5m) ✓
+> - Gauche (adossée, 4m×5m) : `largeur="4m"`, `profondeur="5m"`, `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
+> - Droite (adossée, 4m×5m) : `largeur="4m"`, `profondeur="5m"`, `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
 
 ### Jonction de plusieurs pergolas entre elles
 

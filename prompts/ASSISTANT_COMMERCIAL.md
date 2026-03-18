@@ -963,20 +963,20 @@ Le configurateur pergola propose 2 pentes : **5%** (défaut) et **15%** (monopen
 > **Exemple — Carport 12m × 5m en 3 pergolas :**
 > ```python
 > generer_devis_pergola_bois(
->     largeur="5m", profondeur="4m",  # ⚠ 5m = largeur (facade), 4m = profondeur
+>     largeur="4m", profondeur="5m",  # 3×4m = 12m en largeur totale, 5m de profondeur
 >     fixation="independante", ventelle="largeur",
 >     option="carport", pente="15%",
 >     poteau_lamelle_colle=True, nb_poteaux_lamelle_colle=4,
 >     client_nom="Leturgie", ...,
 >     configurations_supplementaires='[
 >         {
->             "largeur": "5m", "profondeur": "4m",
+>             "largeur": "4m", "profondeur": "5m",
 >             "fixation": "adossee", "ventelle": "profondeur",
 >             "option": "carport", "pente": "15%",
 >             "poteau_lamelle_colle": true, "nb_poteaux_lamelle_colle": 4
 >         },
 >         {
->             "largeur": "5m", "profondeur": "4m",
+>             "largeur": "4m", "profondeur": "5m",
 >             "fixation": "adossee", "ventelle": "profondeur",
 >             "option": "carport", "pente": "15%",
 >             "poteau_lamelle_colle": true, "nb_poteaux_lamelle_colle": 4
