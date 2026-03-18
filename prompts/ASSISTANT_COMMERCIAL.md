@@ -930,6 +930,62 @@ Le configurateur pergola propose 2 pentes : **5%** (défaut) et **15%** (monopen
 
 > **Cas d'usage typique** : carport avec bac acier (`option="carport"`) + pente 15% pour l'écoulement des eaux et le montage de panneaux solaires.
 
+### ⛔ RÈGLE CRITIQUE — PENTE ET VENTELLES : SENS OPPOSÉS
+
+> **La pente s'écoule TOUJOURS dans le sens OPPOSÉ des ventelles.**
+>
+> - Si `ventelle="largeur"` → la pente descend dans le **sens de la profondeur** (l'eau s'écoule vers le fond)
+> - Si `ventelle="profondeur"` → la pente descend dans le **sens de la largeur** (l'eau s'écoule sur le côté)
+>
+> **Conséquence pratique** : pour choisir l'orientation des ventelles, **partir du sens d'écoulement souhaité** et prendre le sens opposé pour les ventelles :
+> - Client veut l'eau vers le fond (profondeur) → `ventelle="largeur"`
+> - Client veut l'eau sur le côté (largeur) → `ventelle="profondeur"`
+>
+> **⚠ Particulièrement important pour les options Carport et Polycarbonate** (couverture étanche) : le sens d'écoulement détermine où l'eau tombe. Toujours confirmer avec le client/commercial dans quel sens la pente doit descendre.
+>
+> **Exemple concret — Carport 12m × 5m (3 pergolas jointes, pente globale vers le fond sur 5m) :**
+> - Pergola centrale (indépendante, 4m×5m) : `ventelle="largeur"` → pente vers le fond (5m) ✓
+> - Pergola gauche (adossée, 4m×5m) : `ventelle="profondeur"` → pente vers la centrale (largeur) ✓ — se raccorde à la pente globale
+> - Pergola droite (adossée, 4m×5m) : `ventelle="profondeur"` → pente vers la centrale (largeur) ✓ — se raccorde à la pente globale
+> - Les 3 avec `option="carport"` + `pente="15%"`
+
+### Jonction de plusieurs pergolas entre elles
+
+> Quand un client souhaite **joindre plusieurs pergolas** côte à côte (ex : carport de 12m = 3 × 4m), c'est possible.
+>
+> **Règles obligatoires :**
+> 1. Utiliser `configurations_supplementaires` pour mettre toutes les pergolas sur **un seul devis**
+> 2. La pergola principale peut être **indépendante**, les pergolas adjacentes sont généralement **adossées** (fixées à la structure principale)
+> 3. **OBLIGATOIRE dans l'email** : préciser au client qu'il doit **indiquer dans les annotations de commande** qu'il souhaite joindre les pergolas entre elles, afin que l'équipe prévoie la visserie nécessaire pour la jonction
+>
+> **Formulation email** : *"Merci d'indiquer dans les annotations de commande que les pergolas doivent être jointes entre elles, afin que nous prévoyions la visserie de jonction nécessaire."*
+>
+> **Exemple — Carport 12m × 5m en 3 pergolas :**
+> ```python
+> generer_devis_pergola_bois(
+>     largeur="5m", profondeur="4m",  # ⚠ 5m = largeur (facade), 4m = profondeur
+>     fixation="independante", ventelle="largeur",
+>     option="carport", pente="15%",
+>     poteau_lamelle_colle=True, nb_poteaux_lamelle_colle=4,
+>     client_nom="Leturgie", ...,
+>     configurations_supplementaires='[
+>         {
+>             "largeur": "5m", "profondeur": "4m",
+>             "fixation": "adossee", "ventelle": "profondeur",
+>             "option": "carport", "pente": "15%",
+>             "poteau_lamelle_colle": true, "nb_poteaux_lamelle_colle": 4
+>         },
+>         {
+>             "largeur": "5m", "profondeur": "4m",
+>             "fixation": "adossee", "ventelle": "profondeur",
+>             "option": "carport", "pente": "15%",
+>             "poteau_lamelle_colle": true, "nb_poteaux_lamelle_colle": 4
+>         }
+>     ]'
+> )
+> ```
+> → 1 seul devis PDF avec 3 pergolas. Email : mentionner la jonction + annotations de commande.
+
 ### Option générique `options_wapf` (pergola)
 
 Pour piloter un champ WAPF qui n'a pas de paramètre dédié, utiliser `options_wapf` (JSON dict) :

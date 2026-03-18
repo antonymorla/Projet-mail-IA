@@ -331,6 +331,34 @@ generer_devis_pergola_bois(
 - ⚠ Les bâches peuvent être en **rupture de stock** → délai allongé pour la commande complète (livraison tout en même temps)
 - Toujours préciser dans l'email : "Merci d'indiquer dans les annotations de commande que les bâches sont d'un seul tenant et sur mesure aux dimensions de la pergola [L×P], comme convenu avec notre équipe."
 
+### ⛔ RÈGLE CRITIQUE — PENTE ET VENTELLES : SENS OPPOSÉS
+
+> **La pente s'écoule TOUJOURS dans le sens OPPOSÉ des ventelles.**
+>
+> - `ventelle="largeur"` → la pente descend dans le **sens de la profondeur** (eau vers le fond)
+> - `ventelle="profondeur"` → la pente descend dans le **sens de la largeur** (eau sur le côté)
+>
+> **Pour choisir les ventelles, partir du sens d'écoulement souhaité** et prendre le sens opposé :
+> - Client veut l'eau vers le fond (profondeur) → `ventelle="largeur"`
+> - Client veut l'eau sur le côté (largeur) → `ventelle="profondeur"`
+>
+> **⚠ Particulièrement important pour Carport et Polycarbonate** (couverture étanche) : le sens d'écoulement détermine où l'eau tombe.
+>
+> **Exemple — Carport 12m × 5m (3 pergolas jointes, pente globale vers le fond sur 5m) :**
+> - Centrale (indépendante, 5m×4m) : `ventelle="largeur"` → pente vers le fond (profondeur 4m) ✓
+> - Gauche (adossée, 5m×4m) : `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
+> - Droite (adossée, 5m×4m) : `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
+
+### Jonction de plusieurs pergolas entre elles
+
+> Quand un client souhaite **joindre plusieurs pergolas** côte à côte (ex : carport de 12m = 3 × 4m), c'est possible.
+>
+> **Règles :**
+> 1. Utiliser `configurations_supplementaires` pour mettre toutes les pergolas sur **un seul devis**
+> 2. **OBLIGATOIRE dans l'email** : préciser au client qu'il doit **indiquer dans les annotations de commande** qu'il souhaite joindre les pergolas entre elles, afin que l'équipe prévoie la visserie de jonction nécessaire
+>
+> **Formulation email** : *"Merci d'indiquer dans les annotations de commande que les pergolas doivent être jointes entre elles, afin que nous prévoyions la visserie de jonction nécessaire."*
+
 ### ⛔ RÈGLE CRITIQUE — PERGOLA DIMENSIONS (largeur vs profondeur)
 
 > **La LARGEUR est la dimension la plus grande** (en facade, le long du mur pour une adossée). La **PROFONDEUR est la plus petite** (max 5m). Si le client dit "4m par 2m", c'est `largeur="4m"` et `profondeur="2m"` — PAS l'inverse.
