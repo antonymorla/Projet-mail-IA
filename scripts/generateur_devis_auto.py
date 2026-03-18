@@ -575,14 +575,46 @@ class GenerateurDevis:
                         var available = listChildren(group);
                         return {error: 'option_not_found', option: args.optionText, group: args.groupText, available_options: available};
                     }
-                    // Vérifier si déjà sélectionné AVANT de cliquer
-                    if (isAlreadySelected(option)) {
-                        var available = listChildren(group);
-                        return {ok: true, already_selected: true, available_options: available};
+                    // Dump diagnostic de l'option pour le debug
+                    var optUid = option.getAttribute('data-uid') || '';
+                    var optId = option.getAttribute('data-id') || '';
+                    var optClasses = option.className || '';
+                    var diagForm = document.querySelector('form.cart');
+                    var diagEnc = diagForm ? diagForm.querySelector('[name="wpc-encoded"]') : null;
+                    var diagEncVal = (diagEnc && diagEnc.value) ? atob(diagEnc.value) : '';
+
+                    // Vérifier si déjà sélectionné AVANT de cliquer — multiples stratégies
+                    // 1. Via wpc-encoded (data-uid dans les UIDs sélectionnés)
+                    var alreadyByEncoded = isAlreadySelected(option);
+                    // 2. Via classe CSS (WPC ajoute souvent une classe sur les items actifs)
+                    var alreadyByClass = option.classList.contains('wpc-active')
+                        || option.classList.contains('active')
+                        || option.classList.contains('selected')
+                        || option.classList.contains('wpc-cl-selected');
+                    // 3. Via l'image de l'item (WPC ajoute wpc-cl-img-active sur l'image sélectionnée)
+                    var img = option.querySelector('.wpc-cl-img');
+                    var alreadyByImg = img && (img.classList.contains('wpc-cl-img-active')
+                        || img.classList.contains('active'));
+                    // 4. Via aria-checked ou data-selected
+                    var alreadyByAttr = option.getAttribute('aria-checked') === 'true'
+                        || option.getAttribute('data-selected') === 'true';
+                    // 5. Via le style outline/border (WPC met parfois un outline sur les swatches actifs)
+                    var titleWrap = option.querySelector('.wpc-layer-title-wrap');
+                    var alreadyByOutline = false;
+                    if (titleWrap) {
+                        var cs = window.getComputedStyle(titleWrap);
+                        alreadyByOutline = cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px';
+                    }
+
+                    var isSelected = alreadyByEncoded || alreadyByClass || alreadyByImg || alreadyByAttr || alreadyByOutline;
+                    var available = listChildren(group);
+                    var diag = {uid: optUid, id: optId, classes: optClasses, wpc_encoded: diagEncVal,
+                                checks: {encoded: alreadyByEncoded, css: alreadyByClass, img: alreadyByImg, attr: alreadyByAttr, outline: alreadyByOutline}};
+                    if (isSelected) {
+                        return {ok: true, already_selected: true, method: alreadyByEncoded ? 'wpc-encoded' : alreadyByClass ? 'css-class' : alreadyByImg ? 'img-active' : alreadyByAttr ? 'aria-attr' : 'outline', available_options: available, diag: diag};
                     }
                     clickItem(option);
-                    var available = listChildren(group);
-                    return {ok: true, already_selected: false, available_options: available};
+                    return {ok: true, already_selected: false, available_options: available, diag: diag};
                 }
             """, {"groupText": group_text, "optionText": option_text})
             if isinstance(result, dict) and result.get("error"):
@@ -598,10 +630,15 @@ class GenerateurDevis:
                         f"Options disponibles : {result.get('available_options', [])}"
                     )
             if isinstance(result, dict) and result.get("ok"):
+                diag = result.get("diag", {})
+                print(f"    [DIAG] {group_text}/{option_text}: uid={diag.get('uid')}, id={diag.get('id')}, "
+                      f"classes={diag.get('classes', '')[:80]}, wpc_encoded={diag.get('wpc_encoded', '')[:120]}, "
+                      f"checks={diag.get('checks', {})}")
                 if result.get("already_selected"):
-                    print(f"    ✓ {group_text} → {option_text} (déjà sélectionné — clic ignoré)")
+                    method = result.get("method", "unknown")
+                    print(f"    ✓ {group_text} → {option_text} (déjà sélectionné via {method} — clic ignoré)")
                 else:
-                    print(f"    ✓ {group_text} → {option_text} (dispo: {result.get('available_options', [])})")
+                    print(f"    ✓ {group_text} → {option_text} (cliqué)")
             await self.page.wait_for_timeout(300)
 
         # Bardage extérieur
