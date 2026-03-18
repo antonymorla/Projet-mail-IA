@@ -35,10 +35,11 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 
 **Matériaux et construction**
 - **Bois** : Pin sylvestre autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille, Destombes Bois (50 ans d'expérience). Bois d'origine Finlande/Suède, densité **550 kg/m³** (supérieure à l'épicéa).
-- **Portes** : épaisseur 45mm. Vitrage : verre 4mm (non polycarbonate).
+- **Portes** : épaisseur 45mm. Vitrage : polycarbonate 3mm, résistant aux UV et anti-jaunissement.
 - **Toiture Origine** : toit plat (pente 2°), couverture bac acier ou feutre bitumé selon modèle.
 - **Toiture Essentiel** : toit à 2 pentes, couverture feutre bitumé.
 - **Fixation toiture** : vis inox sur pannes + planches de mur (voir notice fournie). Possibilité d'ajouter des accessoires (gouttières, panneaux solaires…) — ⚠ leur compatibilité n'est pas garantie par le fabricant.
+- **Visserie de montage** : vis électro-zinguées fournies pour l'assemblage complet. Charnières en acier inoxydable. Poignée et serrure fournies.
 - **Bac acier anti-condensation** : sur-toiture métallique qui évite la condensation à l'intérieur. Recommandé pour stockage d'outils, matériaux sensibles à l'humidité.
 - **Durée de vie** : 20 à 30 ans avec entretien régulier selon exposition.
 - **Variations normales du bois** : tolérance dimensionnelle ±8mm (±5%). Noeuds, microfissures non traversantes = caractéristiques normales du bois, sans impact structurel.
@@ -63,6 +64,9 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
   4. **Prendre un abri légèrement plus grand et couper les lames sur place** : assemblage bord droit, lames vissées dans les poteaux → découpe aisée sur chantier, mais travail supplémentaire.
   5. **Abri Cerisier** (www.abri-cerisier.fr) pour un sur-mesure aux dimensions exactes.
 - Toujours présenter ces options au client si l'abri sélectionné ne couvre pas toute la dalle.
+
+**Inversion de façade au montage**
+- Les madriers étant emboîtables et symétriques, il est possible d'**inverser la façade** lors du montage (ex : déplacer la porte du côté gauche vers le côté droit). Le mur du fond doit être inversé **UNIQUEMENT** si c'est un abri double avec un poteau en H entre les deux murs. Sur un abri simple, seule la façade est inversée — rien à modifier sur la commande.
 
 **Ouvertures disponibles**
 - Porte Vitrée, Porte Pleine, Porte double Vitrée, Porte double Pleine
@@ -176,6 +180,10 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
   - Ex : pergola 5×4m + ventelles dans la profondeur → poteau intermédiaire côté 5m ; ventelles dans la largeur → 4 poteaux standards suffisent
 - Au-delà de la portée max applicable → poteau central obligatoire (livré avec le kit).
 
+**Poteaux et pente**
+- **Pente de toiture** : option séparée du configurateur (5% ou 15%), **PAS incluse de base**. Les poteaux standards sont droits (sans pente). Quand la pente est sélectionnée, les poteaux sont **usinés en usine sur machine à commande numérique** avec l'angle correspondant. Le client reçoit les poteaux prêts à assembler, sans aucune découpe à prévoir.
+- **Direction de la pente** : la pente ne peut s'effectuer que sur la **profondeur** (max 5m), **PAS sur la largeur** (jusqu'à 10m). L'eau s'écoule donc toujours dans le sens de la profondeur.
+
 **Types de fixation**
 - **Adossée** : fixée au mur du bâtiment (ancrage mécanique fourni). 2 poteaux + muralière.
 - **Indépendante** : 4 poteaux, autonome. Aucun mur nécessaire.
@@ -185,7 +193,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Ventelles bois** (sens largeur ou profondeur) : lames orientées, ombre partielle, esthétique traditionnelle.
 - **Platelage bois** (lames jointives) : couverture totale. Exige ventelles largeur ou profondeur. Non étanche à la pluie.
 - **Lattage bois** (lames espacées) : couverture décorative, ombre tamisée. Plus économique.
-- **Polycarbonate** : transparent, résistant UV, protection pluie. Lumière naturelle préservée.
+- **Polycarbonate** : transparent, résistant UV, protection pluie. Lumière naturelle préservée. ⚠ Les plaques sont **clipsées** : risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)**. Pour installer une **gouttière** : décaler légèrement les plaques de polycarbonate par rapport à la structure pour que l'eau s'écoule dans la gouttière. La gouttière se pose sur le **devant** de la pergola (côté opposé au mur pour une adossée), pas entre le mur et la pergola.
 - **Voilage** : toile semi-transparente, ombrage léger, look contemporain.
 - **Bioclimatique Samkit** : lames aluminium orientables motorisées. Option premium (protection pluie intégrale).
 
@@ -201,7 +209,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - Structure principale : vis bois Inox A2 6×100mm FM-WOOD PRO TF (Etanco, T30)
 - Option platelage : vis Inox A2 5×50mm VBU TF TX (T25)
 - Option voilage : vis Inox A2 4×45mm VBU TF TX (T20)
-- **Option claustra** : vis 6×80mm pour la structure + vis 5×50mm pour la fixation des lames.
+- **Option claustra** : vis 6×80mm pour la structure + vis 5×50mm pour la fixation des lames. Les claustras sont **modulables au moment de l'installation** (choix libre d'emplacement). Une fois vissés, les déplacer est contraignant (il faut dévisser pour les bouger), mais c'est faisable.
 - ⚠ Visserie fixation au sol et fixation murale (adossée) **non fournie** — à prévoir sur chantier.
 
 **Retours et garanties**
@@ -234,6 +242,8 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 | Pin 21mm Autoclave Vert | Cl.4 | 10-15 ans | Dégriseur 1-2x/an ou **saturateur** (6 mois après pose, puis 3-5 ans) |
 | Pin 27mm Autoclave Vert | Cl.4 | 10-15 ans | Dégriseur 1-2x/an ou **saturateur** (6 mois après pose, puis 3-5 ans) |
 | Pin 27mm Autoclave Marron/Gris | Cl.3 | 8-12 ans | Dégriseur 1-2x/an ou **saturateur** (6 mois après pose, puis 3-5 ans) |
+
+> **Note classe autoclave** : le bois est raboté puis traité autoclave classe 4. Après les découpes effectuées par le client sur chantier (ajustements, coupes d'about…), les zones coupées perdent la couche de traitement en surface → la classe effective passe à 3. C'est pourquoi nous communiquons de plus en plus sur la classe 3 — cela reflète la réalité d'usage une fois les lames posées et ajustées.
 | Pin 27mm Thermotraité | Cl.3 | 8-12 ans | Dégriseur 1-2x/an ou saturateur 3-5 ans |
 | Frake | Cl.3 | 10-15 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
 | Jatoba | Cl.4 | 20-25 ans | Dégriseur 1-2x/an (huile possible si souhaité) |
@@ -295,6 +305,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 **Gammes**
 - **Classique** H=1,9m uniquement : pin autoclave classe 3, lames 27×130mm. Sobre et économique.
 - **Moderne** H=0,9/1,9/2,3m : lames de 20 à 45mm, coloris Brun/Gris/Noir, horizontal ou vertical.
+- **Hauteur max standard : 2,30m**. Hauteur supérieure (ex : 3,5m) : techniquement envisageable mais **fortement déconseillé** — prise au vent considérablement plus importante, risque réel d'arrachement notamment en cas de rafales.
 - **Isolation phonique** : disponible sur devis (option non configurée en ligne — contacter le service commercial).
 - **Notice de montage** : téléchargeable sur le site cloturebois.fr.
 
@@ -384,6 +395,8 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Showroom + SAV** : 135 Quai du Pecq, 78430 Sartrouville
 - **Jardiland** : Les Chassaings, Rte de Saint-Pourçain, 03110 Charmeil
 - **Abris Jardin Azur PACA** : 682 Bd du Mercantour, 06200 Nice
+
+> ⚠ **Clôtures** : les showrooms n'exposent pratiquement aucun modèle de clôture. Pour visualiser les clôtures, orienter vers le site **cloturebois.fr** (visuels détaillés). Les showrooms permettent néanmoins d'apprécier la qualité du bois, car c'est le **même pin sylvestre autoclave** utilisé sur tous les produits (abris, studios, pergolas, clôtures).
 
 ---
 

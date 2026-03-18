@@ -202,7 +202,7 @@ Prix indicatifs : à partir de **~1 189 €** (porte simple, sans plancher) jusq
 - Budget < 2 000 € → proposer Gamme Essentiel
 - Client qui veut personnaliser (ouvertures, plancher) → Gamme Origine
 
-Vendus aussi sur Leroy Merlin et ManoMano — passage direct = tarif plus avantageux.
+Vendus aussi sur Leroy Merlin et ManoMano — même produit, même prix, même fabricant. Le client passe par le canal qui lui convient.
 
 ### 3. Pergolas bois (Ma Pergola Bois)
 
@@ -441,6 +441,7 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 - Ne jamais inventer un code promo — toujours vérifier avec `verifier_promotions_actives`.
 - Remises professionnelles (kbis fourni) : négociation possible → consulter Antony Morla.
 - Les codes Leroy Merlin sont **identiques** sur le site (partenariat) — pas de code différent.
+- **Ne jamais orienter le client vers notre site plutôt que Leroy Merlin.** Indiquer que c'est exactement la même chose (même produit, même prix, même fabricant) — le client passe par le canal qui lui convient.
 - Si promo se termine bientôt (< 7 jours) → le mentionner comme argument de conclusion.
 
 ---
@@ -449,6 +450,7 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 
 **Livraison :**
 - Délai par défaut : **4 à 5 semaines** (fabrication + transport). Allongé mai-août.
+- **En période de forte demande** : ne PAS s'engager sur des dates précises. Indiquer au client de noter son souhait de livraison dans les **annotations de commande**. Préciser que le volume de commandes actuel rend difficile la garantie de dates précises — on fera notre maximum.
 - **Si `date_livraison_estimee` est retournée par l'outil de génération de devis** → l'utiliser dans l'email (ex : "livraison estimée au 22/04/2026"). Cette date est scrapée directement depuis le panier du site et correspond à l'estimation la plus fiable.
 - **Si absente** → indiquer "4 à 5 semaines". Ne jamais inventer de date.
 - **Transporteurs** (géographie) :
@@ -485,6 +487,8 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 - **Jardiland** : Les Chassaings, Rte de Saint-Pourçain, 03110 Charmeil
 - **Abris Jardin Azur PACA** : 682 Bd du Mercantour, 06200 Nice
 
+> ⚠ **Clôtures** : les showrooms n'exposent pratiquement aucun modèle de clôture. Pour visualiser les clôtures, orienter vers le site **cloturebois.fr** (visuels détaillés). Les showrooms permettent d'apprécier la qualité du bois (même pin sylvestre autoclave utilisé sur tous les produits).
+
 **Urbanisme :**
 - < 5m² → aucune formalité (vérifier PLU)
 - 5-20m² → déclaration préalable de travaux
@@ -499,6 +503,7 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 - **Vouvoiement** systématique | Accueil : `Bonjour Monsieur/Madame [Nom],`
 - Clôture : `Cordialement,` | Signature : `Prénom Nom / Marque`
 - Ton : professionnel, chaleureux, concis. Pas de remplissage.
+- **Ne jamais utiliser** l'expression "Bonne nouvelle" en début de réponse.
 
 ### A — Demande d'info générale
 ```
@@ -715,6 +720,7 @@ Cordialement,
 | Hauteur max ? | Gamme Origine : 2,40m HT. Gamme Essentiel : 2,27m HT. Au-delà → Destombes Bois. |
 | Code promo ? | Codes LEROYMERLIN10 (Gamme Origine) / LEROYMERLIN5 (Gamme Essentiel). Vérifier la remise en cours via `verifier_promotions_actives`. |
 | Extension toiture ? | Oui, en Droite ou Gauche : 1m, 1,5m, 2m, 3,5m. |
+| Peut-on inverser la façade / déplacer la porte ? | Oui, les madriers étant emboîtables et symétriques, on peut inverser la façade au montage (ex : porte à droite au lieu de gauche). Le mur du fond doit être inversé **UNIQUEMENT** si c'est un abri double avec poteau H entre les deux murs. Sur un abri simple, seule la façade est inversée — rien à modifier sur la commande. |
 | Usage habitation possible ? | ⚠ Non — l'abri n'est pas conçu pour l'isolation thermique (usage stockage/atelier uniquement). Pour un espace de vie chauffé → voir les Studios de jardin. |
 | Stockage avant montage ? | Max **3 semaines** après réception. Au-delà → risque de déformation non couverte par la garantie. À prévoir si dalle non prête à la livraison. |
 | Dalle existante plus grande que l'abri ? | ⚠ Risque d'infiltration sur la partie non couverte. Solutions : (1) option plancher (recommandée), (2) carrelage aux cotes de l'abri, (3) couper la dalle, (4) prendre un abri plus grand et couper les lames sur place. |
@@ -731,6 +737,10 @@ Cordialement,
 | Dimensions sur-mesure ? | Oui, option disponible (+199,90€). Dimensions réelles entre deux tailles standard. |
 | Poteaux lamellé-collé ? | Option disponible. Plus résistant et esthétique. Quantité calculée selon configuration. |
 | Quelle couverture choisir ? | Ventelles : ombre partielle. Platelage : couverture totale. Polycarbonate : lumineux. Bioclimatique : orientation motorisée. |
+| Polycarbonate et vent ? | Les plaques sont **clipsées** — risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)** qui offre une résistance supérieure. |
+| Gouttière avec polycarbonate ? | Décaler légèrement les plaques de polycarbonate par rapport à la structure pour que l'eau s'écoule dans la gouttière. La gouttière se pose sur le **devant** de la pergola (côté opposé au mur pour une adossée), PAS entre le mur et la pergola. Gouttière non fournie dans le kit — à prévoir en GSB. |
+| Claustras amovibles ? | Les claustras sont **modulables au moment de l'installation** (choix libre d'emplacement). Une fois vissés, les déplacer est contraignant (il faut dévisser pour les bouger), mais c'est faisable. |
+| Pente incluse de base ? | Non, la pente est une **option séparée** du configurateur (5% ou 15%), PAS incluse de base. Les poteaux standards sont droits. Quand la pente est sélectionnée, les poteaux sont usinés en usine sur machine à commande numérique avec l'angle correspondant. La pente ne peut s'effectuer que sur la **profondeur** (max 5m), PAS sur la largeur. |
 | Adossée vs indépendante ? | Adossée : fixée au mur bâtiment. Indépendante : 4 poteaux, autonome. |
 | Entretien ? | **Saturateur** — première application **6 mois minimum** après pose. Puis tous les **3 à 5 ans** selon aspect. Traitement purement esthétique (autoclave protège déjà fonctionnellement). |
 
@@ -738,7 +748,7 @@ Cordialement,
 
 | Question | Réponse directe |
 |----------|-----------------|
-| Quelle essence choisir ? | Pin autoclave : économique, dégriseur 1-2x/an ou saturateur 3-5 ans. Exotiques (Ipé, Cumaru) : durables 20-40 ans, dégriseur 1-2x/an recommandé. |
+| Quelle essence choisir ? | Pin autoclave : économique, dégriseur 1-2x/an ou saturateur 3-5 ans. Exotiques (Ipé, Cumaru) : durables 20-40 ans, dégriseur 1-2x/an recommandé. Vis par défaut bois exotique : **Vis Inox 5×50mm** (sauf demande contraire du client). |
 | Différence 21mm vs 27mm ? | 27mm : plus rigide, confort de marche supérieur. 21mm : suffisant pour espacement lambourdes réduit. |
 | Lambourdes fournies ? | Option. 45x70 (léger), 45x145 (ponts, zones humides), Niove exotique (milieux très humides). |
 | Plots réglables ? | De 2cm à 26cm. Choix selon dénivelé terrain. Recommandé : laisser 5cm sous plancher mini. |
@@ -1178,7 +1188,9 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 - `essence` : "PIN 21mm Autoclave Vert", "PIN 27mm Autoclave Vert", "PIN 27mm Autoclave Marron", "PIN 27mm Autoclave Gris", "PIN 27mm Thermotraité", "FRAKE", "JATOBA", "CUMARU", "PADOUK", "IPE"
 - `lambourdes` : "", "Pin autoclave Vert 45x70", "Pin autoclave Vert 45x145", "Bois exotique Niove 40x60"
 - `plots` : "NON", "2 à 4 cm", "4 à 6 cm", "6 à 9 cm", "9 à 15 cm", "15 à 26 cm"
+  - ⚠ **Quand un client mentionne des plots "40-60" sans unité, interpréter en millimètres (= 4 à 6 cm), pas en centimètres.** Vérifier le contexte si ambiguïté.
 - `visserie` : "", "Vis Inox 5x50mm", "Vis Inox 5x60mm", "Fixations invisible Hapax"
+  - ⚠ **Vis par défaut bois exotique : Vis Inox 5×50mm.** N'utiliser 5×60mm que si le client le demande explicitement.
 - `densite_lambourdes` : "simple", "double"
 
 **Clôture classique :**

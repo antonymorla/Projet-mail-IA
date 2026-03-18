@@ -273,6 +273,9 @@ generer_devis_pergola_bois(
     nb_claustra=0,           # Nombre de claustras (modules de 1m chacun)
                              # Ex : pergola 4m de côté → nb_claustra=4 pour remplir un côté
     pente="",                # "" (défaut 5%) | "5%" | "15%" — pente de toiture (champ WAPF field-e8cec8d)
+                             # ⚠ La pente est une OPTION séparée, PAS incluse de base (poteaux standards = droits)
+                             # ⚠ La pente ne peut s'effectuer que sur la PROFONDEUR (max 5m), PAS sur la largeur
+                             # Les poteaux sont usinés en usine sur CNC avec l'angle correspondant
                              # Pente 15% compatible avec toutes les orientations de ventelles
     options_wapf="{}",       # JSON dict de champs WAPF supplémentaires à sélectionner
                              # Auto-détection swatch/input/select — voir inspect_wapf_all.py pour les field_id
@@ -459,8 +462,10 @@ generer_devis_terrasse_bois(
     lambourdes_longueur="",  # Longueur lambourdes — vérifier via rechercher_produits_detail
     plots="NON",             # "NON" | "2 à 4 cm" | "4 à 6 cm" | "6 à 9 cm"
                              # "9 à 15 cm" | "15 à 26 cm"
+                             # ⚠ Client dit "40-60" sans unité = millimètres = "4 à 6 cm"
     visserie="",             # "" (aucune) | "Vis Inox 5x50mm" | "Vis Inox 5x60mm"
                              # "Fixations invisible Hapax"
+                             # ⚠ Bois exotique : toujours "Vis Inox 5x50mm" par défaut (sauf demande contraire du client)
     densite_lambourdes="simple",  # "simple" | "double"
     nb_lames=0,              # Nombre exact de lames (calcul auto du m²)
     nb_lambourdes=0,         # Nombre exact de lambourdes (calcul auto + split 2 lignes panier)
@@ -688,6 +693,9 @@ Livraison **4-5 semaines gratuite**. Paiement 3× sans frais.
 
 Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
 **Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier — **disponible uniquement sur la Gamme Origine** (pas sur Essentiel). Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
+**Vitrage portes** : polycarbonate 3mm, résistant aux UV et anti-jaunissement (PAS du verre).
+**Visserie de montage** : vis électro-zinguées. Charnières : acier inoxydable. Poignée et serrure fournies.
+**Inversion de façade** : les madriers étant emboîtables et symétriques, on peut inverser la façade au montage. Le mur du fond doit être inversé UNIQUEMENT si abri double avec poteau H entre les deux murs.
 
 #### Comparaison Gamme Origine vs Gamme Essentiel
 
@@ -774,6 +782,8 @@ Couleurs : Vert, Marron, Gris, Noir. Recto-verso possible.
 - Clôture : `Cordialement,`
 - Signature : `Prénom Nom / Marque`
 - Ton : professionnel, chaleureux, concis — pas de remplissage
+- **Ne jamais utiliser** l'expression "Bonne nouvelle" en début de réponse
+- **Leroy Merlin vs site direct** : ne jamais orienter le client vers notre site plutôt que Leroy Merlin. C'est exactement la même chose (même produit, même prix, même fabricant) — le client passe par le canal qui lui convient
 
 ### Templates
 
@@ -838,6 +848,9 @@ Cordialement,
 9. **Toujours vérifier le stock** via `rechercher_produits_detail` avant de proposer une essence de bois ou un accessoire — ne pas proposer un produit en rupture de stock
 10. **Claustras pergola = option native** du configurateur — ne jamais les ajouter en `produits_complementaires`
 11. **Transcriptions IA (résumés d'appels, messages vocaux)** : les mots peuvent être mal transcrits. Ex : "ne plombent pas" pourrait signifier "ne s'ajustent pas". Ne jamais prendre une formulation de transcription IA au pied de la lettre — toujours interpréter le sens dans le contexte technique du produit et, en cas de doute, demander confirmation au commercial.
+12. **Classe autoclave terrasse** : le bois est raboté puis traité autoclave classe 4. Après les découpes sur chantier par le client, les zones coupées perdent la couche de traitement → classe effective 3. C'est pourquoi on communique sur la classe 3.
+13. **Délais livraison — période forte** : en période de forte demande, ne PAS s'engager sur des dates précises. Indiquer au client de noter son souhait dans les annotations de commande. Préciser que le volume de commandes rend difficile la garantie de dates précises — on fera notre maximum.
+14. **Clôture hauteur > 2,30m** : techniquement envisageable mais fortement déconseillé (prise au vent, risque d'arrachement). Hauteur max standard = 2,30m.
 
 ---
 
