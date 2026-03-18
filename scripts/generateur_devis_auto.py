@@ -20,9 +20,12 @@ Installer Playwright:
 """
 
 import asyncio
+import json
 import os
 import sys
 import time
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -93,6 +96,75 @@ SITES = {
 }
 
 DOWNLOAD_DIR = os.path.expanduser("~/Downloads")
+
+
+def _chercher_url_studio_wc(base_url: str, largeur: str, profondeur: str) -> str | None:
+    """Cherche l'URL du produit Studio via l'API WooCommerce Store.
+
+    Recherche parmi tous les produits du site Studio celui dont le titre
+    correspond aux dimensions demandées (ex: "5,5 x 3,47" ou "55-x-347").
+
+    Returns:
+        Le path relatif du produit (ex: "/produit/55-x-347/") ou None.
+    """
+    import html as _html
+    import re as _re
+
+    # Normaliser les dimensions pour la recherche (ex: "5,5" → "55", "3,5" → "35")
+    def _norm(dim: str) -> str:
+        """Normalise une dimension : '5,5' → '55', '2,4' → '24'."""
+        return dim.replace(",", "").replace(".", "").strip()
+
+    l_norm = _norm(largeur)
+    p_norm = _norm(profondeur)
+
+    # Termes de recherche : essayer "LxP" d'abord, puis juste la largeur
+    search_terms = [f"{largeur} x {profondeur}", f"{l_norm} x {p_norm}", largeur]
+
+    for term in search_terms:
+        try:
+            url = f"{base_url}/wp-json/wc/store/v1/products?search={urllib.parse.quote(term)}&per_page=50"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; DevisBot/1.0)"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                products = json.loads(resp.read())
+        except Exception:
+            continue
+
+        if not products:
+            continue
+
+        # Chercher le produit dont le slug ou le titre contient les bonnes dimensions
+        for p in products:
+            name = _re.sub(r"<[^>]+>", "", _html.unescape(p.get("name", ""))).strip().lower()
+            slug = p.get("slug", "").lower()
+            permalink = p.get("permalink", "")
+
+            # Vérifier si les dimensions correspondent dans le slug ou le nom
+            # Patterns à vérifier : "55-x-347", "5,5 x 3,47", "55 x 347", etc.
+            patterns = [
+                f"{l_norm}-x-{p_norm}",      # slug style : "55-x-347"
+                f"{largeur} x {profondeur}",  # titre style : "5,5 x 3,47"
+                f"{l_norm} x {p_norm}",       # "55 x 347"
+            ]
+            for pat in patterns:
+                if pat.lower() in slug or pat.lower() in name:
+                    # Extraire le path relatif depuis le permalink
+                    if permalink:
+                        from urllib.parse import urlparse
+                        path = urlparse(permalink).path
+                        if path:
+                            print(f"    ✓ Produit Studio trouvé via API WC : {path}")
+                            return path
+            # Fallback : vérifier si le permalink contient le pattern slug
+            if permalink:
+                from urllib.parse import urlparse
+                path = urlparse(permalink).path.lower()
+                if f"{l_norm}-x-{p_norm}" in path:
+                    print(f"    ✓ Produit Studio trouvé via API WC (fallback) : {path}")
+                    return urlparse(permalink).path
+
+    return None
+
 
 # Largeur d'un module de mur studio (préfabriqué ossature bois).
 # Chaque menuiserie occupe exactement UN module de 1,10 m.
@@ -413,12 +485,24 @@ class GenerateurDevis:
         """Configure un studio sur le configurateur."""
         # Construire la clé de dimension pour trouver l'URL produit
         dim_key = f"{config.largeur}x{config.profondeur}"
-        dim_map = self.site_config.get("dimensions", {})
-        product_path = dim_map.get(dim_key)
+
+        # 1) Chercher dynamiquement via l'API WooCommerce Store (source de vérité)
+        print(f"  ➜ Recherche du produit Studio {dim_key} via API WooCommerce...")
+        product_path = _chercher_url_studio_wc(
+            self.base_url, config.largeur, config.profondeur
+        )
+
+        # 2) Fallback sur le mapping statique si l'API WC n'a rien trouvé
+        if not product_path:
+            dim_map = self.site_config.get("dimensions", {})
+            product_path = dim_map.get(dim_key)
+            if product_path:
+                print(f"  ⚠ API WC n'a rien trouvé, fallback mapping statique : {product_path}")
+
         if not product_path:
             raise ValueError(
-                f"Dimension studio '{dim_key}' non trouvée. "
-                f"Disponibles: {', '.join(sorted(dim_map.keys()))}"
+                f"Dimension studio '{dim_key}' non trouvée (ni API WC, ni mapping statique). "
+                f"Vérifier que le produit existe sur {self.base_url}"
             )
 
         print(f"  ➜ Ouverture du configurateur studio {dim_key}...")
