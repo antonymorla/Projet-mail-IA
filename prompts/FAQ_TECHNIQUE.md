@@ -115,7 +115,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Isolation 60mm** : standard, suffisant usage bureau/atelier tempéré.
 - **Isolation 100mm RE2020** : recommandé pour habitation toute l'année ou zone climatique froide.
 - **Matériaux d'isolation** : laine de bois ou laine minérale (selon modèle — préciser à la commande si préférence).
-- Bardage extérieur : Douglas, épicéa ou composite selon modèle. Couleurs : Brun, Gris, Noir.
+- Bardage extérieur : Douglas, épicéa ou composite selon modèle. Couleurs : Brun, Gris, Noir, Vert.
 - Bardage intérieur : OSB (standard) ou panneaux bois massif épicéa 3 plis (premium).
 
 **Dimensions et surface**
@@ -123,7 +123,8 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - Pour une demande totalement hors catalogue → orienter vers **Abri Cerisier** (www.abri-cerisier.fr).
 - Chaque module : 1,10m de largeur (nombre de modules = largeur / 1,10).
 - **Hauteur hors tout** : 2,70m (sans rehausse) / 3,20m (avec rehausse).
-- **Hauteur sous plafond** : ~2,50m standard / ~3,00m avec rehausse (déduction structure plancher + plafond).
+- **Hauteur sous plafond** : ~2,30m standard / ~2,50m avec rehausse (déduction structure plancher + plafond).
+- ⚠ **La rehausse est nécessaire** pour atteindre 2,50m sous plafond. Sans rehausse, la hauteur intérieure est d'environ 2,30m.
 
 **Plancher**
 - **Option plancher standard** : structure 145mm + OSB 18mm = **163mm total** (~16,3cm). La face supérieure du plancher est à environ 16cm au-dessus de la dalle béton.
@@ -133,6 +134,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 **Menuiseries**
 - PORTE VITREE, FENETRE SIMPLE, FENETRE DOUBLE, BAIE VITREE, PORTE DOUBLE VITREE
 - Matériaux : PVC (standard) ou ALU (premium, requis pour baie vitrée + porte double)
+- **Couleurs PVC** : blanc intérieur / gris extérieur (bicolore)
 - 1 menuiserie occupe 1 module (1,10m). Anti-chevauchement automatique.
 - Murs disponibles : MUR DE FACE, MUR DE GAUCHE, MUR DE DROITE, MUR DU FOND
 
@@ -195,7 +197,12 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Lattage bois** (lames espacées) : couverture décorative, ombre tamisée. Plus économique.
 - **Polycarbonate** : transparent, résistant UV, protection pluie. Lumière naturelle préservée. ⚠ Les plaques sont **clipsées** : risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)**. Pour installer une **gouttière** : décaler légèrement les plaques de polycarbonate par rapport à la structure pour que l'eau s'écoule dans la gouttière. La gouttière se pose sur le **devant** de la pergola (côté opposé au mur pour une adossée), pas entre le mur et la pergola.
 - **Voilage** : toile semi-transparente, ombrage léger, look contemporain.
-- **Bioclimatique Samkit** : lames aluminium orientables motorisées. Option premium (protection pluie intégrale).
+- **Bioclimatique Samkit** : lames **bois** orientables **manuellement**. Réglage par manipulation directe des lames. Option premium (protection pluie en position fermée). ⚠ Les lames sont en **bois** (PAS en aluminium). La motorisation n'est PAS incluse — des options de motorisation sont disponibles séparément sur le site Samkit.
+
+**Terminologie poteaux**
+- **Poteau de rive** (= poteau d'angle) : les poteaux situés aux **coins** de la pergola. Ce sont les poteaux principaux de la structure.
+- **Muralière** : la poutre horizontale fixée au mur (pour une pergola adossée). Les poteaux intermédiaires de support sont parfois appelés "poteaux muralière".
+- ⚠ **Ne pas confondre** : "poteau de rive" ≠ poteau intermédiaire. Les poteaux de rive sont les poteaux d'angle.
 
 **Options poteaux**
 - **Lamellé-collé** : poteaux en bois massif lamellé-collé. Plus résistant, plus esthétique, finition soignée. Quantité selon configuration (calculée automatiquement).
@@ -272,10 +279,11 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **45×145mm** : renforcée, pilotis, zone humide, piscine — longueurs : 3m / 4,2m / 4,8m / 5,1m
 - **Niove 40×60mm** (exotique) : milieux très humides, bord de mer/piscine — longueurs : 1,55m / 1,85m / 2,15m / 3,05m / 3,65m
 - **Plots réglables** : de 2cm à 26cm selon dénivelé. Laisser minimum 5cm entre sol et lames.
+- ⚠ **Conversion plots** : quand un client dit "plots 40-60" sans unité, il parle en **millimètres** (= 4 à 6 cm). Toujours convertir en centimètres pour le configurateur.
 
 **Visserie**
-- Vis Inox 5×50mm : lames jusqu'à 27mm, vissage apparent.
-- Vis Inox 5×60mm : lames épaisses ou lambourdes 45mm, vissage apparent.
+- Vis Inox 5×50mm : lames jusqu'à 27mm, vissage apparent. ⚠ **Vis par défaut pour bois exotique** — toujours proposer 5×50mm sauf demande contraire du client.
+- Vis Inox 5×60mm : lames épaisses ou lambourdes 45mm, vissage apparent. Réservé aux cas spécifiques (PAS le défaut pour bois exotique).
 - Fixations invisibles Hapax : système caché dans la rainure, finition parfaite.
 
 **Entretien**
@@ -290,6 +298,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - ⚠ **Aucune notice de montage fournie** avec la commande terrasse. Pour la pose, prévoir un professionnel ou consulter les guides vidéo sur le site.
 - Outils nécessaires : scie circulaire, perceuse/visseuse, niveau, mètre.
 - Livraison gratuite France métropolitaine dès 1 000€ de commande (hors îles).
+- **Astuce regroupement** : pour les petites commandes complémentaires (planches, accessoires…), le client peut choisir "Retrait Illies" (gratuit) et indiquer dans les annotations de commande qu'il souhaite grouper avec sa commande principale → tout part en une seule livraison.
 - Dégâts transport : **48 heures** pour signaler. Pièces manquantes : **2 semaines**. Contact : contact@terrasseenbois.fr.
 - Stockage max avant montage : **3 semaines**.
 
@@ -396,7 +405,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Jardiland** : Les Chassaings, Rte de Saint-Pourçain, 03110 Charmeil
 - **Abris Jardin Azur PACA** : 682 Bd du Mercantour, 06200 Nice
 
-> ⚠ **Clôtures** : les showrooms n'exposent pratiquement aucun modèle de clôture. Pour visualiser les clôtures, orienter vers le site **cloturebois.fr** (visuels détaillés). Les showrooms permettent néanmoins d'apprécier la qualité du bois, car c'est le **même pin sylvestre autoclave** utilisé sur tous les produits (abris, studios, pergolas, clôtures).
+> ⚠ **Showrooms — peu de modèles exposés** : les showrooms n'exposent pratiquement aucun modèle (que ce soit abris, pergolas, clôtures…). Pour visualiser les produits, orienter vers les **sites web** de chaque marque (visuels détaillés, configurateurs). Les showrooms restent utiles pour apprécier la **qualité du bois** en direct, car c'est le **même pin sylvestre autoclave** utilisé sur tous les produits (abris, studios, pergolas, clôtures).
 
 ---
 

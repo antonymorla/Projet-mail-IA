@@ -141,7 +141,7 @@ Pipeline : [Marque]
 - Structure ossature bois, fabriqué en France
 - Isolation 60mm (standard) ou 100mm RE2020 (recommandé pour habitation toute l'année)
 - Bardage extérieur : Brun, Gris, Noir, Vert
-- Menuiseries PVC ou ALU (portes, fenêtres, baies coulissantes)
+- Menuiseries PVC (blanc intérieur / gris extérieur) ou ALU (portes, fenêtres, baies coulissantes)
 - Plancher isolé inclus. Mezzanine possible.
 - Fondations non incluses → dalle béton (dimensions hors tout − 10cm, épaisseur 12-13cm)
 - Livraison **gratuite 4-5 semaines**. Paiement 3× sans frais.
@@ -233,7 +233,7 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 - Polycarbonate transparent
 - Voilage semi-transparent
 - Carport (bac acier anti-condensation)
-- **Bioclimatique** (lames orientables Samkit) — option premium
+- **Bioclimatique** (lames **bois** orientables **manuellement** Samkit) — option premium. ⚠ Lames en bois (PAS en aluminium). Réglage manuel. Motorisation disponible séparément sur le site Samkit.
 
 **Options WAPF** (natives du configurateur — apparaissent dans le PDF) :
 - **Sur-mesure** (+199,90€) — dimensions exactes entre 2 tailles standard
@@ -431,6 +431,9 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 → Utiliser `mode_livraison="retrait"` pour supprimer les 99€ du devis PDF.
 → Préciser dans l'email : "Merci d'indiquer dans les annotations de commande lors de votre commande en ligne que vous avez échangé avec notre équipe concernant la livraison à [ville]."
 
+**Astuce regroupement de livraison (petites commandes complémentaires) :**
+→ Pour les petites commandes complémentaires (planches, accessoires…) sur abri-francais.fr, le client peut sélectionner **"Retrait Illies"** comme mode de livraison (gratuit) et indiquer dans les **annotations de commande** qu'il souhaite grouper avec sa commande principale. Cela permet d'éviter les frais de livraison supplémentaires sur la commande complémentaire — tout part en une seule livraison.
+
 **Date de livraison estimée — OBLIGATOIRE dans chaque email avec devis :**
 > ⚠ **RÈGLE ABSOLUE** : après chaque génération de devis, le JSON de réponse contient `date_livraison_estimee` (scrapée dans le panier WooCommerce). **Tu DOIS inclure cette date dans l'email**, avec la formulation :
 > **"Si vous commandez dès aujourd'hui, la livraison est estimée au [date]."**
@@ -487,7 +490,7 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 - **Jardiland** : Les Chassaings, Rte de Saint-Pourçain, 03110 Charmeil
 - **Abris Jardin Azur PACA** : 682 Bd du Mercantour, 06200 Nice
 
-> ⚠ **Clôtures** : les showrooms n'exposent pratiquement aucun modèle de clôture. Pour visualiser les clôtures, orienter vers le site **cloturebois.fr** (visuels détaillés). Les showrooms permettent d'apprécier la qualité du bois (même pin sylvestre autoclave utilisé sur tous les produits).
+> ⚠ **Showrooms — peu de modèles exposés** : les showrooms n'exposent pratiquement aucun modèle (que ce soit abris, pergolas, clôtures…). Pour visualiser les produits, orienter vers les **sites web** de chaque marque (visuels détaillés, configurateurs). Les showrooms restent utiles pour apprécier la **qualité du bois** en direct, car c'est le même pin sylvestre autoclave utilisé sur tous les produits.
 
 **Urbanisme :**
 - < 5m² → aucune formalité (vérifier PLU)
@@ -705,7 +708,7 @@ Cordialement,
 | RE2020 compatible ? | Isolation 100mm RE2020 disponible en option. Isolation standard = 60mm. |
 | Permis de construire ? | < 20m² → déclaration préalable. > 20m² → permis de construire. Vérifier PLU mairie. |
 | Hauteur hors tout ? | 2,70m HT (sans rehausse) / 3,20m HT (avec rehausse). |
-| Hauteur sous plafond ? | ~2,50m standard / ~3,00m avec rehausse. |
+| Hauteur sous plafond ? | ~2,30m standard / ~2,50m avec rehausse. ⚠ La rehausse est nécessaire pour atteindre 2,50m sous plafond. |
 | Hauteur du plancher ? | **Plancher standard : 163mm** (structure 145mm + OSB 18mm). Face supérieure à ~16cm au-dessus de la dalle. **Plancher renforcé :** section variable selon profondeur du studio → confirmer avec le bureau d'études. |
 | Bardage extérieur ? | Brun, Gris, Noir. Bardage intérieur OSB ou panneaux bois massif épicéa. |
 | Livraison + pose ? | Livraison gratuite 4-5 semaines (semi-remorque). **Service de pose disponible** via notre partenaire Clément Vannier (Vano Création) — devis séparé, garantie décennale. Contact : 06 19 64 35 58 / vannier.clement@gmail.com |
@@ -736,7 +739,8 @@ Cordialement,
 | Hauteur intérieure ? | ~2,37m standard. Pieds réglables 12 à 18cm (ajustement selon terrain). |
 | Dimensions sur-mesure ? | Oui, option disponible (+199,90€). Dimensions réelles entre deux tailles standard. |
 | Poteaux lamellé-collé ? | Option disponible. Plus résistant et esthétique. Quantité calculée selon configuration. |
-| Quelle couverture choisir ? | Ventelles : ombre partielle. Platelage : couverture totale. Polycarbonate : lumineux. Bioclimatique : orientation motorisée. |
+| Poteau de rive ? | Les poteaux de rive sont les **poteaux d'angle** de la pergola (aux coins de la structure). Ne pas confondre avec les poteaux intermédiaires ou la muralière. |
+| Quelle couverture choisir ? | Ventelles : ombre partielle. Platelage : couverture totale. Polycarbonate : lumineux. Bioclimatique : lames bois orientables manuellement (motorisation disponible séparément via Samkit). |
 | Polycarbonate et vent ? | Les plaques sont **clipsées** — risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)** qui offre une résistance supérieure. |
 | Gouttière avec polycarbonate ? | Décaler légèrement les plaques de polycarbonate par rapport à la structure pour que l'eau s'écoule dans la gouttière. La gouttière se pose sur le **devant** de la pergola (côté opposé au mur pour une adossée), PAS entre le mur et la pergola. Gouttière non fournie dans le kit — à prévoir en GSB. |
 | Claustras amovibles ? | Les claustras sont **modulables au moment de l'installation** (choix libre d'emplacement). Une fois vissés, les déplacer est contraignant (il faut dévisser pour les bouger), mais c'est faisable. |
@@ -866,6 +870,10 @@ Les largeurs et profondeurs ne sont pas librement combinables. Le configurateur 
 
 **Exemple :** Client veut 8,79 × 4,99 m → sélectionner 9 × 5 m, `sur_mesure=True`, `largeur_hors_tout="8.79"`, `profondeur_hors_tout="4.99"`.
 **Exemple :** Client veut "1,50m × 4m en longitudinale" → `largeur="4m"`, `profondeur="2m"`, `sur_mesure=True`, `profondeur_hors_tout="1.50"` (largeur 4m = standard, pas besoin de `largeur_hors_tout`).
+
+**Logique de tarification sur-mesure :**
+- **Largeur ou profondeur sur-mesure** : le prix est celui de la taille standard juste au-dessus (car le bois est coupé à partir du standard → pas de matière supplémentaire). Le supplément de 199,90€ couvre l'usinage CNC.
+- **Hauteur sur-mesure** : les poteaux sont physiquement **plus longs** que le standard → surcoût matière en plus du supplément sur-mesure. Le prix reflète le coût des poteaux plus grands.
 
 ---
 
