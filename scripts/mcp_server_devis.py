@@ -744,8 +744,12 @@ async def generer_devis_pergola_bois(
 ) -> str:
     """Génère un devis pergola bois sur mapergolabois.fr.
 
+    IMPORTANT : largeur < profondeur est parfaitement valide (ex : largeur="4m", profondeur="5m").
+    Ne JAMAIS inverser les dimensions pour forcer largeur >= profondeur.
+
     Args:
         largeur              : "2m","3m","4m","5m","6m","7m","8m","9m","10m"
+                               Toute combinaison avec profondeur est acceptée, y compris largeur < profondeur.
         profondeur           : "2m","3m","4m","5m"
         fixation             : "adossee" | "independante"
         ventelle             : "largeur" | "profondeur" | "retro" | "sans"
