@@ -259,47 +259,38 @@ async def test_pente_selection(headless: bool = False, screenshot: bool = False)
 
         # ── 5. Cliquer sur le swatch Pente 15% ─────────────────────
         print("\n[5/6] Sélection pente 15%...")
-        # aria-labels réels : "Pente 5%", "Pente 15%" (pas "5%" ni "15%")
-        candidates_15 = ["Pente 15%", "15%", "15"]
-
-        clic_ok = False
-        for candidate in candidates_15:
-            try:
-                selector = f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{candidate}"]'
-                await page.click(selector, timeout=3000)
-                results["passed"].append(f"Clic sur swatch \"{candidate}\" réussi")
-                print(f'  ✓ Clic sur label aria-label="{candidate}" réussi')
-                clic_ok = True
-                break
-            except Exception:
-                print(f'  ✗ Clic aria-label="{candidate}" échoué')
-
-        if not clic_ok:
-            # Fallback JS : correspondance partielle
-            try:
-                js_result = await page.evaluate("""
-                    (fieldId) => {
-                        var c = document.querySelector('.wapf-field-container.field-' + fieldId);
-                        if (!c) return {ok: false, error: 'container not found'};
-
-                        var labels = c.querySelectorAll('div.wapf-swatch label');
-                        for (var l of labels) {
-                            var aria = (l.getAttribute('aria-label') || '').trim();
-                            if (aria.indexOf('15') !== -1) {
-                                l.click();
-                                return {ok: true, method: 'js_partial', aria: aria};
-                            }
-                        }
-                        return {ok: false, error: 'no matching label', count: labels.length};
+        # page.click() échoue sur les swatches WAPF car le <input radio> caché
+        # (opacity:0, position:absolute) intercepte le clic Playwright.
+        # Solution : JS click direct sur le <label>.
+        js_result = await page.evaluate("""
+            (fieldId) => {
+                var c = document.querySelector('.wapf-field-container.field-' + fieldId + ':not(.wapf-hide)');
+                if (!c) return {ok: false, error: 'container not found'};
+                var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                for (var l of labels) {
+                    var aria = (l.getAttribute('aria-label') || '').trim();
+                    if (aria === 'Pente 15%' || aria === '15%') {
+                        l.click();
+                        return {ok: true, method: 'js_exact', aria: aria};
                     }
-                """, PENTE_FIELD_ID)
-                print(f"  Fallback JS : {js_result}")
-                if js_result.get("ok"):
-                    results["passed"].append(f"Clic JS réussi ({js_result.get('method')})")
-                else:
-                    results["failed"].append(f"Tous les clics échoués : {js_result}")
-            except Exception as e3:
-                results["failed"].append(f"Pente 15% impossible à sélectionner : {e3}")
+                }
+                for (var l of labels) {
+                    var aria = (l.getAttribute('aria-label') || '').trim();
+                    if (aria.indexOf('15') !== -1) {
+                        l.click();
+                        return {ok: true, method: 'js_partial', aria: aria};
+                    }
+                }
+                var available = Array.from(labels).map(l => l.getAttribute('aria-label'));
+                return {ok: false, error: 'no matching label', available: available};
+            }
+        """, PENTE_FIELD_ID)
+        if js_result.get("ok"):
+            results["passed"].append(f"Clic JS Pente 15% réussi ({js_result.get('method')}: {js_result.get('aria')})")
+            print(f"  ✓ Pente 15% sélectionnée via JS ({js_result['method']}: {js_result['aria']})")
+        else:
+            results["failed"].append(f"Pente 15% impossible : {js_result}")
+            print(f"  ✗ Pente 15% échoué : {js_result}")
 
         await page.wait_for_timeout(1000)
 
@@ -436,19 +427,26 @@ async def test_pente_5_percent(headless: bool = False, screenshot: bool = False)
                 f"!document.querySelector('.wapf-field-container.field-{PENTE_FIELD_ID}')?.classList.contains('wapf-hide')",
                 timeout=8000,
             )
-            # aria-label réel : "Pente 5%" (pas "5%")
-            clic_5_ok = False
-            for candidate in ["Pente 5%", "5%", "5"]:
-                try:
-                    sel = f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{candidate}"]'
-                    await page.click(sel, timeout=3000)
-                    print(f'  ✓ Pente 5% sélectionnée (aria-label="{candidate}")')
-                    clic_5_ok = True
-                    break
-                except Exception:
-                    continue
-            if not clic_5_ok:
-                print("  ✗ Pente 5% : aucun sélecteur n'a fonctionné")
+            # JS click direct — même raison que le test principal
+            js_5 = await page.evaluate("""
+                (fieldId) => {
+                    var c = document.querySelector('.wapf-field-container.field-' + fieldId + ':not(.wapf-hide)');
+                    if (!c) return {ok: false, error: 'container not found'};
+                    var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                    for (var l of labels) {
+                        var aria = (l.getAttribute('aria-label') || '').trim();
+                        if (aria === 'Pente 5%' || aria === '5%' || aria.indexOf('5%') !== -1) {
+                            l.click();
+                            return {ok: true, aria: aria};
+                        }
+                    }
+                    return {ok: false, error: 'no match'};
+                }
+            """, PENTE_FIELD_ID)
+            if js_5.get("ok"):
+                print(f"  ✓ Pente 5% sélectionnée via JS ({js_5['aria']})")
+            else:
+                print(f"  ✗ Pente 5% : {js_5}")
 
             # Vérifier
             post = await page.evaluate("""

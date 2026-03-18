@@ -1297,8 +1297,6 @@ async def _configurer_et_ajouter_pergola(
     if pente:
         PENTE_FIELD_ID = "e8cec8d"
         pente_pct = pente if "%" in pente else f"{pente}%"
-        # aria-labels réels : "Pente 5%", "Pente 15%" (pas juste "5%")
-        candidates = [f"Pente {pente_pct}", pente_pct, pente]
         # Vérifier que le champ est visible
         try:
             await page.wait_for_function(
@@ -1308,41 +1306,36 @@ async def _configurer_et_ajouter_pergola(
         except Exception:
             pass
         await page.wait_for_timeout(300)
-        pente_ok = False
-        for candidate in candidates:
-            try:
-                await page.click(
-                    f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{candidate}"]',
-                    timeout=3000,
-                )
-                print(f"    ✓ Pente de toiture sélectionnée : {candidate}")
-                pente_ok = True
-                break
-            except Exception:
-                continue
-        if not pente_ok:
-            # Dernier fallback : correspondance partielle via JS
-            js_result = await page.evaluate("""
-                (args) => {
-                    var c = document.querySelector('.wapf-field-container.field-' + args.fid);
-                    if (!c) return {ok: false, error: 'container_not_found'};
-                    var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
-                    var target = args.pct.replace('%', '').trim();
-                    for (var l of labels) {
-                        var aria = l.getAttribute('aria-label') || '';
-                        if (aria.replace('%', '').trim().indexOf(target) !== -1) {
-                            l.click();
-                            return {ok: true, aria: aria};
-                        }
+        # JS click direct — page.click() échoue sur les swatches WAPF car le
+        # <input radio> caché (opacity:0, position:absolute) intercepte le clic
+        js_result = await page.evaluate("""
+            (args) => {
+                var c = document.querySelector('.wapf-field-container.field-' + args.fid + ':not(.wapf-hide)');
+                if (!c) return {ok: false, error: 'container_not_found'};
+                var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                var target = args.pct.replace('%', '').trim();
+                for (var l of labels) {
+                    var aria = l.getAttribute('aria-label') || '';
+                    if (aria === args.pct || aria === ('Pente ' + args.pct)) {
+                        l.click();
+                        return {ok: true, aria: aria, method: 'exact'};
                     }
-                    var available = Array.from(labels).map(l => l.getAttribute('aria-label'));
-                    return {ok: false, error: 'no_match', available: available};
                 }
-            """, {"fid": PENTE_FIELD_ID, "pct": pente_pct})
-            if js_result.get("ok"):
-                print(f"    ✓ Pente de toiture sélectionnée (JS) : {js_result['aria']}")
-            else:
-                print(f"    ⚠ Pente swatch non trouvé ({pente_pct}): {js_result}")
+                for (var l of labels) {
+                    var aria = l.getAttribute('aria-label') || '';
+                    if (aria.replace('%', '').trim().indexOf(target) !== -1) {
+                        l.click();
+                        return {ok: true, aria: aria, method: 'partial'};
+                    }
+                }
+                var available = Array.from(labels).map(l => l.getAttribute('aria-label'));
+                return {ok: false, error: 'no_match', available: available};
+            }
+        """, {"fid": PENTE_FIELD_ID, "pct": pente_pct})
+        if js_result.get("ok"):
+            print(f"    ✓ Pente de toiture sélectionnée : {js_result['aria']}")
+        else:
+            print(f"    ⚠ Pente swatch non trouvé ({pente_pct}): {js_result}")
         await page.wait_for_timeout(500)
 
     # ── Options WAPF génériques ────────────────────────────────
@@ -1684,23 +1677,50 @@ async def generer_devis_terrasse(
                 pass
 
         async def wapf_click_swatch(aria_label: str, desc: str = "", field_id: str = ""):
-            """Clique sur un swatch WAPF.
+            """Clique sur un swatch WAPF via JS.
+
+            page.click() échoue sur les swatches WAPF car le <input radio> caché
+            (opacity:0, position:absolute) intercepte le clic Playwright.
+            On utilise element.click() en JS directement.
 
             field_id : si fourni, scope le sélecteur au conteneur exact de ce champ.
                        Obligatoire quand aria_label est ambigu ("Non" peut être dans plusieurs
                        fields visibles simultanément — lambourdes, visserie…).
             """
-            if field_id:
-                fid = field_id.replace("field_", "")
-                sel = f'.wapf-field-container.field-{fid}:not(.wapf-hide) div.wapf-swatch label[aria-label="{aria_label}"]'
-            else:
-                sel = f'.wapf-field-container:not(.wapf-hide) div.wapf-swatch label[aria-label="{aria_label}"]'
-            try:
-                await page.click(sel, timeout=5000)
+            fid = field_id.replace("field_", "") if field_id else ""
+            result = await page.evaluate("""
+                (args) => {
+                    var selector = args.fid
+                        ? '.wapf-field-container.field-' + args.fid + ':not(.wapf-hide)'
+                        : '.wapf-field-container:not(.wapf-hide)';
+                    var containers = document.querySelectorAll(selector);
+                    for (var c of containers) {
+                        var lbl = c.querySelector('div.wapf-swatch label[aria-label="' + args.aria + '"]');
+                        if (lbl) {
+                            lbl.click();
+                            return {ok: true, aria: args.aria};
+                        }
+                    }
+                    // Fallback: partial match (ex: "15%" → "Pente 15%")
+                    var valNorm = args.aria.replace('%', '').trim().toLowerCase();
+                    for (var c of containers) {
+                        var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                        for (var l of labels) {
+                            var ariaNorm = (l.getAttribute('aria-label') || '').replace('%', '').trim().toLowerCase();
+                            if (ariaNorm === valNorm || ariaNorm.indexOf(valNorm) !== -1) {
+                                l.click();
+                                return {ok: true, aria: l.getAttribute('aria-label'), method: 'partial'};
+                            }
+                        }
+                    }
+                    return {ok: false, error: 'not_found'};
+                }
+            """, {"aria": aria_label, "fid": fid})
+            if result.get("ok"):
                 print(f"    ✓ {desc or aria_label}")
                 await page.wait_for_timeout(400)
-            except Exception as e:
-                raise ValueError(f"Swatch '{aria_label}' introuvable (field={field_id or 'any'}): {e}")
+            else:
+                raise ValueError(f"Swatch '{aria_label}' introuvable (field={field_id or 'any'})")
 
         async def wapf_select_text(field_name: str, text: str, desc: str = ""):
             res = await page.evaluate(f"""
@@ -1774,8 +1794,7 @@ async def generer_devis_terrasse(
             if already_checked:
                 temp = next(e for e in ("FRAKE", "JATOBA", "CUMARU", "PADOUK") if e != essence)
                 try:
-                    await page.click(f'div.wapf-swatch label[aria-label="{temp}"]', timeout=3000)
-                    await page.wait_for_timeout(400)
+                    await wapf_click_swatch(temp, f"Toggle essence → {temp}")
                 except Exception:
                     pass
             print(f"  {label}➜ Essence : {essence}")
