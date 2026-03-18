@@ -1146,13 +1146,49 @@ async def _configurer_et_ajouter_pergola(
     """)
     print(f"  ✓ Prix variation : {prix or '—'}")
 
+    # ── Helper : clic JS swatch WAPF pergola avec découverte ──────
+    async def _click_wapf_swatch_pergola(field_id: str, target_label: str, desc: str = ""):
+        """Clic JS sur un swatch WAPF pergola avec découverte des options disponibles."""
+        fid = field_id.replace("field-", "").replace("field_", "")
+        result = await page.evaluate("""
+            (args) => {
+                var c = document.querySelector('.wapf-field-container.field-' + args.fid + ':not(.wapf-hide)');
+                if (!c) return {ok: false, error: 'container_not_found', fid: args.fid};
+                var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                var available = Array.from(labels).map(l => l.getAttribute('aria-label'));
+                // Exact match
+                for (var l of labels) {
+                    if (l.getAttribute('aria-label') === args.target) {
+                        l.click();
+                        return {ok: true, aria: args.target, available: available};
+                    }
+                }
+                // Partial match (case-insensitive)
+                var tNorm = args.target.toLowerCase();
+                for (var l of labels) {
+                    var aNorm = (l.getAttribute('aria-label') || '').toLowerCase();
+                    if (aNorm === tNorm || aNorm.indexOf(tNorm) !== -1) {
+                        l.click();
+                        return {ok: true, aria: l.getAttribute('aria-label'), method: 'partial', available: available};
+                    }
+                }
+                return {ok: false, error: 'no_match', target: args.target, available: available};
+            }
+        """, {"fid": fid, "target": target_label})
+        if result.get("ok"):
+            print(f"    ✓ {desc or target_label} (options dispo: {result.get('available')})")
+        else:
+            avail = result.get('available', [])
+            raise ValueError(
+                f"{desc or target_label} introuvable dans field-{fid}. "
+                f"Options disponibles : {avail}. Reçu : {target_label!r}"
+            )
+        await page.wait_for_timeout(400)
+
     # ── Option Sur-mesure ─────────────────────────────────────────
     if sur_mesure and largeur_hors_tout:
         await _fermer_popups(page)
-        await page.click(
-            '.wapf-field-container.field-de3be54 div.wapf-swatch label[aria-label="Oui"]',
-            timeout=5000,
-        )
+        await _click_wapf_swatch_pergola("de3be54", "Oui", "Pergola sur-mesure")
         print("    ✓ Pergola sur-mesure activée (+199,90€)")
         try:
             await page.wait_for_function(
@@ -1233,10 +1269,7 @@ async def _configurer_et_ajouter_pergola(
                 print("    ⚠ Poteaux non trouvés dans la description (description vide ou absente)")
 
         await _fermer_popups(page)
-        await page.click(
-            '.wapf-field-container.field-60120c1 div.wapf-swatch label[aria-label="Oui"]',
-            timeout=5000,
-        )
+        await _click_wapf_swatch_pergola("60120c1", "Oui", "Lamellé-collé")
         print("    ✓ Lamellé-collé sélectionné")
 
         try:
@@ -1267,14 +1300,7 @@ async def _configurer_et_ajouter_pergola(
         }
         label = CLAUSTRA_LABEL_MAP.get(claustra_type, claustra_type)
 
-        try:
-            await page.click(
-                f'.wapf-field-container.field-5219ffc div.wapf-swatch label[aria-label="{label}"]',
-                timeout=5000,
-            )
-            print(f"    ✓ Claustra type sélectionné : {label}")
-        except Exception as e:
-            print(f"    ⚠ Claustra swatch non trouvé ({label}): {e}")
+        await _click_wapf_swatch_pergola("5219ffc", label, f"Claustra type : {label}")
 
         try:
             await page.wait_for_function(

@@ -435,7 +435,11 @@ class GenerateurDevis:
         # --- Configuration via clics WPC ---
         # Helper JS pour sélectionner une option par data-text dans un groupe
         async def select_option(group_text: str, option_text: str):
-            """Clique sur option_text dans le groupe group_text."""
+            """Clique sur option_text dans le groupe group_text.
+
+            Découvre les options disponibles dans le groupe avant de cliquer.
+            Lève ValueError si le groupe ou l'option n'existe pas.
+            """
             result = await self.page.evaluate("""
                 (args) => {
                     function findByText(parent, text) {
@@ -450,6 +454,10 @@ class GenerateurDevis:
                         if (tw) tw.click();
                         else item.click();
                     }
+                    function listChildren(parent) {
+                        var items = parent.querySelectorAll(':scope > ul > li.wpc-control-item');
+                        return Array.from(items).map(i => i.getAttribute('data-text')).filter(Boolean);
+                    }
                     var allItems = document.querySelectorAll('li.wpc-control-item');
                     var group = null;
                     for (var item of allItems) {
@@ -458,15 +466,34 @@ class GenerateurDevis:
                             break;
                         }
                     }
-                    if (!group) return {error: 'group not found: ' + args.groupText};
+                    if (!group) {
+                        var allGroups = Array.from(allItems).map(i => i.getAttribute('data-text')).filter(Boolean);
+                        return {error: 'group_not_found', group: args.groupText, available_groups: allGroups.slice(0, 20)};
+                    }
                     var option = findByText(group, args.optionText);
-                    if (!option) return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText};
+                    if (!option) {
+                        var available = listChildren(group);
+                        return {error: 'option_not_found', option: args.optionText, group: args.groupText, available_options: available};
+                    }
                     clickItem(option);
-                    return {ok: true};
+                    var available = listChildren(group);
+                    return {ok: true, available_options: available};
                 }
             """, {"groupText": group_text, "optionText": option_text})
             if isinstance(result, dict) and result.get("error"):
-                print(f"    ⚠ {result['error']}")
+                err_type = result["error"]
+                if err_type == "group_not_found":
+                    raise ValueError(
+                        f"Groupe '{group_text}' introuvable dans le configurateur. "
+                        f"Groupes disponibles : {result.get('available_groups', [])}"
+                    )
+                else:
+                    raise ValueError(
+                        f"Option '{option_text}' introuvable dans '{group_text}'. "
+                        f"Options disponibles : {result.get('available_options', [])}"
+                    )
+            if isinstance(result, dict) and result.get("ok"):
+                print(f"    ✓ {group_text} → {option_text} (dispo: {result.get('available_options', [])})")
             await self.page.wait_for_timeout(300)
 
         # Bardage extérieur

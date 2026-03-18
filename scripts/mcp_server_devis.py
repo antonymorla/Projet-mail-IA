@@ -87,6 +87,221 @@ def _log_devis(filepath: str, type_devis: str, client_prenom: str, client_nom: s
         pass  # log non-bloquant
 
 
+# ═══════════════════════════════════════════════════════════════
+# VALIDATION DES PARAMÈTRES AVANT CONFIGURATION
+# ═══════════════════════════════════════════════════════════════
+# Les configurateurs WAPF/WPC ne valident pas les valeurs reçues —
+# ils cliquent aveuglément et échouent en timeout si l'option n'existe pas.
+# On valide ici au niveau MCP pour retourner des messages d'erreur clairs.
+
+_PERGOLA_LARGEURS = {"2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "10m"}
+_PERGOLA_PROFONDEURS = {"2m", "3m", "4m", "5m"}
+_PERGOLA_FIXATIONS = {"adossee", "independante"}
+_PERGOLA_VENTELLES = {"largeur", "profondeur", "retro", "sans"}
+_PERGOLA_OPTIONS = {"non", "platelage", "voilage", "bioclimatique", "carport", "lattage", "polycarbonate"}
+_PERGOLA_CLAUSTRA_TYPES = {"", "vertical", "horizontal", "lattage"}
+_PERGOLA_PENTES = {"", "5%", "15%"}
+
+_TERRASSE_ESSENCES = {
+    "PIN 21mm Autoclave Vert", "PIN 27mm Autoclave Vert",
+    "PIN 27mm Autoclave Marron", "PIN 27mm Autoclave Gris",
+    "PIN 27mm Thermotraité", "FRAKE", "JATOBA", "CUMARU", "PADOUK", "IPE",
+}
+_TERRASSE_LAMBOURDES = {
+    "", "Pin autoclave Vert 45x70", "Pin autoclave Vert 45x145",
+    "Bois exotique Niove 40x60",
+}
+_TERRASSE_PLOTS = {"NON", "2 à 4 cm", "4 à 6 cm", "6 à 9 cm", "9 à 15 cm", "15 à 26 cm"}
+_TERRASSE_VISSERIE = {"", "Vis Inox 5x50mm", "Vis Inox 5x60mm", "Fixations invisible Hapax"}
+_TERRASSE_DENSITES = {"simple", "double"}
+
+_CLOTURE_MODELES = {"classique", "moderne"}
+_CLOTURE_LONGEURS_CLASSIQUE = {"4", "10", "20", "30", "40"}
+_CLOTURE_LONGEURS_MODERNE = {"5", "10", "20", "30", "40"}
+_CLOTURE_HAUTEURS_CLASSIQUE = {"1-9"}
+_CLOTURE_HAUTEURS_MODERNE = {"0-9", "1-9", "2-3"}
+_CLOTURE_BARDAGES_CLASSIQUE = {"27x130", "27x130-gris"}
+_CLOTURE_BARDAGES_MODERNE = {
+    "20x60", "20x70-brun", "20x70-gris", "20x70-noir",
+    "21x130", "21x145", "45x45-esp0-015m", "45x45-esp0-045m",
+}
+
+_STUDIO_LARGEURS = {"2,2", "3,3", "4,4", "5,5", "6,6", "7,7", "8,8"}
+_STUDIO_PROFONDEURS = {"2,4", "3,5", "4,6", "5,7"}
+_STUDIO_BARDAGES_EXT = {"", "Gris", "Brun", "Noir", "Vert"}
+_STUDIO_ISOLATIONS = {"", "60mm", "100 mm (RE2020)"}
+_STUDIO_BARDAGES_INT = {"", "OSB", "Panneaux bois massif (3 plis épicéa)"}
+_STUDIO_PLANCHERS = {"", "Sans plancher", "Plancher standard", "Plancher RE2020", "Plancher porteur"}
+_STUDIO_MENUISERIE_TYPES = {"PORTE VITREE", "FENETRE SIMPLE", "FENETRE DOUBLE", "BAIE VITREE", "PORTE DOUBLE VITREE"}
+_STUDIO_MENUISERIE_MURS = {"MUR DE FACE", "MUR DE GAUCHE", "MUR DE DROITE", "MUR DU FOND"}
+_STUDIO_MENUISERIE_MATERIAUX = {"PVC", "ALU"}
+_STUDIO_ALU_ONLY = {"BAIE VITREE", "PORTE DOUBLE VITREE"}
+
+_ABRI_OUVERTURE_TYPES = {
+    "Porte Vitrée", "Porte Pleine", "Porte double Vitrée",
+    "Porte double Pleine", "Fenêtre Horizontale", "Fenêtre Verticale",
+}
+_ABRI_OUVERTURE_FACES = {"Face 1", "Face 2", "Droite", "Gauche", "Fond 1", "Fond 2"}
+_ABRI_OUVERTURE_POSITIONS = {"Centre", "Gauche", "Droite"}
+
+
+def _validation_error(errors: list) -> str:
+    """Retourne un JSON d'erreur MCP avec la liste des problèmes détectés."""
+    return json.dumps({
+        "success": False,
+        "error": "VALIDATION — paramètres invalides détectés AVANT configuration. "
+                 "Corrige et relance l'appel.",
+        "details": errors,
+    })
+
+
+def _valider_pergola(largeur, profondeur, fixation, ventelle, option,
+                     claustra_type, pente, sur_mesure,
+                     largeur_hors_tout, profondeur_hors_tout, hauteur_hors_tout) -> list:
+    """Valide les paramètres pergola. Retourne une liste d'erreurs (vide = OK)."""
+    errors = []
+    l_norm = largeur.lower().strip()
+    p_norm = profondeur.lower().strip()
+    if l_norm not in _PERGOLA_LARGEURS:
+        errors.append(f"largeur={largeur!r} invalide. Valeurs : {sorted(_PERGOLA_LARGEURS)}")
+    if p_norm not in _PERGOLA_PROFONDEURS:
+        errors.append(f"profondeur={profondeur!r} invalide. Valeurs : {sorted(_PERGOLA_PROFONDEURS)}")
+    if fixation not in _PERGOLA_FIXATIONS:
+        errors.append(f"fixation={fixation!r} invalide. Valeurs : {sorted(_PERGOLA_FIXATIONS)}")
+    if ventelle not in _PERGOLA_VENTELLES:
+        errors.append(f"ventelle={ventelle!r} invalide. Valeurs : {sorted(_PERGOLA_VENTELLES)}")
+    if option not in _PERGOLA_OPTIONS:
+        errors.append(f"option={option!r} invalide. Valeurs : {sorted(_PERGOLA_OPTIONS)}")
+    if claustra_type not in _PERGOLA_CLAUSTRA_TYPES:
+        errors.append(f"claustra_type={claustra_type!r} invalide. Valeurs : {sorted(_PERGOLA_CLAUSTRA_TYPES)}")
+    if pente not in _PERGOLA_PENTES:
+        errors.append(f"pente={pente!r} invalide. Valeurs : {sorted(_PERGOLA_PENTES)}")
+    # Règle critique : largeur >= profondeur (profondeur max 5m)
+    try:
+        l_val = int(l_norm.replace("m", ""))
+        p_val = int(p_norm.replace("m", ""))
+        if p_val > l_val:
+            errors.append(f"profondeur ({p_val}m) > largeur ({l_val}m). "
+                         "La LARGEUR doit toujours être >= profondeur. Inverser les valeurs.")
+    except ValueError:
+        pass
+    # Règle : platelage nécessite ventelle largeur ou profondeur
+    if option == "platelage" and ventelle not in ("largeur", "profondeur"):
+        errors.append(f"option='platelage' nécessite ventelle='largeur' ou 'profondeur' (reçu: {ventelle!r})")
+    # Règle : pente 15% nécessite ventelle largeur
+    if pente == "15%" and ventelle != "largeur":
+        errors.append(f"pente='15%' nécessite ventelle='largeur' (reçu: {ventelle!r})")
+    # Règle : sur_mesure obligatoire si dimensions hors-tout fournies
+    if (largeur_hors_tout or profondeur_hors_tout or hauteur_hors_tout) and not sur_mesure:
+        errors.append("sur_mesure=True OBLIGATOIRE quand largeur_hors_tout/profondeur_hors_tout/"
+                     "hauteur_hors_tout est renseigné. Ajouter sur_mesure=True.")
+    return errors
+
+
+def _valider_terrasse(essence, lambourdes, plots, visserie, densite_lambourdes) -> list:
+    """Valide les paramètres terrasse. Retourne une liste d'erreurs (vide = OK)."""
+    errors = []
+    if essence not in _TERRASSE_ESSENCES:
+        errors.append(f"essence={essence!r} invalide. Valeurs : {sorted(_TERRASSE_ESSENCES)}")
+    if lambourdes not in _TERRASSE_LAMBOURDES:
+        errors.append(f"lambourdes={lambourdes!r} invalide. Valeurs : {sorted(_TERRASSE_LAMBOURDES)}")
+    if plots not in _TERRASSE_PLOTS:
+        errors.append(f"plots={plots!r} invalide. Valeurs : {sorted(_TERRASSE_PLOTS)}")
+    if visserie not in _TERRASSE_VISSERIE:
+        errors.append(f"visserie={visserie!r} invalide. Valeurs : {sorted(_TERRASSE_VISSERIE)}")
+    if densite_lambourdes not in _TERRASSE_DENSITES:
+        errors.append(f"densite_lambourdes={densite_lambourdes!r} invalide. Valeurs : {sorted(_TERRASSE_DENSITES)}")
+    return errors
+
+
+def _valider_cloture(modele, longeur, hauteur, bardage) -> list:
+    """Valide les paramètres clôture. Retourne une liste d'erreurs (vide = OK)."""
+    errors = []
+    if modele not in _CLOTURE_MODELES:
+        errors.append(f"modele={modele!r} invalide. Valeurs : {sorted(_CLOTURE_MODELES)}")
+        return errors  # pas possible de valider le reste sans modèle
+    if modele == "classique":
+        if longeur not in _CLOTURE_LONGEURS_CLASSIQUE:
+            errors.append(f"longeur={longeur!r} invalide pour classique. Valeurs : {sorted(_CLOTURE_LONGEURS_CLASSIQUE)}")
+        if hauteur not in _CLOTURE_HAUTEURS_CLASSIQUE:
+            errors.append(f"hauteur={hauteur!r} invalide pour classique. Seule option : '1-9'")
+        if bardage not in _CLOTURE_BARDAGES_CLASSIQUE:
+            errors.append(f"bardage={bardage!r} invalide pour classique. Valeurs : {sorted(_CLOTURE_BARDAGES_CLASSIQUE)}")
+    else:
+        if longeur not in _CLOTURE_LONGEURS_MODERNE:
+            errors.append(f"longeur={longeur!r} invalide pour moderne. Valeurs : {sorted(_CLOTURE_LONGEURS_MODERNE)}")
+        if hauteur not in _CLOTURE_HAUTEURS_MODERNE:
+            errors.append(f"hauteur={hauteur!r} invalide pour moderne. Valeurs : {sorted(_CLOTURE_HAUTEURS_MODERNE)}")
+        if bardage not in _CLOTURE_BARDAGES_MODERNE:
+            errors.append(f"bardage={bardage!r} invalide pour moderne. Valeurs : {sorted(_CLOTURE_BARDAGES_MODERNE)}")
+    return errors
+
+
+def _valider_studio(largeur, profondeur, menuiseries_list, bardage_exterieur,
+                    isolation, bardage_interieur, plancher) -> list:
+    """Valide les paramètres studio. Retourne une liste d'erreurs (vide = OK)."""
+    errors = []
+    if largeur not in _STUDIO_LARGEURS:
+        errors.append(f"largeur={largeur!r} invalide. Valeurs : {sorted(_STUDIO_LARGEURS)}")
+    if profondeur not in _STUDIO_PROFONDEURS:
+        errors.append(f"profondeur={profondeur!r} invalide. Valeurs : {sorted(_STUDIO_PROFONDEURS)}")
+    if bardage_exterieur not in _STUDIO_BARDAGES_EXT:
+        errors.append(f"bardage_exterieur={bardage_exterieur!r} invalide. Valeurs : {sorted(_STUDIO_BARDAGES_EXT)}")
+    if isolation not in _STUDIO_ISOLATIONS:
+        errors.append(f"isolation={isolation!r} invalide. Valeurs : {sorted(_STUDIO_ISOLATIONS)}")
+    if bardage_interieur not in _STUDIO_BARDAGES_INT:
+        errors.append(f"bardage_interieur={bardage_interieur!r} invalide. Valeurs : {sorted(_STUDIO_BARDAGES_INT)}")
+    if plancher not in _STUDIO_PLANCHERS:
+        errors.append(f"plancher={plancher!r} invalide. Valeurs : {sorted(_STUDIO_PLANCHERS)}")
+    # Valider chaque menuiserie
+    if isinstance(menuiseries_list, list):
+        for i, m in enumerate(menuiseries_list):
+            if not isinstance(m, dict):
+                errors.append(f"menuiseries[{i}] : doit être un dict, reçu {type(m).__name__}")
+                continue
+            m_type = m.get("type", "")
+            m_mur = m.get("mur", "")
+            m_mat = m.get("materiau", "PVC")
+            if m_type not in _STUDIO_MENUISERIE_TYPES:
+                errors.append(f"menuiseries[{i}].type={m_type!r} invalide. Valeurs : {sorted(_STUDIO_MENUISERIE_TYPES)}")
+            if m_mur not in _STUDIO_MENUISERIE_MURS:
+                errors.append(f"menuiseries[{i}].mur={m_mur!r} invalide. Valeurs : {sorted(_STUDIO_MENUISERIE_MURS)}")
+            if m_mat not in _STUDIO_MENUISERIE_MATERIAUX:
+                errors.append(f"menuiseries[{i}].materiau={m_mat!r} invalide. Valeurs : {sorted(_STUDIO_MENUISERIE_MATERIAUX)}")
+            # BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement
+            if m_type in _STUDIO_ALU_ONLY and m_mat != "ALU":
+                errors.append(f"menuiseries[{i}] : {m_type} nécessite materiau='ALU' (reçu: {m_mat!r})")
+    return errors
+
+
+def _valider_abri_ouvertures(ouvertures_list) -> list:
+    """Valide les ouvertures abri. Retourne une liste d'erreurs (vide = OK)."""
+    errors = []
+    if not isinstance(ouvertures_list, list):
+        return errors
+    seen = set()  # (face, position)
+    for i, o in enumerate(ouvertures_list):
+        if not isinstance(o, dict):
+            errors.append(f"ouvertures[{i}] : doit être un dict, reçu {type(o).__name__}")
+            continue
+        o_type = o.get("type", "")
+        o_face = o.get("face", "")
+        o_pos = o.get("position", "")
+        if o_type not in _ABRI_OUVERTURE_TYPES:
+            errors.append(f"ouvertures[{i}].type={o_type!r} invalide. Valeurs : {sorted(_ABRI_OUVERTURE_TYPES)}")
+        if o_face not in _ABRI_OUVERTURE_FACES:
+            errors.append(f"ouvertures[{i}].face={o_face!r} invalide. Valeurs : {sorted(_ABRI_OUVERTURE_FACES)}")
+        if o_pos not in _ABRI_OUVERTURE_POSITIONS:
+            errors.append(f"ouvertures[{i}].position={o_pos!r} invalide. Valeurs : {sorted(_ABRI_OUVERTURE_POSITIONS)}")
+        # Règle : jamais 2 ouvertures sur même face + même position
+        key = (o_face, o_pos)
+        if key in seen:
+            errors.append(f"ouvertures[{i}] : doublon face={o_face!r}+position={o_pos!r} "
+                         "(2 ouvertures sur même face+position interdit)")
+        seen.add(key)
+    return errors
+
+
 async def _generer_direct(type_devis: str, params: dict,
                            client_prenom: str, client_nom: str) -> str:
     """Génère un devis en appelant directement les fonctions de génération.
@@ -584,6 +799,13 @@ async def generer_devis_pergola_bois(
     Returns:
         JSON avec chemin du PDF et métadonnées.
     """
+    # ── Validation des paramètres ──
+    errors = _valider_pergola(largeur, profondeur, fixation, ventelle, option,
+                              claustra_type, pente, sur_mesure,
+                              largeur_hors_tout, profondeur_hors_tout, hauteur_hors_tout)
+    if errors:
+        return _validation_error(errors)
+
     return await _generer_direct("pergola", {
         "largeur": largeur, "profondeur": profondeur, "fixation": fixation,
         "ventelle": ventelle, "option": option,
@@ -671,6 +893,11 @@ async def generer_devis_terrasse_bois(
     Returns:
         JSON avec chemin du PDF et métadonnées.
     """
+    # ── Validation des paramètres ──
+    errors = _valider_terrasse(essence, lambourdes, plots, visserie, densite_lambourdes)
+    if errors:
+        return _validation_error(errors)
+
     return await _generer_direct("terrasse", {
         "essence": essence, "longueur": longueur, "quantite": quantite,
         "lambourdes": lambourdes, "lambourdes_longueur": lambourdes_longueur,
@@ -792,6 +1019,11 @@ async def generer_devis_cloture_bois(
     Returns:
         JSON avec chemin du PDF et métadonnées.
     """
+    # ── Validation des paramètres ──
+    errors = _valider_cloture(modele, longeur, hauteur, bardage)
+    if errors:
+        return _validation_error(errors)
+
     return await _generer_direct("cloture", {
         "modele": modele, "longeur": longeur, "hauteur": hauteur,
         "bardage": bardage, "fixation_sol": fixation_sol,
@@ -907,6 +1139,12 @@ async def generer_devis_abri(
                 "error": f"Format ouvertures invalide. Attendu : JSON array. Reçu : {ouvertures[:100]}"
             })
 
+        # ── Validation des ouvertures ──
+        if not produits_uniquement:
+            errors = _valider_abri_ouvertures(ouvertures_list)
+            if errors:
+                return _validation_error(errors)
+
         # Convertir plancher string → bool pour abri
         plancher_bool = plancher.lower() in ("true", "oui", "1") if isinstance(plancher, str) else bool(plancher)
 
@@ -1005,6 +1243,12 @@ async def generer_devis_studio(
                 "success": False,
                 "error": f"Format menuiseries invalide. Attendu : JSON array. Reçu : {menuiseries[:100]}"
             })
+
+        # ── Validation des paramètres studio ──
+        errors = _valider_studio(largeur, profondeur, menuiseries_list,
+                                 bardage_exterieur, isolation, bardage_interieur, plancher)
+        if errors:
+            return _validation_error(errors)
 
         params = {
             "largeur": largeur,
