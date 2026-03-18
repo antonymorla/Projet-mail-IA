@@ -214,14 +214,14 @@ async def test_pente_selection(headless: bool = False, screenshot: bool = False)
             else:
                 results["passed"].append("Champ pente visible")
 
-            # Vérifier que "15%" existe dans les swatches
+            # Vérifier que "Pente 15%" existe dans les swatches
             pente_labels = [s["aria_label"] for s in swatches]
-            if "15%" in pente_labels:
-                results["passed"].append("Option 15% existe dans les swatches")
-                print("  ✓ Option 15% trouvée dans les swatches")
+            if any("15%" in lbl for lbl in pente_labels):
+                results["passed"].append("Option Pente 15% existe dans les swatches")
+                print("  ✓ Option Pente 15% trouvée dans les swatches")
             else:
-                results["failed"].append(f"Option 15% absente. Disponibles : {pente_labels}")
-                print(f"  ✗ Option 15% ABSENTE. Disponibles : {pente_labels}")
+                results["failed"].append(f"Option Pente 15% absente. Disponibles : {pente_labels}")
+                print(f"  ✗ Option Pente 15% ABSENTE. Disponibles : {pente_labels}")
 
         if screenshot:
             await page.screenshot(path=os.path.join(SCREENSHOT_DIR, "02_pente_before.png"))
@@ -257,60 +257,49 @@ async def test_pente_selection(headless: bool = False, screenshot: bool = False)
 
         await page.wait_for_timeout(500)
 
-        # ── 5. Cliquer sur le swatch 15% ─────────────────────────
+        # ── 5. Cliquer sur le swatch Pente 15% ─────────────────────
         print("\n[5/6] Sélection pente 15%...")
-        selector_15 = f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="15%"]'
+        # aria-labels réels : "Pente 5%", "Pente 15%" (pas "5%" ni "15%")
+        candidates_15 = ["Pente 15%", "15%", "15"]
 
-        try:
-            await page.click(selector_15, timeout=5000)
-            results["passed"].append("Clic sur swatch 15% réussi")
-            print("  ✓ Clic sur label aria-label=\"15%\" réussi")
-        except Exception as e:
-            print(f"  ✗ Clic direct échoué : {e}")
-
-            # Fallback : essayer sans le %
+        clic_ok = False
+        for candidate in candidates_15:
             try:
-                selector_no_pct = f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="15"]'
-                await page.click(selector_no_pct, timeout=3000)
-                results["passed"].append("Clic sur swatch 15 (sans %) réussi")
-                print('  ✓ Fallback : clic sur aria-label="15" réussi')
-            except Exception as e2:
-                print(f"  ✗ Fallback aussi échoué : {e2}")
+                selector = f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{candidate}"]'
+                await page.click(selector, timeout=3000)
+                results["passed"].append(f"Clic sur swatch \"{candidate}\" réussi")
+                print(f'  ✓ Clic sur label aria-label="{candidate}" réussi')
+                clic_ok = True
+                break
+            except Exception:
+                print(f'  ✗ Clic aria-label="{candidate}" échoué')
 
-                # Fallback JS : cliquer via JavaScript
-                try:
-                    js_result = await page.evaluate("""
-                        (fieldId) => {
-                            var c = document.querySelector('.wapf-field-container.field-' + fieldId);
-                            if (!c) return {ok: false, error: 'container not found'};
+        if not clic_ok:
+            # Fallback JS : correspondance partielle
+            try:
+                js_result = await page.evaluate("""
+                    (fieldId) => {
+                        var c = document.querySelector('.wapf-field-container.field-' + fieldId);
+                        if (!c) return {ok: false, error: 'container not found'};
 
-                            var labels = c.querySelectorAll('div.wapf-swatch label');
-                            var found = null;
-                            labels.forEach(function(l) {
-                                var aria = (l.getAttribute('aria-label') || '').trim();
-                                if (aria === '15%' || aria === '15') found = l;
-                            });
-                            if (found) {
-                                found.click();
-                                return {ok: true, method: 'js_click', aria: found.getAttribute('aria-label')};
+                        var labels = c.querySelectorAll('div.wapf-swatch label');
+                        for (var l of labels) {
+                            var aria = (l.getAttribute('aria-label') || '').trim();
+                            if (aria.indexOf('15') !== -1) {
+                                l.click();
+                                return {ok: true, method: 'js_partial', aria: aria};
                             }
-
-                            // Dernier recours : cliquer sur le 2ème label (le 1er est 5%)
-                            if (labels.length >= 2) {
-                                labels[1].click();
-                                return {ok: true, method: 'index_click', aria: labels[1].getAttribute('aria-label')};
-                            }
-
-                            return {ok: false, error: 'no matching label', count: labels.length};
                         }
-                    """, PENTE_FIELD_ID)
-                    print(f"  Fallback JS : {js_result}")
-                    if js_result.get("ok"):
-                        results["passed"].append(f"Clic JS réussi ({js_result.get('method')})")
-                    else:
-                        results["failed"].append(f"Tous les clics échoués : {js_result}")
-                except Exception as e3:
-                    results["failed"].append(f"Pente 15% impossible à sélectionner : {e3}")
+                        return {ok: false, error: 'no matching label', count: labels.length};
+                    }
+                """, PENTE_FIELD_ID)
+                print(f"  Fallback JS : {js_result}")
+                if js_result.get("ok"):
+                    results["passed"].append(f"Clic JS réussi ({js_result.get('method')})")
+                else:
+                    results["failed"].append(f"Tous les clics échoués : {js_result}")
+            except Exception as e3:
+                results["failed"].append(f"Pente 15% impossible à sélectionner : {e3}")
 
         await page.wait_for_timeout(1000)
 
@@ -441,15 +430,25 @@ async def test_pente_5_percent(headless: bool = False, screenshot: bool = False)
         """, attrs)
         await page.wait_for_timeout(2000)
 
-        # Essayer de sélectionner 5%
-        selector_5 = f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="5%"]'
+        # Essayer de sélectionner Pente 5%
         try:
             await page.wait_for_function(
                 f"!document.querySelector('.wapf-field-container.field-{PENTE_FIELD_ID}')?.classList.contains('wapf-hide')",
                 timeout=8000,
             )
-            await page.click(selector_5, timeout=5000)
-            print("  ✓ Pente 5% sélectionnée")
+            # aria-label réel : "Pente 5%" (pas "5%")
+            clic_5_ok = False
+            for candidate in ["Pente 5%", "5%", "5"]:
+                try:
+                    sel = f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{candidate}"]'
+                    await page.click(sel, timeout=3000)
+                    print(f'  ✓ Pente 5% sélectionnée (aria-label="{candidate}")')
+                    clic_5_ok = True
+                    break
+                except Exception:
+                    continue
+            if not clic_5_ok:
+                print("  ✗ Pente 5% : aucun sélecteur n'a fonctionné")
 
             # Vérifier
             post = await page.evaluate("""
