@@ -787,6 +787,13 @@ async def generer_devis_pergola_bois(
                                est un dict avec les mêmes clés : {"largeur": "5m", "profondeur": "3m",
                                "fixation": "independante", "ventelle": "largeur", "option": "non", ...}
                                Permet de mettre plusieurs pergolas sur le même devis PDF.
+                               ROTATION 90° : pour un carport multi-pergola, les adossées fixées sur le
+                               CÔTÉ de la centrale sont tournées de 90°. Leur "largeur" sur le devis
+                               s'adosse sur la profondeur de la centrale, et leur "profondeur" devient
+                               la façade. Ne PAS inverser les dimensions. Avec ventelle="profondeur",
+                               la pente descend vers le fond une fois tourné (même sens que la centrale).
+                               Ex carport 12×5m : centrale 4m×5m ventelle=largeur + 2 adossées 5m×4m
+                               ventelle=profondeur → 3×4m=12m façade, 5m profondeur uniforme.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.

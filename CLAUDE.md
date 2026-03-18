@@ -344,10 +344,17 @@ generer_devis_pergola_bois(
 >
 > **⚠ Particulièrement important pour Carport et Polycarbonate** (couverture étanche) : le sens d'écoulement détermine où l'eau tombe.
 >
-> **Exemple — Carport 12m × 5m (3 pergolas jointes, pente globale vers le fond sur 5m) :**
-> - Centrale (indépendante, 4m×5m) : `largeur="4m"`, `profondeur="5m"`, `ventelle="largeur"` → pente vers le fond (profondeur 5m) ✓
-> - Gauche (adossée, 4m×5m) : `largeur="4m"`, `profondeur="5m"`, `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
-> - Droite (adossée, 4m×5m) : `largeur="4m"`, `profondeur="5m"`, `ventelle="profondeur"` → pente vers la centrale (largeur) ✓
+> **Exemple — Carport 12m × 5m (3 pergolas jointes, pente uniforme vers le fond) :**
+> - Centrale (indépendante) : `largeur="4m"`, `profondeur="5m"`, `ventelle="largeur"` → pente vers le fond ✓
+> - Gauche (adossée, **tournée 90°**) : `largeur="5m"`, `profondeur="4m"`, `ventelle="profondeur"` → une fois tournée, la pente descend aussi vers le fond ✓
+> - Droite (adossée, **tournée 90°**) : `largeur="5m"`, `profondeur="4m"`, `ventelle="profondeur"` → idem ✓
+> - Total façade : 4m + 4m + 4m = 12m ✓ | Profondeur uniforme : 5m ✓
+>
+> **Logique de rotation 90°** : une pergola adossée se fixe toujours par son fond (le côté profondeur).
+> Quand on la tourne à 90° pour l'adosser sur le côté d'une pergola voisine, sa "largeur" (sur le devis)
+> vient se coller sur la profondeur de la voisine, et sa "profondeur" (sur le devis) devient la contribution en façade.
+> Les ventelles suivent : `ventelle="profondeur"` sur le devis = ventelles dans le sens de la façade une fois tourné
+> → la pente descend vers le fond, comme la centrale.
 
 ### Jonction de plusieurs pergolas entre elles
 
@@ -356,8 +363,41 @@ generer_devis_pergola_bois(
 > **Règles :**
 > 1. Utiliser `configurations_supplementaires` pour mettre toutes les pergolas sur **un seul devis**
 > 2. **OBLIGATOIRE dans l'email** : préciser au client qu'il doit **indiquer dans les annotations de commande** qu'il souhaite joindre les pergolas entre elles, afin que l'équipe prévoie la visserie de jonction nécessaire
+> 3. **Si pergolas adossées tournées à 90°** : préciser aussi dans les annotations que les pergolas adossées sont tournées à 90° pour former le carport aux dimensions souhaitées
 >
-> **Formulation email** : *"Merci d'indiquer dans les annotations de commande que les pergolas doivent être jointes entre elles, afin que nous prévoyions la visserie de jonction nécessaire."*
+> **Formulation email** :
+> *"Merci d'indiquer dans les annotations de commande que les 3 pergolas doivent être jointes entre elles et que les pergolas adossées sont tournées à 90°, afin que nous prévoyions la visserie de jonction nécessaire."*
+
+### ⛔ RÈGLE — ROTATION 90° DES PERGOLAS ADOSSÉES (carport multi-pergola)
+
+> **Principe** : une pergola adossée se fixe toujours par son **fond** (côté profondeur = la muralière).
+> Quand on adosse une pergola **sur le côté** d'une pergola voisine (et non dans son prolongement),
+> elle est **tournée de 90°**. Cela a des conséquences sur l'interprétation des dimensions et des ventelles :
+>
+> | | Sur le devis (configurateur) | Physiquement une fois tournée 90° |
+> |---|---|---|
+> | **Largeur** (ex: 5m) | Dimension en façade | Devient la **profondeur** (s'adosse sur la voisine) |
+> | **Profondeur** (ex: 4m) | Dimension perpendiculaire | Devient la **façade** (contribution aux Xm totaux) |
+> | **Ventelles profondeur** | Pente vers la largeur | Pente vers le **fond** (même sens que la centrale) |
+>
+> **Conséquences pratiques :**
+> 1. **Ne PAS inverser les dimensions** pour compenser la rotation — le devis est correct tel quel
+> 2. **`ventelle="profondeur"` sur les adossées tournées** → une fois en place, la pente descend vers le fond (comme la centrale avec `ventelle="largeur"`) → pente uniforme sur tout le carport
+> 3. La **largeur sur le devis** de l'adossée doit correspondre à la **profondeur de la centrale** pour que les pergolas se joignent proprement (ex : centrale 4×5m → adossées en 5×4m, les 5m se collent)
+> 4. La **contribution en façade** de chaque adossée tournée = sa profondeur sur le devis (ex : P=4m → 4m en façade)
+>
+> **Exemple — Carport 12m × 5m :**
+> - Client demande : "4m de large × 5m de profondeur au centre, et 2 pergolas de chaque côté pour faire 12m"
+> - Centrale : `largeur="4m"`, `profondeur="5m"`, `ventelle="largeur"`, indépendante
+> - Adossées : `largeur="5m"`, `profondeur="4m"`, `ventelle="profondeur"`, adossées — tournées 90°, les 5m s'adossent sur les 5m de la centrale
+> - Façade totale : 4m (centrale) + 4m (gauche) + 4m (droite) = 12m ✓
+> - Profondeur uniforme : 5m ✓
+> - Pente uniforme vers le fond ✓
+>
+> **Comment reconnaître qu'il faut tourner à 90°** :
+> - Le client veut un carport plus large que profond (ex : 12m × 5m)
+> - Les adossées se fixent sur les **côtés** de la centrale (pas dans le prolongement)
+> - La "largeur" des adossées sur le devis = la profondeur de la centrale (pour que ça se joigne)
 
 ### PERGOLA DIMENSIONS (largeur vs profondeur)
 
