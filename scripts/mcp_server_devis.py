@@ -768,7 +768,7 @@ async def generer_devis_pergola_bois(
         profondeur_hors_tout : Profondeur réelle hors-tout en mètres (ex: "3.42")
         hauteur_hors_tout    : Hauteur hors-tout en mètres (max 3.07m, ex: "2.50")
         pente                : Pente de toiture. "" (défaut 5%) | "5%" | "15%"
-                               ⚠ Pente 15% nécessite ventelle="largeur"
+                               Pente 15% compatible avec toutes les orientations de ventelles
         options_wapf         : JSON dict de champs WAPF supplémentaires à sélectionner.
                                Format : {"field_id": "valeur"}. Permet de piloter tout champ
                                WAPF non prévu en paramètre (auto-détection swatch/input/select).
