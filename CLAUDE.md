@@ -272,6 +272,11 @@ generer_devis_pergola_bois(
                              # ⚠ Option NATIVE du configurateur (champ WAPF), NE PAS ajouter en produits_complementaires
     nb_claustra=0,           # Nombre de claustras (modules de 1m chacun)
                              # Ex : pergola 4m de côté → nb_claustra=4 pour remplir un côté
+    pente="",                # "" (défaut 5%) | "5%" | "15%" — pente de toiture (champ WAPF field-e8cec8d)
+                             # ⚠ Pente 15% nécessite ventelle="largeur"
+    options_wapf="{}",       # JSON dict de champs WAPF supplémentaires à sélectionner
+                             # Auto-détection swatch/input/select — voir inspect_wapf_all.py pour les field_id
+                             # Ex : {"e8cec8d": "15%"} — pilote n'importe quel champ WAPF non prévu
     sur_mesure=False,        # True pour activer la config sur-mesure (+199,90€)
     largeur_hors_tout="",    # Largeur réelle en mètres (ex: "8.79") — requis si sur_mesure=True
     profondeur_hors_tout="", # Profondeur réelle en mètres (ex: "4.99")

@@ -32,6 +32,157 @@ DOWNLOAD_DIR = os.path.expanduser("~/Downloads")
 
 
 # ═══════════════════════════════════════════════════════════════
+# HANDLER GÉNÉRIQUE WAPF — détecte et interagit avec n'importe
+# quel champ WAPF (swatch, number, select, text) par son field_id
+# ═══════════════════════════════════════════════════════════════
+
+async def _appliquer_options_wapf(page, options_wapf: dict):
+    """Applique des options WAPF génériques sur la page courante.
+
+    Paramètre :
+        options_wapf : dict de {field_id: valeur} ou {field_id: {"type": "swatch"|"number"|"select", "value": "..."}}
+            - field_id : identifiant du champ WAPF, avec ou sans préfixe "field-"/"field_"
+              Ex : "e8cec8d", "field-e8cec8d", "field_e8cec8d"
+            - valeur : str simple → auto-détection du type de champ
+              ou dict {"type": "swatch", "value": "15%"} pour forcer le type
+
+    Détection automatique du type de champ :
+        1. Cherche un swatch (label aria-label) → clic
+        2. Cherche un input number/text → fill + change
+        3. Cherche un select → select_option
+
+    Gère la visibilité (wapf-hide) : attend jusqu'à 6s que le champ apparaisse.
+    """
+    if not options_wapf:
+        return
+
+    for raw_field_id, raw_value in options_wapf.items():
+        # Normaliser le field_id (accepter avec ou sans préfixe)
+        fid = raw_field_id.replace("field-", "").replace("field_", "")
+
+        # Accepter un dict {"type": "swatch", "value": "15%"} ou un str simple
+        if isinstance(raw_value, dict):
+            force_type = raw_value.get("type", "")
+            value = str(raw_value.get("value", ""))
+        else:
+            force_type = ""
+            value = str(raw_value)
+
+        if not value:
+            continue
+
+        # Le container peut utiliser field-XXX (pergola) ou field_XXX (terrasse)
+        container_sel_dash = f".wapf-field-container.field-{fid}"
+        container_sel_under = f".wapf-field-container.field_{fid}"
+
+        # Attendre que le champ soit visible (max 6s)
+        try:
+            await page.wait_for_function(
+                f"""() => {{
+                    var c = document.querySelector('{container_sel_dash}')
+                         || document.querySelector('{container_sel_under}');
+                    return c && !c.classList.contains('wapf-hide');
+                }}""",
+                timeout=6000,
+            )
+        except Exception:
+            print(f"    ⚠ WAPF field {fid} non visible ou absent (timeout)")
+            continue
+
+        await page.wait_for_timeout(300)
+
+        # Détecter et interagir selon le type
+        result = await page.evaluate("""
+            (args) => {
+                var fid = args.fid;
+                var value = args.value;
+                var forceType = args.forceType;
+                var c = document.querySelector('.wapf-field-container.field-' + fid)
+                     || document.querySelector('.wapf-field-container.field_' + fid);
+                if (!c) return {ok: false, error: 'container_not_found'};
+
+                // Lire le label du champ pour le log
+                var labelEl = c.querySelector('.wapf-field-label, label');
+                var fieldLabel = labelEl ? labelEl.textContent.trim() : fid;
+
+                // 1. SWATCH — chercher un label avec aria-label correspondant
+                if (forceType === 'swatch' || !forceType) {
+                    var swatch = c.querySelector(
+                        'div.wapf-swatch label[aria-label="' + value + '"]'
+                    );
+                    if (swatch) {
+                        swatch.click();
+                        return {ok: true, type: 'swatch', label: fieldLabel, value: value};
+                    }
+                    // Essayer aussi une correspondance partielle (ex: "15" → "15%")
+                    var allLabels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                    for (var lbl of allLabels) {
+                        var aria = lbl.getAttribute('aria-label') || '';
+                        if (aria.replace('%', '').trim() === value.replace('%', '').trim()) {
+                            lbl.click();
+                            return {ok: true, type: 'swatch', label: fieldLabel, value: aria};
+                        }
+                    }
+                }
+
+                // 2. NUMBER/TEXT INPUT
+                if (forceType === 'number' || forceType === 'text' || !forceType) {
+                    var inp = c.querySelector('input[type="number"], input[type="text"]');
+                    if (inp) {
+                        inp.removeAttribute('disabled');
+                        var nativeSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        ).set;
+                        nativeSetter.call(inp, value);
+                        inp.dispatchEvent(new Event('input', {bubbles: true}));
+                        inp.dispatchEvent(new Event('change', {bubbles: true}));
+                        return {ok: true, type: 'input', label: fieldLabel, value: value};
+                    }
+                }
+
+                // 3. SELECT
+                if (forceType === 'select' || !forceType) {
+                    var sel = c.querySelector('select');
+                    if (sel) {
+                        // Chercher l'option par value ou par textContent
+                        for (var opt of sel.options) {
+                            if (opt.value === value || opt.textContent.trim() === value) {
+                                sel.value = opt.value;
+                                sel.dispatchEvent(new Event('change', {bubbles: true}));
+                                return {ok: true, type: 'select', label: fieldLabel,
+                                        value: opt.textContent.trim()};
+                            }
+                        }
+                        return {ok: false, error: 'select_option_not_found',
+                                label: fieldLabel, available: Array.from(sel.options)
+                                .map(o => o.value + ':' + o.textContent.trim()).join(', ')};
+                    }
+                }
+
+                // Rien trouvé
+                var available = [];
+                var swatches = c.querySelectorAll('div.wapf-swatch label[aria-label]');
+                swatches.forEach(s => available.push('swatch:' + s.getAttribute('aria-label')));
+                var inputs = c.querySelectorAll('input');
+                inputs.forEach(i => available.push('input:' + (i.type || 'text')));
+                var selects = c.querySelectorAll('select');
+                selects.forEach(s => available.push('select:' + s.options.length + ' opts'));
+                return {ok: false, error: 'no_matching_element', label: fieldLabel,
+                        available: available.join(', ')};
+            }
+        """, {"fid": fid, "value": value, "forceType": force_type})
+
+        if result.get("ok"):
+            print(f"    ✓ WAPF {result.get('label', fid)} = {result.get('value')} ({result.get('type')})")
+        else:
+            err = result.get("error", "unknown")
+            avail = result.get("available", "")
+            print(f"    ⚠ WAPF {result.get('label', fid)} : {err} (disponible: {avail})")
+
+        await page.wait_for_timeout(500)
+
+
+# ═══════════════════════════════════════════════════════════════
 # MAPPING WAPF — TERRASSE
 # ═══════════════════════════════════════════════════════════════
 # Longueurs disponibles par essence (m) :
@@ -917,7 +1068,9 @@ async def _configurer_et_ajouter_pergola(
     poteau_lamelle_colle: bool, nb_poteaux_lamelle_colle: int,
     claustra_type: str, nb_claustra: int,
     sur_mesure: bool, largeur_hors_tout: str, profondeur_hors_tout: str, hauteur_hors_tout: str,
-    nb_attendu: int,
+    pente: str = "",
+    options_wapf: dict = None,
+    nb_attendu: int = 1,
     site_url: str = "https://mapergolabois.fr",
 ):
     """Configure une pergola sur la page produit et l'ajoute au panier.
@@ -1137,6 +1290,42 @@ async def _configurer_et_ajouter_pergola(
         print(f"    ✓ Quantité claustra = {nb_claustra}")
         await page.wait_for_timeout(800)
 
+    # ── Option Pente de toiture ────────────────────────────────
+    if pente:
+        PENTE_FIELD_ID = "e8cec8d"
+        pente_label = pente if "%" in pente else f"{pente}%"
+        # Vérifier que le champ est visible
+        try:
+            await page.wait_for_function(
+                f"!document.querySelector('.wapf-field-container.field-{PENTE_FIELD_ID}')?.classList.contains('wapf-hide')",
+                timeout=6000,
+            )
+        except Exception:
+            pass
+        await page.wait_for_timeout(300)
+        try:
+            await page.click(
+                f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{pente_label}"]',
+                timeout=5000,
+            )
+            print(f"    ✓ Pente de toiture sélectionnée : {pente_label}")
+        except Exception as e:
+            # Fallback : essayer sans le % ou via le handler générique
+            try:
+                await page.click(
+                    f'.wapf-field-container.field-{PENTE_FIELD_ID} div.wapf-swatch label[aria-label="{pente}"]',
+                    timeout=3000,
+                )
+                print(f"    ✓ Pente de toiture sélectionnée : {pente}")
+            except Exception:
+                print(f"    ⚠ Pente swatch non trouvé ({pente_label}): {e}")
+        await page.wait_for_timeout(500)
+
+    # ── Options WAPF génériques ────────────────────────────────
+    if options_wapf:
+        print("  ➜ Application des options WAPF supplémentaires...")
+        await _appliquer_options_wapf(page, options_wapf)
+
     # ── Ajouter au panier ────────────────────────────────────────
     await _ajouter_au_panier_wc(page)
     await _verifier_panier(page, site_url, nb_attendu=nb_attendu)
@@ -1156,6 +1345,8 @@ async def generer_devis_pergola(
     largeur_hors_tout: str = "",
     profondeur_hors_tout: str = "",
     hauteur_hors_tout: str = "",
+    pente: str = "",
+    options_wapf: str = "{}",
     client_nom: str = "",
     client_prenom: str = "",
     client_email: str = "",
@@ -1183,6 +1374,10 @@ async def generer_devis_pergola(
         largeur_hors_tout     : ex. "7.60"  — dimension réelle souhaitée en largeur
         profondeur_hors_tout  : ex. "3.42"  — dimension réelle souhaitée en profondeur
         hauteur_hors_tout     : ex. "2.40"  — hauteur souhaitée (optionnel, max 3.07m)
+        pente                 : "" (défaut 5%) | "15%" | "5%" — pente de toiture (WAPF field-e8cec8d)
+        options_wapf          : JSON dict de champs WAPF supplémentaires à sélectionner.
+                                Format : {"field_id": "valeur"} ou {"field_id": {"type": "swatch", "value": "..."}}
+                                Permet de piloter n'importe quel champ WAPF non prévu explicitement.
         client_*              : coordonnées client pour le PDF
         configurations_supplementaires : JSON array de configs supplémentaires.
             Chaque élément est un dict avec les mêmes clés que la config principale :
@@ -1196,17 +1391,28 @@ async def generer_devis_pergola(
     configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) and configurations_supplementaires != "[]" else []
     if isinstance(configurations_supplementaires, list):
         configs_sup = configurations_supplementaires
+    # Parser options_wapf
+    wapf_opts = {}
+    if options_wapf and options_wapf != "{}":
+        if isinstance(options_wapf, str):
+            wapf_opts = json.loads(options_wapf)
+        elif isinstance(options_wapf, dict):
+            wapf_opts = options_wapf
     print(f"\n{'='*60}")
     print("  DEVIS PERGOLA — mapergolabois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
     extra = " | lamellé-collé" if poteau_lamelle_colle else ""
     if claustra_type:
         extra += f" | claustra={claustra_type}×{nb_claustra}"
+    if pente:
+        extra += f" | pente={pente}"
     if sur_mesure and largeur_hors_tout:
         sm = f" | SUR-MESURE {largeur_hors_tout}m×{profondeur_hors_tout}m"
         if hauteur_hors_tout:
             sm += f" h={hauteur_hors_tout}m"
         extra += sm
+    if wapf_opts:
+        extra += f" | wapf={list(wapf_opts.keys())}"
     print(f"  {largeur} × {profondeur} | {fixation} | ventelle={ventelle} | option={option}{extra}")
     if configs_sup:
         print(f"  + {len(configs_sup)} configuration(s) supplémentaire(s)")
@@ -1236,6 +1442,7 @@ async def generer_devis_pergola(
                 claustra_type=claustra_type, nb_claustra=nb_claustra,
                 sur_mesure=sur_mesure, largeur_hors_tout=largeur_hors_tout,
                 profondeur_hors_tout=profondeur_hors_tout, hauteur_hors_tout=hauteur_hors_tout,
+                pente=pente, options_wapf=wapf_opts,
                 nb_attendu=1, site_url=SITE_URL,
             )
             nb_items_panier = 1
@@ -1244,6 +1451,10 @@ async def generer_devis_pergola(
             for idx, cfg in enumerate(configs_sup):
                 print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configs_sup)} ───")
                 nb_items_panier += 1
+                # Parser options_wapf de la config supplémentaire
+                cfg_wapf = cfg.get("options_wapf", {})
+                if isinstance(cfg_wapf, str):
+                    cfg_wapf = json.loads(cfg_wapf) if cfg_wapf and cfg_wapf != "{}" else {}
                 await _configurer_et_ajouter_pergola(
                     page, PRODUCT_URL,
                     largeur=cfg.get("largeur", ""),
@@ -1259,6 +1470,8 @@ async def generer_devis_pergola(
                     largeur_hors_tout=cfg.get("largeur_hors_tout", ""),
                     profondeur_hors_tout=cfg.get("profondeur_hors_tout", ""),
                     hauteur_hors_tout=cfg.get("hauteur_hors_tout", ""),
+                    pente=cfg.get("pente", pente),  # hérite de la config principale si non spécifié
+                    options_wapf=cfg_wapf or wapf_opts,  # idem
                     nb_attendu=nb_items_panier, site_url=SITE_URL,
                 )
 

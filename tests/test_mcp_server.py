@@ -27,10 +27,10 @@ sys.modules.setdefault("mcp.server.fastmcp", _mock_mcp.server.fastmcp)
 
 # Mock les générateurs
 _mock_gen3 = MagicMock()
-_mock_gen3.generer_devis_pergola = AsyncMock(return_value=("/tmp/test.pdf", ""))
-_mock_gen3.generer_devis_terrasse = AsyncMock(return_value=("/tmp/test.pdf", ""))
-_mock_gen3.generer_devis_cloture = AsyncMock(return_value=("/tmp/test.pdf", ""))
-_mock_gen3.generer_devis_terrasse_detail = AsyncMock(return_value=("/tmp/test.pdf", ""))
+_mock_gen3.generer_devis_pergola = AsyncMock(return_value=("/tmp/test.pdf", "", []))
+_mock_gen3.generer_devis_terrasse = AsyncMock(return_value=("/tmp/test.pdf", "", []))
+_mock_gen3.generer_devis_cloture = AsyncMock(return_value=("/tmp/test.pdf", "", []))
+_mock_gen3.generer_devis_terrasse_detail = AsyncMock(return_value=("/tmp/test.pdf", "", []))
 sys.modules.setdefault("generateur_devis_3sites", _mock_gen3)
 
 _mock_gen_auto = MagicMock()
@@ -135,7 +135,7 @@ class TestGenererDirect:
 
         # Patch the imported generer_devis_pergola to return the existing PDF
         orig_gen = mcp.generer_devis_pergola
-        mcp.generer_devis_pergola = AsyncMock(return_value=(str(pdf), ""))
+        mcp.generer_devis_pergola = AsyncMock(return_value=(str(pdf), "", []))
 
         try:
             result_str = await asyncio.wait_for(

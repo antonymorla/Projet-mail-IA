@@ -527,6 +527,8 @@ async def generer_devis_pergola_bois(
     largeur_hors_tout: str = "",
     profondeur_hors_tout: str = "",
     hauteur_hors_tout: str = "",
+    pente: str = "",
+    options_wapf: str = "{}",
     client_nom: str = "",
     client_prenom: str = "",
     client_email: str = "",
@@ -562,6 +564,11 @@ async def generer_devis_pergola_bois(
                                Obligatoire si sur_mesure=True
         profondeur_hors_tout : Profondeur réelle hors-tout en mètres (ex: "3.42")
         hauteur_hors_tout    : Hauteur hors-tout en mètres (max 3.07m, ex: "2.50")
+        pente                : Pente de toiture. "" (défaut 5%) | "5%" | "15%"
+                               ⚠ Pente 15% nécessite ventelle="largeur"
+        options_wapf         : JSON dict de champs WAPF supplémentaires à sélectionner.
+                               Format : {"field_id": "valeur"}. Permet de piloter tout champ
+                               WAPF non prévu en paramètre (auto-détection swatch/input/select).
         client_*             : coordonnées client
         mode_livraison       : "" (ne pas changer) | "retrait" (retrait atelier Illies)
                                | "livraison" (livraison à domicile, ~99€)
@@ -585,6 +592,7 @@ async def generer_devis_pergola_bois(
         "claustra_type": claustra_type, "nb_claustra": nb_claustra,
         "sur_mesure": sur_mesure, "largeur_hors_tout": largeur_hors_tout,
         "profondeur_hors_tout": profondeur_hors_tout, "hauteur_hors_tout": hauteur_hors_tout,
+        "pente": pente, "options_wapf": options_wapf,
         "client_nom": client_nom, "client_prenom": client_prenom,
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
