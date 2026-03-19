@@ -645,36 +645,70 @@ class GenerateurDevis:
         if config.bardage_exterieur:
             print(f"  ➜ Bardage extérieur : {config.bardage_exterieur}")
             await select_option("Bardage EXTERIEUR", config.bardage_exterieur)
+            # Attendre que le WPC mette à jour les conditions (rehausse dépend du bardage)
+            await self.page.wait_for_timeout(800)
 
         # Isolation
         if config.isolation:
             print(f"  ➜ Isolation : {config.isolation}")
             await select_option("ISOLATION", config.isolation)
 
-        # Rehausse
+        # Rehausse — le bouton OUI est conditionnel : il y a un OUI par type de bardage,
+        # seul celui correspondant au bardage sélectionné est visible (les autres sont masqués
+        # par la classe wpc-cl-hide-group ou wpc-cl-hide). Il faut attendre que le WPC
+        # ait appliqué les conditions après le changement de bardage.
         if config.rehausse:
             print("  ➜ Rehausse : OUI")
             await self._click_by_data_text("Rehausse")
-            await self.page.wait_for_timeout(300)
-            # Cliquer le premier OUI visible
-            await self.page.evaluate("""
+            await self.page.wait_for_timeout(500)
+            # Diagnostic + clic sur le OUI visible correspondant au bardage sélectionné
+            rehausse_result = await self.page.evaluate("""
                 () => {
                     var rehausse = null;
                     var items = document.querySelectorAll('li.wpc-control-item');
                     for (var item of items) {
                         if (item.getAttribute('data-text') === 'Rehausse') { rehausse = item; break; }
                     }
-                    if (!rehausse) return;
+                    if (!rehausse) return {error: 'rehausse_group_not_found'};
+
                     var ouis = rehausse.querySelectorAll('li.wpc-control-item[data-text="OUI"]');
-                    for (var o of ouis) {
-                        if (!o.classList.contains('wpc-cl-hide-group')) {
+                    var diag = [];
+                    var clicked = false;
+                    for (var i = 0; i < ouis.length; i++) {
+                        var o = ouis[i];
+                        var uid = o.getAttribute('data-uid') || '';
+                        var id = o.getAttribute('data-id') || '';
+                        var classes = o.className || '';
+                        var hidden = o.classList.contains('wpc-cl-hide-group')
+                                  || o.classList.contains('wpc-cl-hide')
+                                  || o.classList.contains('wpc-cl-disabled');
+                        var style = window.getComputedStyle(o);
+                        var displayNone = style.display === 'none';
+                        var visible = !hidden && !displayNone;
+                        diag.push({index: i, uid: uid, id: id, hidden: hidden, displayNone: displayNone, visible: visible, classes: classes.substring(0, 100)});
+                        if (visible && !clicked) {
                             var tw = o.querySelector('.wpc-layer-title-wrap');
                             if (tw) tw.click(); else o.click();
-                            return;
+                            clicked = true;
                         }
                     }
+                    return {ok: clicked, total_oui: ouis.length, diag: diag};
                 }
             """)
+            if isinstance(rehausse_result, dict):
+                if rehausse_result.get("error"):
+                    print(f"    ⚠ Rehausse : {rehausse_result['error']}")
+                else:
+                    total = rehausse_result.get("total_oui", 0)
+                    clicked = rehausse_result.get("ok", False)
+                    diag = rehausse_result.get("diag", [])
+                    print(f"    [DIAG] Rehausse : {total} boutons OUI trouvés, clic={clicked}")
+                    for d in diag:
+                        vis = "✓ VISIBLE" if d.get("visible") else "✗ masqué"
+                        print(f"      OUI[{d['index']}] uid={d.get('uid','?')} {vis} (hidden={d.get('hidden')}, display_none={d.get('displayNone')})")
+                    if not clicked:
+                        print("    ⚠ Aucun bouton OUI visible trouvé pour la rehausse !")
+            await self.page.wait_for_timeout(500)
 
         # Menuiseries — positionnement intelligent par modules de 1,10 m
         # used_modules_per_wall : {mur_str: set(module_index)} — initialisé vide
