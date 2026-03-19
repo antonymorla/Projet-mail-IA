@@ -688,6 +688,7 @@ Prix indicatifs complets + urbanisme → voir `prompts/ASSISTANT_COMMERCIAL.md`.
 Isolation 60mm standard / 100mm RE2020. Menuiseries PVC (blanc intérieur / gris extérieur) ou ALU.
 Bardage extérieur : Brun, Gris, Noir, Vert.
 **Hauteur sous plafond** : ~2,30m standard / ~2,50m avec rehausse. ⚠ La rehausse est nécessaire pour atteindre 2,50m.
+⚠ **Rehausse = RE2020 obligatoire** : la rehausse n'est disponible dans le configurateur que si l'isolation est `"100 mm (RE2020)"`. Le script force automatiquement l'isolation à RE2020 si `rehausse=True`, mais Claude doit toujours passer `isolation="100 mm (RE2020)"` explicitement quand il demande une rehausse.
 Livraison **4-5 semaines gratuite**. Paiement 3× sans frais.
 < 20m² = déclaration préalable / ≥ 20m² = permis de construire.
 
@@ -860,7 +861,7 @@ Cordialement,
 18. **Polycarbonate + gouttière** : décaler légèrement les plaques de polycarbonate par rapport à la structure pour que l'eau s'écoule dans la gouttière.
 19. **Poteau de rive** = poteau d'angle (aux coins de la pergola). Ne pas confondre avec les poteaux intermédiaires ou la muralière.
 20. **Bioclimatique Samkit** : lames en **bois** (PAS en aluminium), réglage **manuel** (PAS motorisé). Motorisation disponible séparément sur le site Samkit.
-21. **Studio hauteur intérieure** : ~2,30m standard, ~2,50m avec rehausse. La rehausse est nécessaire pour atteindre 2,50m.
+21. **Studio hauteur intérieure** : ~2,30m standard, ~2,50m avec rehausse. La rehausse est nécessaire pour atteindre 2,50m. ⚠ **Rehausse = isolation RE2020 obligatoire** : le configurateur WPC n'affiche l'option rehausse que si l'isolation `"100 mm (RE2020)"` est sélectionnée. Toujours passer `isolation="100 mm (RE2020)"` avec `rehausse=True`.
 22. **PVC Studio** : blanc intérieur / gris extérieur (bicolore).
 23. **Bardage Studio** : couleurs disponibles = Brun, Gris, Noir, Vert.
 24. **Regroupement livraison** : pour les petites commandes complémentaires (planches, accessoires…) sur abri-francais.fr, le client peut sélectionner "Retrait Illies" et noter dans les annotations de commande qu'il souhaite grouper avec sa commande principale → évite les frais de livraison supplémentaires.

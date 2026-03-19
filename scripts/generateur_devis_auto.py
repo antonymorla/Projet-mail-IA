@@ -1971,6 +1971,12 @@ async def generer_devis_studio(
     start_time = time.time()
     produits_complementaires = produits_complementaires or []
     configurations_supplementaires = configurations_supplementaires or []
+
+    # Rehausse nécessite obligatoirement l'isolation RE2020
+    if rehausse and isolation != "100 mm (RE2020)":
+        print("  ⚠ Rehausse demandée → isolation forcée à '100 mm (RE2020)' (prérequis configurateur)")
+        isolation = "100 mm (RE2020)"
+
     dim_key = f"{largeur}x{profondeur}"
     print(f"\n{'='*60}")
     print("  GÉNÉRATION DE DEVIS STUDIO")
@@ -2011,13 +2017,19 @@ async def generer_devis_studio(
         # --- Configurations supplémentaires (multi-studio sur même devis) ---
         for idx, cfg_sup in enumerate(configurations_supplementaires):
             print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configurations_supplementaires)} ───")
+            # Rehausse nécessite obligatoirement l'isolation RE2020
+            sup_isolation = cfg_sup.get("isolation", "60mm")
+            sup_rehausse = cfg_sup.get("rehausse", False)
+            if sup_rehausse and sup_isolation != "100 mm (RE2020)":
+                print("  ⚠ Rehausse demandée → isolation forcée à '100 mm (RE2020)' (prérequis configurateur)")
+                sup_isolation = "100 mm (RE2020)"
             sup_config = ConfigStudio(
                 largeur=cfg_sup.get("largeur", ""),
                 profondeur=cfg_sup.get("profondeur", ""),
                 menuiseries=cfg_sup.get("menuiseries", []),
                 bardage_exterieur=cfg_sup.get("bardage_exterieur", "Gris"),
-                isolation=cfg_sup.get("isolation", "60mm"),
-                rehausse=cfg_sup.get("rehausse", False),
+                isolation=sup_isolation,
+                rehausse=sup_rehausse,
                 bardage_interieur=cfg_sup.get("bardage_interieur", "OSB"),
                 plancher=cfg_sup.get("plancher", "Sans plancher"),
                 finition_plancher=cfg_sup.get("finition_plancher", False),
