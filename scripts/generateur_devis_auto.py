@@ -487,27 +487,58 @@ class GenerateurDevis:
             await self._click_visible_by_data_text("Bac acier anti condensation", parent_text="OPTIONS")
             await self.page.wait_for_timeout(500)
 
-        # --- ÉTAPE 5b : Prédécoupe planches de mur ---
-        if config.predecoupe:
-            print("  ➜ Ajout prédécoupe planches de mur...")
-            await self._click_by_data_text("OPTIONS")
-            await self.page.wait_for_timeout(500)
-            await self._click_visible_by_data_text("Prédécoupe", parent_text="OPTIONS")
-            await self.page.wait_for_timeout(300)
-            await self._click_visible_by_data_text("OUI", parent_text="OPTIONS")
-            await self.page.wait_for_timeout(500)
-
-        # --- ÉTAPE 5c : Options WPC dynamiques (découverte automatique) ---
-        if config.options_wpc:
-            print(f"  ➜ {len(config.options_wpc)} option(s) WPC dynamique(s)...")
-            await self._appliquer_options_wpc(config.options_wpc)
-
-        # Découverte et log des options disponibles (pour diagnostic)
+        # --- Découverte et log des options disponibles (AVANT prédécoupe/options_wpc) ---
         options_dispo = await self._decouvrir_options_wpc()
         if options_dispo:
             print("  📋 Options WPC disponibles dans le configurateur :")
             for opt in options_dispo:
                 _print_wpc_tree(opt, indent=5)
+
+        # --- ÉTAPE 5b : Prédécoupe planches de mur ---
+        if config.predecoupe:
+            print("  ➜ Ajout prédécoupe planches de mur...")
+            # Chercher le data-text exact de l'option prédécoupe (peut varier)
+            predecoupe_text = await self._trouver_option_par_texte("predecoupe", parent_text="OPTIONS")
+            if predecoupe_text:
+                await self._click_by_data_text("OPTIONS")
+                await self.page.wait_for_timeout(500)
+                await self._click_visible_by_data_text(predecoupe_text, parent_text="OPTIONS")
+                await self.page.wait_for_timeout(300)
+                # Chercher le "OUI" sous cette option
+                oui_text = await self._trouver_option_par_texte("oui", parent_text=predecoupe_text)
+                if oui_text:
+                    await self._click_visible_by_data_text(oui_text, parent_text="OPTIONS")
+                else:
+                    # Fallback : cliquer simplement sur le premier enfant visible
+                    await self._click_visible_by_data_text("OUI", parent_text="OPTIONS")
+                await self.page.wait_for_timeout(500)
+            else:
+                print("    ⚠ Option prédécoupe non trouvée dans le configurateur !")
+                print("    Tentative avec le texte exact 'Prédécoupe planches de mur'...")
+                try:
+                    await self._click_by_data_text("OPTIONS")
+                    await self.page.wait_for_timeout(500)
+                    # Essayer plusieurs variantes
+                    for variant in ["Prédécoupe planches de mur", "Prédécoupe", "Predecoupe",
+                                    "PRÉDÉCOUPE", "Pre-decoupe", "Pré-découpe"]:
+                        try:
+                            await self._click_visible_by_data_text(variant, parent_text="OPTIONS")
+                            await self.page.wait_for_timeout(300)
+                            await self._click_visible_by_data_text("OUI", parent_text="OPTIONS")
+                            await self.page.wait_for_timeout(500)
+                            print(f"    ✓ Prédécoupe trouvée avec le texte '{variant}'")
+                            break
+                        except (ValueError, Exception):
+                            continue
+                    else:
+                        print("    ❌ Prédécoupe introuvable — aucune variante ne matche")
+                except (ValueError, Exception) as e:
+                    print(f"    ❌ Erreur prédécoupe : {e}")
+
+        # --- ÉTAPE 5c : Options WPC dynamiques (découverte automatique) ---
+        if config.options_wpc:
+            print(f"  ➜ {len(config.options_wpc)} option(s) WPC dynamique(s)...")
+            await self._appliquer_options_wpc(config.options_wpc)
 
         # Vérification finale : s'assurer que tous les éléments sont bien sélectionnés
         # avant d'ajouter au panier (détecte les désélections accidentelles)
@@ -1522,19 +1553,114 @@ class GenerateurDevis:
                     return node;
                 }
 
-                // Trouver le conteneur racine WPC
-                const root = document.querySelector('.wpc-components-list, .wpc-layers-list, form.cart .wpc-wrap');
-                if (!root) return [];
+                // Trouver le conteneur racine WPC — essayer plusieurs sélecteurs
+                const selectors = [
+                    '.wpc-components-list',
+                    '.wpc-layers-list',
+                    'form.cart .wpc-wrap',
+                    '.wpc-wrap',
+                    'form.cart',
+                ];
+                let root = null;
+                let usedSelector = '';
+                for (const sel of selectors) {
+                    root = document.querySelector(sel);
+                    if (root) { usedSelector = sel; break; }
+                }
+                if (!root) return {error: 'no_root', selectors_tried: selectors};
 
                 const topItems = root.querySelectorAll(':scope > li.wpc-control-item');
+                // Si pas de li direct, chercher tous les li.wpc-control-item de premier niveau
+                let items = topItems;
+                if (items.length === 0) {
+                    // Fallback: chercher les groupes de premier niveau (type=group)
+                    items = root.querySelectorAll('li.wpc-control-item[data-type="group"]');
+                }
+                if (items.length === 0) {
+                    // Dernier fallback : tous les li.wpc-control-item avec data-text
+                    const allItems = root.querySelectorAll('li.wpc-control-item[data-text]');
+                    return {
+                        error: 'no_top_items',
+                        selector: usedSelector,
+                        total_items: allItems.length,
+                        sample: Array.from(allItems).slice(0, 20).map(i => ({
+                            text: i.getAttribute('data-text'),
+                            type: i.getAttribute('data-type'),
+                            uid: i.getAttribute('data-uid'),
+                        })),
+                    };
+                }
+
                 const result = [];
-                for (const item of topItems) {
+                for (const item of items) {
                     result.push(scanItem(item, 0));
                 }
-                return result;
+                return {items: result, selector: usedSelector, count: result.length};
             }
         """)
+        if isinstance(result, dict):
+            if result.get("error"):
+                print(f"  ⚠ Découverte WPC : {result.get('error')} (sélecteur: {result.get('selector', '?')})")
+                if result.get("sample"):
+                    print(f"    Items trouvés ({result.get('total_items', '?')}) — échantillon :")
+                    for s in result["sample"]:
+                        print(f"      • {s.get('text')} ({s.get('type')})")
+                return []
+            return result.get("items", [])
         return result or []
+
+    async def _trouver_option_par_texte(self, search: str, parent_text: str = "") -> str | None:
+        """Cherche un élément WPC par correspondance partielle case-insensitive sur data-text.
+
+        Retourne le data-text exact trouvé, ou None si rien ne matche.
+        Utile quand on ne connaît pas le data-text exact d'une option.
+        """
+        result = await self.page.evaluate("""
+            (args) => {
+                var search = args.search.toLowerCase();
+                var parentText = args.parentText;
+                var searchRoot = document;
+                if (parentText) {
+                    var parents = document.querySelectorAll('li.wpc-control-item');
+                    for (var i = 0; i < parents.length; i++) {
+                        var pt = (parents[i].getAttribute('data-text') || '').toLowerCase();
+                        if (pt.includes(parentText.toLowerCase())) {
+                            searchRoot = parents[i];
+                            break;
+                        }
+                    }
+                }
+
+                var all = searchRoot.querySelectorAll('li.wpc-control-item[data-text]');
+                var matches = [];
+                for (var item of all) {
+                    var text = item.getAttribute('data-text') || '';
+                    var textLower = text.toLowerCase()
+                        .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                    var searchNorm = search
+                        .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                    if (textLower.includes(searchNorm)) {
+                        var hidden = item.classList.contains('wpc-cl-hide-group')
+                                  || item.classList.contains('wpc-cl-hide')
+                                  || item.classList.contains('wpc-cl-disabled');
+                        var style = window.getComputedStyle(item);
+                        var visible = !hidden && style.display !== 'none';
+                        matches.push({text: text, visible: visible});
+                    }
+                }
+                return matches;
+            }
+        """, {"search": search, "parentText": parent_text})
+
+        if not result:
+            return None
+
+        # Préférer le match visible
+        for m in result:
+            if m.get("visible"):
+                return m["text"]
+        # Sinon retourner le premier match
+        return result[0]["text"] if result else None
 
     async def _appliquer_options_wpc(self, options: dict):
         """Applique des options WPC dynamiques via data-text.
