@@ -131,7 +131,7 @@ _STUDIO_PROFONDEURS = {"2,4", "3,5", "4,6", "5,7"}
 _STUDIO_BARDAGES_EXT = {"", "Gris", "Brun", "Noir", "Vert"}
 _STUDIO_ISOLATIONS = {"", "60mm", "100 mm (RE2020)"}
 _STUDIO_BARDAGES_INT = {"", "OSB", "Panneaux bois massif (3 plis épicéa)"}
-_STUDIO_PLANCHERS = {"", "Sans plancher", "Plancher standard", "Plancher RE2020", "Plancher porteur"}
+_STUDIO_PLANCHERS = {"", "Sans plancher", "Plancher standard", "Plancher isolé simple", "Plancher RE2020", "Plancher porteur", "Plancher renforcé"}
 _STUDIO_MENUISERIE_TYPES = {"PORTE VITREE", "FENETRE SIMPLE", "FENETRE DOUBLE", "BAIE VITREE", "PORTE DOUBLE VITREE"}
 _STUDIO_MENUISERIE_MURS = {"MUR DE FACE", "MUR DE GAUCHE", "MUR DE DROITE", "MUR DU FOND"}
 _STUDIO_MENUISERIE_MATERIAUX = {"PVC", "ALU"}
@@ -223,6 +223,34 @@ def _valider_cloture(modele, longeur, hauteur, bardage) -> list:
         if bardage not in _CLOTURE_BARDAGES_MODERNE:
             errors.append(f"bardage={bardage!r} invalide pour moderne. Valeurs : {sorted(_CLOTURE_BARDAGES_MODERNE)}")
     return errors
+
+
+def _normaliser_plancher_studio(plancher: str, isolation: str) -> str:
+    """Normalise le nom du plancher studio et corrige les incohérences isolation/plancher.
+
+    Mapping DOM WPC Booster :
+        - Isolation 60mm  → "Sans plancher", "Plancher isolé simple", "Plancher renforcé"
+        - Isolation RE2020 → "Sans plancher", "Plancher RE2020", "Plancher renforcé"
+
+    Alias acceptés :
+        - "Plancher standard" → "Plancher isolé simple"
+        - "Plancher porteur"  → "Plancher renforcé"
+    """
+    if not plancher or plancher == "Sans plancher":
+        return "Sans plancher"
+    # Résoudre les alias
+    aliases = {
+        "Plancher standard": "Plancher isolé simple",
+        "Plancher porteur": "Plancher renforcé",
+    }
+    plancher = aliases.get(plancher, plancher)
+    # Auto-correction cohérence isolation/plancher
+    is_re2020 = "RE2020" in isolation or "100" in isolation
+    if plancher == "Plancher RE2020" and not is_re2020:
+        plancher = "Plancher isolé simple"
+    elif plancher == "Plancher isolé simple" and is_re2020:
+        plancher = "Plancher RE2020"
+    return plancher
 
 
 def _valider_studio(largeur, profondeur, menuiseries_list, bardage_exterieur,
@@ -1235,7 +1263,7 @@ async def generer_devis_studio(
         isolation: "60mm"|"100 mm (RE2020)"
         rehausse: True pour rehausse 3,20m
         bardage_interieur: "OSB"|"Panneaux bois massif (3 plis épicéa)"
-        plancher: "Sans plancher"|"Plancher standard"|"Plancher RE2020"|"Plancher porteur"
+        plancher: "Sans plancher"|"Plancher isolé simple" (si 60mm)|"Plancher RE2020" (si RE2020)|"Plancher renforcé" (toujours dispo). Alias : "Plancher standard"→"isolé simple", "Plancher porteur"→"renforcé". Auto-correction si incohérence isolation/plancher.
         terrasse: ""|"2m (11m2)"|"4m (22m2)"
         pergola: ""|"4x2m (8m2)"|"4x4m (16m2)"
         produits_complementaires: JSON array produits au même panier. Utiliser rechercher_produits_detail d'abord.
@@ -1287,7 +1315,7 @@ async def generer_devis_studio(
             "isolation": isolation or "60mm",
             "rehausse": rehausse,
             "bardage_interieur": bardage_interieur or "OSB",
-            "plancher": plancher or "Sans plancher",
+            "plancher": _normaliser_plancher_studio(plancher or "Sans plancher", isolation or "60mm"),
             "finition_plancher": finition_plancher,
             "terrasse": terrasse,
             "pergola": pergola,

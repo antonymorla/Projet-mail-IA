@@ -215,7 +215,9 @@ generer_devis_studio(
     isolation="60mm",           # "60mm"|"100 mm (RE2020)"
     rehausse=False,
     bardage_interieur="OSB",    # "OSB"|"Panneaux bois massif (3 plis épicéa)"
-    plancher="Sans plancher",   # "Sans plancher"|"Plancher standard"|"Plancher RE2020"|"Plancher porteur"
+    plancher="Sans plancher",   # "Sans plancher"|"Plancher isolé simple" (60mm)|"Plancher RE2020" (RE2020)|"Plancher renforcé"
+                                 # Alias : "Plancher standard"→"isolé simple", "Plancher porteur"→"renforcé"
+                                 # Auto-correction si incohérence isolation/plancher
     finition_plancher=False,
     terrasse="",                # ""|"2m (11m2)"|"4m (22m2)"
     pergola="",                 # ""|"4x2m (8m2)"|"4x4m (16m2)"

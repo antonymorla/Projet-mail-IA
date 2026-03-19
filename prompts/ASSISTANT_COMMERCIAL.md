@@ -1286,7 +1286,7 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 - `bardage_exterieur` : "Gris", "Brun", "Noir", "Vert"
 - `isolation` : "60mm", "100 mm (RE2020)"
 - `bardage_interieur` : "OSB", "Panneaux bois massif (3 plis épicéa)"
-- `plancher` : "Sans plancher", "Plancher standard", "Plancher RE2020", "Plancher porteur"
+- `plancher` : "Sans plancher", "Plancher isolé simple" (60mm), "Plancher RE2020" (RE2020), "Plancher renforcé". Alias : "Plancher standard"→"isolé simple", "Plancher porteur"→"renforcé". Auto-correction isolation/plancher.
 - `menuiseries.type` : "PORTE VITREE", "FENETRE SIMPLE", "FENETRE DOUBLE", "BAIE VITREE", "PORTE DOUBLE VITREE"
 - `menuiseries.mur` : "MUR DE FACE", "MUR DE GAUCHE", "MUR DE DROITE", "MUR DU FOND"
 - `menuiseries.materiau` : "PVC", "ALU" — ⚠ BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement
