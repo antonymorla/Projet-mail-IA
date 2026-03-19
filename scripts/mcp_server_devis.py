@@ -1221,10 +1221,15 @@ async def generer_devis_studio(
     Args:
         largeur: "2,2"|"3,3"|"4,4"|"5,5"|"6,6"|"7,7"|"8,8"
         profondeur: "2,4"|"3,5"|"4,6"|"5,7"
-        menuiseries: JSON array. Ex: [{"type":"PORTE VITREE","mur":"MUR DE FACE","materiau":"PVC"}]
+        menuiseries: JSON array. Ex: [{"type":"PORTE VITREE","mur":"MUR DE FACE","materiau":"PVC","position":"centre"}]
             Types: PORTE VITREE|FENETRE SIMPLE|FENETRE DOUBLE|BAIE VITREE|PORTE DOUBLE VITREE
             Murs: MUR DE FACE|MUR DE GAUCHE|MUR DE DROITE|MUR DU FOND
             Matériaux: PVC|ALU (BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement)
+            Position: "auto"|"gauche"|"droite"|"centre" ou offset exact en mètres ("2,20", "4,40"...)
+                Chaque mur est divisé en modules de 1,10m. PORTE VITREE/FENETRE SIMPLE = 1 module.
+                BAIE VITREE/FENETRE DOUBLE/PORTE DOUBLE VITREE = 2 modules consécutifs.
+                Grille : mur 8,8m = 8 modules (0 à 7) | mur 5,7m = 5 modules (0 à 4).
+                Si le client fournit un plan, convertir les positions en offsets métriques.
         bardage_exterieur: "Gris"|"Brun"|"Noir"|"Vert"
         isolation: "60mm"|"100 mm (RE2020)"
         rehausse: True pour rehausse 3,20m

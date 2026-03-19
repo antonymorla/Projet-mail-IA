@@ -73,6 +73,7 @@ Corps: …
 | Situation | Action |
 |-----------|--------|
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
+| **Studio — client fournit un plan / schéma** | ✅ Analyser le plan → convertir chaque menuiserie en offset métrique → passer `"position": "2,20"` etc. dans `generer_devis_studio`. Voir section **Studio — menuiseries** ci-dessous pour la grille modulaire et le workflow de conversion |
 | Client demande la prédécoupe des planches de mur | ✅ `generer_devis_abri(predecoupe=True)` — +299€, Gamme Origine uniquement. Dans l'email : préciser que seules les planches de mur sont prédécoupées (poteaux, chevrons, bandeaux de toiture et dernière feuille de bac acier restent à couper par le client) |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
 | Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** à l'outil correspondant (`generer_devis_abri`, `generer_devis_studio`, `generer_devis_pergola_bois`, `generer_devis_terrasse_bois`, `generer_devis_cloture_bois`) avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
@@ -263,6 +264,52 @@ generer_devis_studio(
 2,2×4,6  3,3×4,6  4,4×4,6  5,5×4,6  6,6×4,6  7,7×4,6  8,8×4,6
 2,2×5,7  3,3×5,7  4,4×5,7  5,5×5,7  6,6×5,7  7,7×5,7  8,8×5,7
 ```
+
+### ⛔ WORKFLOW — STUDIO : CLIENT FOURNIT UN PLAN
+
+> **Quand le client envoie un plan (schéma, dessin, image), suivre ce workflow OBLIGATOIRE :**
+>
+> **Étape 1 — Calculer la grille modulaire de chaque mur :**
+> - `nb_modules = floor(dimension_mur / 1,10)`
+> - Mur 8,8m → 8 modules (index 0 à 7, positions 0,00 à 7,70)
+> - Mur 5,7m → 5 modules (index 0 à 4, positions 0,00 à 4,40)
+> - Mur 5,5m → 5 modules (index 0 à 4, positions 0,00 à 4,40)
+> - Mur 4,6m → 4 modules (index 0 à 3, positions 0,00 à 3,30)
+> - Mur 3,5m → 3 modules (index 0 à 2, positions 0,00 à 2,20)
+>
+> **Étape 2 — Analyser le plan et identifier chaque menuiserie :**
+> - Repérer les ouvertures sur chaque mur (portes, fenêtres, baies)
+> - Déterminer le type : grande ouverture = BAIE VITREE (2 modules), porte = PORTE VITREE (1 module), fenêtre standard = FENETRE SIMPLE (1 module), grande fenêtre = FENETRE DOUBLE (2 modules)
+> - Déterminer le matériau : PVC ou ALU (BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement)
+>
+> **Étape 3 — Convertir les positions du plan en offsets métriques :**
+> - Mesurer (ou estimer) la position de chaque ouverture par rapport au bord gauche du mur
+> - Arrondir à la position du module le plus proche : `offset = round(position_m / 1,10) × 1,10`
+> - Passer `"position": "2,20"` (notation française avec virgule) dans la menuiserie
+> - ⚠ Une menuiserie double (2 modules) occupe son module ET le suivant
+>
+> **Étape 4 — Vérifier l'absence de chevauchement :**
+> - Lister tous les modules occupés par mur
+> - Aucun module ne doit être occupé par 2 menuiseries
+> - S'il y a conflit, décaler la menuiserie au module libre le plus proche
+>
+> **Exemple — Studio 8,8×5,7m (plan client Marguet) :**
+> ```python
+> menuiseries=[
+>     # MUR DE FACE (8 modules) — côté terrasse
+>     {"type": "BAIE VITREE",    "materiau": "ALU", "mur": "MUR DE FACE",   "position": "2,20"},   # modules 2-3
+>     {"type": "PORTE VITREE",   "materiau": "ALU", "mur": "MUR DE FACE",   "position": "4,40"},   # module 4
+>     {"type": "FENETRE DOUBLE", "materiau": "ALU", "mur": "MUR DE FACE",   "position": "5,50"},   # modules 5-6
+>     # MUR DE GAUCHE (5 modules) — fenêtre salon
+>     {"type": "FENETRE SIMPLE", "materiau": "PVC", "mur": "MUR DE GAUCHE", "position": "centre"},
+>     # MUR DE DROITE (5 modules) — fenêtre chambre
+>     {"type": "FENETRE SIMPLE", "materiau": "PVC", "mur": "MUR DE DROITE", "position": "centre"},
+>     # MUR DU FOND (8 modules) — fenêtre SDB
+>     {"type": "FENETRE SIMPLE", "materiau": "PVC", "mur": "MUR DU FOND",   "position": "droite"},
+> ]
+> # Modules occupés — MUR DE FACE : {2,3,4,5,6} | GAUCHE : {2} | DROITE : {2} | FOND : {7}
+> # Modules libres  — MUR DE FACE : {0,1,7} (murs pleins) ✓ conforme au plan
+> ```
 
 ---
 

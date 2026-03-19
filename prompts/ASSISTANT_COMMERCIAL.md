@@ -64,6 +64,7 @@ Pipeline : [Marque]
 | Situation | Action |
 |-----------|--------|
 | Config complète (dimensions + options) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
+| **Studio — client fournit un plan / schéma** | ✅ Analyser le plan → calculer la grille modulaire (nb_modules = dimension_mur / 1,10) → convertir chaque menuiserie en offset métrique (`"position": "2,20"`) → `generer_devis_studio`. Voir workflow de conversion plan ci-dessous |
 | Client demande la prédécoupe des planches de mur | ✅ `generer_devis_abri(predecoupe=True)` — +299€, Gamme Origine uniquement. Email : préciser que seules les planches de mur sont prédécoupées (poteaux, chevrons, bandeaux toiture et dernière feuille bac acier restent à couper) |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
 | Client veut 2+ produits configurés sur le même devis | ✅ **UN SEUL appel** `generer_devis_abri` avec `configurations_supplementaires` (multi-config sur 1 PDF) — ⚠ INTERDIT de faire 2 appels séparés |
@@ -147,6 +148,38 @@ Pipeline : [Marque]
 - Fondations non incluses → dalle béton (dimensions hors tout − 10cm, épaisseur 12-13cm)
 - Livraison **gratuite 4-5 semaines**. Paiement 3× sans frais.
 - < 20m² = déclaration préalable / ≥ 20m² = permis de construire
+
+#### Workflow — Client studio fournit un plan
+
+> Quand le client envoie un plan (schéma, dessin, image) :
+>
+> 1. **Calculer la grille modulaire** de chaque mur : `nb_modules = floor(dimension / 1,10)`
+>    - Mur 8,8m → 8 modules (positions 0,00 à 7,70)
+>    - Mur 5,7m → 5 modules (positions 0,00 à 4,40)
+>    - Mur 5,5m → 5 modules | Mur 4,6m → 4 modules | Mur 3,5m → 3 modules
+>
+> 2. **Identifier chaque ouverture** sur le plan et déterminer son type :
+>    - Grande ouverture / baie → `BAIE VITREE` (2 modules, ALU uniquement)
+>    - Porte d'entrée → `PORTE VITREE` (1 module)
+>    - Fenêtre standard → `FENETRE SIMPLE` (1 module)
+>    - Grande fenêtre → `FENETRE DOUBLE` (2 modules)
+>    - Double porte vitrée → `PORTE DOUBLE VITREE` (2 modules, ALU uniquement)
+>
+> 3. **Convertir les positions** du plan en offsets métriques :
+>    - Estimer la position depuis le bord gauche du mur
+>    - Arrondir au module : `offset = round(position / 1,10) × 1,10`
+>    - Passer `"position": "2,20"` (notation française) dans la menuiserie
+>
+> 4. **Vérifier les chevauchements** : lister les modules occupés par mur, aucun doublon
+>
+> **Exemple — Studio 8,8×5,7m :**
+> ```
+> MUR DE FACE (8 modules) :
+>   BAIE VITREE ALU → "2,20" (modules 2-3)
+>   PORTE VITREE ALU → "4,40" (module 4)
+>   FENETRE DOUBLE ALU → "5,50" (modules 5-6)
+>   Modules libres : 0, 1, 7 (murs pleins) ✓
+> ```
 
 ### 2. Abris de jardin (Abri Français)
 
@@ -712,7 +745,7 @@ Cordialement,
 | Hauteur hors tout ? | 2,70m HT (sans rehausse) / 3,20m HT (avec rehausse). |
 | Hauteur sous plafond ? | ~2,30m standard / ~2,50m avec rehausse. ⚠ La rehausse est nécessaire pour atteindre 2,50m sous plafond. |
 | Hauteur du plancher ? | **Plancher standard : 163mm** (structure 145mm + OSB 18mm). Face supérieure à ~16cm au-dessus de la dalle. **Plancher renforcé :** section variable selon profondeur du studio → confirmer avec le bureau d'études. |
-| Bardage extérieur ? | Brun, Gris, Noir. Bardage intérieur OSB ou panneaux bois massif épicéa. |
+| Bardage extérieur ? | Brun, Gris, Noir, Vert. Bardage intérieur OSB ou panneaux bois massif épicéa. |
 | Livraison + pose ? | Livraison gratuite 4-5 semaines (semi-remorque). **Service de pose disponible** via notre partenaire Clément Vannier (Vano Création) — devis séparé, garantie décennale. Contact : 06 19 64 35 58 / vannier.clement@gmail.com |
 
 ### Abris de jardin
