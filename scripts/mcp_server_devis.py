@@ -1049,6 +1049,8 @@ async def generer_devis_abri(
     extension_toiture: str = "",
     plancher: str = "",
     bac_acier: bool = False,
+    predecoupe: bool = False,
+    options_wpc: str = "{}",
     produits_complementaires: str = "[]",
     code_promo: str = "",
     produits_uniquement: bool = False,
@@ -1077,6 +1079,13 @@ async def generer_devis_abri(
             Le bac acier est INCLUS DE SÉRIE sur tous les abris (Origine + Essentiel).
             Ce paramètre ajoute seulement le feutre protecteur sous le bac acier.
             Dans l'email, écrire "option feutre anti-condensation" et NON "bac acier" (déjà inclus).
+        predecoupe: True = prédécoupe des planches de mur (+299€). Seules les planches de mur
+            sont prédécoupées. Le client devra toujours couper lui-même les poteaux, les chevrons
+            de toiture, les bandeaux de toiture et la dernière feuille de bac acier.
+        options_wpc: JSON dict d'options WPC supplémentaires à sélectionner dans le configurateur.
+            Découverte dynamique — permet de sélectionner n'importe quelle option sans modifier le script.
+            Format : {"NomOption": "Valeur"} — ex: {"Prédécoupe": "OUI"} (équivalent à predecoupe=True).
+            Le script affiche toutes les options disponibles dans les logs à chaque génération.
         produits_complementaires: JSON array produits au même panier. ⚠ OBLIGATOIRE d'appeler
             rechercher_produits_detail AVANT pour obtenir url + variation_id + attribut_selects.
             Format: [{"url":"...","variation_id":123,"quantite":N,"attribut_selects":{...},"description":"..."}]
@@ -1111,6 +1120,14 @@ async def generer_devis_abri(
                      '"description":"..."}]. '
                      "Relance l'appel SANS ces paramètres invalides et AVEC produits_complementaires rempli."
         })
+
+    # Parser options_wpc
+    try:
+        options_wpc_dict = json.loads(options_wpc) if isinstance(options_wpc, str) else options_wpc
+        if not isinstance(options_wpc_dict, dict):
+            options_wpc_dict = {}
+    except (json.JSONDecodeError, TypeError):
+        options_wpc_dict = {}
 
     # Parser produits_complementaires
     try:
@@ -1159,6 +1176,8 @@ async def generer_devis_abri(
             "extension_toiture": extension_toiture,
             "plancher": plancher_bool,
             "bac_acier": bac_acier,
+            "predecoupe": predecoupe,
+            "options_wpc": options_wpc_dict,
             "produits_complementaires": produits_list,
             "code_promo": code_promo,
             "produits_uniquement": produits_uniquement,

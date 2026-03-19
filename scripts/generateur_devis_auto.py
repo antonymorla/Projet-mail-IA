@@ -173,6 +173,18 @@ def _chercher_url_studio_wc(base_url: str, largeur: str, profondeur: str) -> str
 MODULE_STUDIO = 1.10
 
 
+def _print_wpc_tree(node: dict, indent: int = 0):
+    """Affiche un nœud de l'arbre WPC découvert, de façon récursive."""
+    prefix = " " * indent
+    text = node.get("text", "?")
+    ntype = node.get("type", "?")
+    vis = "✓" if node.get("visible") else "✗"
+    sel = " [SÉLECTIONNÉ]" if node.get("selected") else ""
+    print(f"{prefix}• {text} ({ntype}) {vis}{sel}")
+    for child in node.get("children", []):
+        _print_wpc_tree(child, indent + 2)
+
+
 @dataclass
 class ConfigAbri:
     """Configuration d'un abri de jardin."""
@@ -183,6 +195,11 @@ class ConfigAbri:
     extension_toiture: str = ""  # "" = pas d'extension, ou "Droite 1 M", "Gauche 2 M", etc.
     plancher: bool = False
     bac_acier: bool = False  # True = Bac acier anti condensation
+    predecoupe: bool = False  # True = Prédécoupe planches de mur (+299€)
+    options_wpc: dict = field(default_factory=dict)
+    # Dict de data-text supplémentaires à sélectionner dans le configurateur WPC.
+    # Ex: {"Prédécoupe": "OUI"} — découverte dynamique, pas besoin de hardcoder
+    # Le script navigue vers le group/sub_group via data-text et clique sur la valeur.
 
 
 @dataclass
@@ -469,6 +486,28 @@ class GenerateurDevis:
             await self.page.wait_for_timeout(300)
             await self._click_visible_by_data_text("Bac acier anti condensation", parent_text="OPTIONS")
             await self.page.wait_for_timeout(500)
+
+        # --- ÉTAPE 5b : Prédécoupe planches de mur ---
+        if config.predecoupe:
+            print("  ➜ Ajout prédécoupe planches de mur...")
+            await self._click_by_data_text("OPTIONS")
+            await self.page.wait_for_timeout(500)
+            await self._click_visible_by_data_text("Prédécoupe", parent_text="OPTIONS")
+            await self.page.wait_for_timeout(300)
+            await self._click_visible_by_data_text("OUI", parent_text="OPTIONS")
+            await self.page.wait_for_timeout(500)
+
+        # --- ÉTAPE 5c : Options WPC dynamiques (découverte automatique) ---
+        if config.options_wpc:
+            print(f"  ➜ {len(config.options_wpc)} option(s) WPC dynamique(s)...")
+            await self._appliquer_options_wpc(config.options_wpc)
+
+        # Découverte et log des options disponibles (pour diagnostic)
+        options_dispo = await self._decouvrir_options_wpc()
+        if options_dispo:
+            print("  📋 Options WPC disponibles dans le configurateur :")
+            for opt in options_dispo:
+                _print_wpc_tree(opt, indent=5)
 
         # Vérification finale : s'assurer que tous les éléments sont bien sélectionnés
         # avant d'ajouter au panier (détecte les désélections accidentelles)
@@ -1428,6 +1467,119 @@ class GenerateurDevis:
             if not prof_ok:
                 print(f"    ⚠ ATTENTION : '{profondeur_text}' non trouvée dans wpc-encoded — la config risque d'être incomplète")
 
+    async def _decouvrir_options_wpc(self) -> list[dict]:
+        """Découvre dynamiquement toutes les options disponibles dans le configurateur WPC.
+
+        Scanne le DOM pour lister tous les groupes, sous-groupes et items
+        du configurateur WPC Booster. Permet de découvrir de nouvelles options
+        ajoutées au configurateur sans modifier le script.
+
+        Retourne une liste de dicts :
+        [
+            {
+                "text": "OPTIONS",
+                "type": "group",
+                "uid": "...",
+                "visible": True,
+                "children": [
+                    {"text": "Plancher", "type": "sub_group", "uid": "...", "visible": True,
+                     "children": [
+                         {"text": "OUI", "type": "image", "uid": "...", "visible": True, "selected": False}
+                     ]},
+                    {"text": "Prédécoupe", "type": "sub_group", "uid": "...", ...}
+                ]
+            },
+            ...
+        ]
+        """
+        result = await self.page.evaluate("""
+            () => {
+                function scanItem(el, depth) {
+                    const text = el.getAttribute('data-text') || '';
+                    const uid = el.getAttribute('data-uid') || '';
+                    const type = el.getAttribute('data-type') || '';
+                    const hidden = el.classList.contains('wpc-cl-hide-group')
+                                || el.classList.contains('wpc-cl-hide')
+                                || el.classList.contains('wpc-cl-disabled');
+                    const style = window.getComputedStyle(el);
+                    const displayNone = style.display === 'none';
+                    const visible = !hidden && !displayNone && (el.offsetHeight > 0 || el.offsetParent !== null);
+                    const selected = el.classList.contains('wpc-active')
+                                  || el.classList.contains('wpc-selected');
+
+                    const node = {text: text, type: type, uid: uid, visible: visible, selected: selected};
+
+                    // Scan children (direct li.wpc-control-item children)
+                    if (depth < 4) {
+                        const childLis = el.querySelectorAll(':scope > ul > li.wpc-control-item, :scope > li.wpc-control-item');
+                        if (childLis.length > 0) {
+                            node.children = [];
+                            for (const child of childLis) {
+                                node.children.push(scanItem(child, depth + 1));
+                            }
+                        }
+                    }
+                    return node;
+                }
+
+                // Trouver le conteneur racine WPC
+                const root = document.querySelector('.wpc-components-list, .wpc-layers-list, form.cart .wpc-wrap');
+                if (!root) return [];
+
+                const topItems = root.querySelectorAll(':scope > li.wpc-control-item');
+                const result = [];
+                for (const item of topItems) {
+                    result.push(scanItem(item, 0));
+                }
+                return result;
+            }
+        """)
+        return result or []
+
+    async def _appliquer_options_wpc(self, options: dict):
+        """Applique des options WPC dynamiques via data-text.
+
+        Navigue dans l'arbre WPC pour sélectionner des options par leur data-text.
+        Supporte les options simples (un seul niveau) et hiérarchiques (group > sub_group > value).
+
+        Format du dict :
+        - {"group_text": "value_text"} pour une option simple sous un groupe
+          Ex: {"Prédécoupe": "OUI"} → ouvre "OPTIONS", cherche "Prédécoupe", clique "OUI"
+        - {"group_text": {"sub_text": "value_text"}} pour une option hiérarchique
+          Ex: {"Extension de toiture": {"Droite": "2 M"}}
+
+        Le script cherche d'abord l'option dans le groupe "OPTIONS" (parent commun),
+        puis en fallback cherche directement par data-text à la racine.
+        """
+        for group_text, value in options.items():
+            print(f"  ➜ Option WPC dynamique : {group_text} = {value}")
+
+            if isinstance(value, dict):
+                # Hiérarchique : group > sub_group > value
+                await self._click_by_data_text(group_text)
+                await self.page.wait_for_timeout(500)
+                for sub_text, sub_value in value.items():
+                    await self._click_visible_by_data_text(sub_text, parent_text=group_text)
+                    await self.page.wait_for_timeout(300)
+                    await self._click_visible_by_data_text(sub_value, parent_text=group_text)
+                    await self.page.wait_for_timeout(500)
+            else:
+                # Simple : chercher dans "OPTIONS" puis cliquer sur le sub_group + value
+                try:
+                    await self._click_by_data_text("OPTIONS")
+                    await self.page.wait_for_timeout(500)
+                    await self._click_visible_by_data_text(group_text, parent_text="OPTIONS")
+                    await self.page.wait_for_timeout(300)
+                    await self._click_visible_by_data_text(str(value), parent_text="OPTIONS")
+                    await self.page.wait_for_timeout(500)
+                except (ValueError, Exception) as e:
+                    # Fallback : chercher directement à la racine
+                    print(f"    ⚠ Option '{group_text}' non trouvée dans OPTIONS, tentative racine...")
+                    await self._click_by_data_text(group_text)
+                    await self.page.wait_for_timeout(300)
+                    await self._click_visible_by_data_text(str(value), parent_text=group_text)
+                    await self.page.wait_for_timeout(500)
+
     async def _verifier_config_wpc(self, label: str = ""):
         """Vérifie et affiche tous les éléments sélectionnés dans le configurateur WPC.
 
@@ -1755,6 +1907,8 @@ async def generer_devis_abri(
     extension_toiture: str = "",
     plancher: bool = False,
     bac_acier: bool = False,
+    predecoupe: bool = False,
+    options_wpc: dict = None,
     produits_complementaires: list = None,
     code_promo: str = "",
     produits_uniquement: bool = False,
@@ -1783,10 +1937,18 @@ async def generer_devis_abri(
             les produits_complementaires au panier. Utile pour les modèles préconçus
             (Gamme Essentiel, Haut de Gamme) qui ne passent pas par le configurateur WPC.
             Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
+        predecoupe: True = prédécoupe des planches de mur (+299€). Le client devra
+            toujours couper les poteaux, chevrons, bandeaux de toiture et la dernière
+            feuille de bac acier lui-même.
+        options_wpc: dict de data-text supplémentaires à sélectionner dans le configurateur
+            WPC Booster. Permet de sélectionner n'importe quelle option découverte
+            dynamiquement, sans modifier le script.
+            Ex: {"Prédécoupe": "OUI"} (équivalent à predecoupe=True)
         configurations_supplementaires: liste de configurations supplémentaires à ajouter
             au même panier. Chaque élément est un dict avec les mêmes clés que la config
             principale : {"largeur": "4,70M", "profondeur": "3,45m",
-            "ouvertures": [...], "extension_toiture": "", "plancher": False, "bac_acier": False}
+            "ouvertures": [...], "extension_toiture": "", "plancher": False, "bac_acier": False,
+            "predecoupe": False, "options_wpc": {}}
             Permet de mettre plusieurs abris personnalisés sur le même devis PDF.
 
     Retourne : chemin vers le fichier PDF du devis
@@ -1797,6 +1959,7 @@ async def generer_devis_abri(
     start_time = time.time()
     produits_complementaires = produits_complementaires or []
     configurations_supplementaires = configurations_supplementaires or []
+    options_wpc = options_wpc or {}
     print(f"\n{'='*60}")
     print("  GÉNÉRATION DE DEVIS AUTOMATIQUE")
     print(f"  Client : {client_prenom} {client_nom}")
@@ -1827,6 +1990,8 @@ async def generer_devis_abri(
                 extension_toiture=extension_toiture,
                 plancher=plancher,
                 bac_acier=bac_acier,
+                predecoupe=predecoupe,
+                options_wpc=options_wpc,
             )
             await gen.configurer_abri(config)
 
@@ -1844,6 +2009,8 @@ async def generer_devis_abri(
                     extension_toiture=cfg_sup.get("extension_toiture", ""),
                     plancher=cfg_sup.get("plancher", False),
                     bac_acier=cfg_sup.get("bac_acier", False),
+                    predecoupe=cfg_sup.get("predecoupe", False),
+                    options_wpc=cfg_sup.get("options_wpc", {}),
                 )
                 await gen.configurer_abri(sup_config)
                 await gen.ajouter_au_panier()

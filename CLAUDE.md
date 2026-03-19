@@ -176,12 +176,27 @@ generer_devis_abri(
     bac_acier=False,       # ⚠ Bac acier INCLUS DE SÉRIE sur tous les abris — cette option ajoute
                            # le FEUTRE anti-condensation uniquement. Dans l'email : "option feutre
                            # anti-condensation" (pas "bac acier" car déjà inclus de base).
+    predecoupe=False,      # True = prédécoupe des planches de mur (+299€)
+                           # ⚠ Seules les PLANCHES DE MUR sont prédécoupées. Le client coupe
+                           # lui-même : poteaux, chevrons de toiture, bandeaux de toiture,
+                           # dernière feuille de bac acier.
     extension_toiture="",  # "" | "Droite 1 M" | "Gauche 2 M" | "Droite 3,5 M" | etc.
+    options_wpc="{}",      # JSON dict — options WPC dynamiques (découverte auto)
+                           # Ex: {"NouvelleOption": "OUI"} — le script affiche toutes les
+                           # options disponibles dans les logs à chaque génération
     produits_complementaires='[]',      # JSON array — utiliser rechercher_produits_detail d'abord
     produits_uniquement=False,          # True = Gamme Essentiel (skip configurateur)
     configurations_supplementaires='[]', # Multi-abri sur 1 PDF
 )
 ```
+
+> **Découverte dynamique des options** : à chaque génération de devis abri, le script scanne
+> automatiquement le DOM du configurateur WPC Booster et affiche **toutes les options disponibles**
+> dans les logs (groupes, sous-groupes, items, visibilité, sélection). Cela permet de découvrir
+> de nouvelles options ajoutées au configurateur sans modifier le code. Les options connues
+> (`plancher`, `bac_acier`, `predecoupe`, `extension_toiture`) ont des paramètres dédiés.
+> Toute nouvelle option peut être sélectionnée via `options_wpc` en passant le `data-text`
+> exact vu dans les logs.
 
 ### `generer_devis_studio` — Studio de jardin
 
@@ -698,6 +713,7 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 **Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier — **disponible uniquement sur la Gamme Origine** (pas sur Essentiel). Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
 **Vitrage portes** : polycarbonate 3mm, résistant aux UV et anti-jaunissement (PAS du verre).
 **Visserie de montage** : vis électro-zinguées. Charnières : acier inoxydable. Poignée et serrure fournies.
+**Prédécoupe** (+299€) : les planches de mur sont prédécoupées en usine aux dimensions exactes de l'abri. ⚠ Le client devra toujours couper lui-même les poteaux, les chevrons de toiture, les bandeaux de toiture et la dernière feuille de bac acier. Paramètre : `predecoupe=True` dans `generer_devis_abri`.
 **Inversion de façade** : les madriers étant emboîtables et symétriques, on peut inverser la façade au montage. Le mur du fond doit être inversé UNIQUEMENT si abri double avec poteau H entre les deux murs.
 
 #### Comparaison Gamme Origine vs Gamme Essentiel
