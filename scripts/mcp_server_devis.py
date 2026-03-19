@@ -1324,7 +1324,7 @@ def lister_sites() -> str:
             "nom": "Abri de jardin bois — Gamme Origine (toit plat)",
             "url": "https://www.xn--abri-franais-sdb.fr",
             "statut": "fonctionnel",
-            "note_gammes": "Ce configurateur génère la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). Pour la Gamme Essentiel (toit 2 pentes, 1190-2120€, promo LEROYMERLIN5 -5%) : utiliser produits_uniquement=True + rechercher_produits_detail(site='abri', recherche='essentiel [options]') → passer le résultat en produits_complementaires. Le PDF ne contiendra que le modèle préconçu.",
+            "note_gammes": "Ce configurateur génère la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). Pour la Gamme Essentiel (toit plat avec bandeau, 1190-2120€, promo LEROYMERLIN5 -5%) : utiliser produits_uniquement=True + rechercher_produits_detail(site='abri', recherche='essentiel [options]') → passer le résultat en produits_complementaires. Le PDF ne contiendra que le modèle préconçu.",
             "dimensions": {
                 "largeurs": ["2,15M", "2,65M", "3,45M", "4,20M", "4,35M",
                              "4,70M", "5,20M", "5,50M", "6,00M", "6,80M",

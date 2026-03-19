@@ -36,8 +36,8 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 **Matériaux et construction**
 - **Bois** : Pin sylvestre autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille, Destombes Bois (50 ans d'expérience). Bois d'origine Finlande/Suède, densité **550 kg/m³** (supérieure à l'épicéa).
 - **Portes** : épaisseur 45mm. Vitrage : polycarbonate 3mm, résistant aux UV et anti-jaunissement.
-- **Toiture Origine** : toit plat (pente 2°), couverture bac acier ou feutre bitumé selon modèle.
-- **Toiture Essentiel** : toit à 2 pentes, couverture feutre bitumé.
+- **Toiture Origine** : toit plat (pente ~5%), couverture bac acier inclus de série.
+- **Toiture Essentiel** : toit plat (même pente ~5% que Origine), avec bandeau périphérique suivant la pente (aspect mono-pente). ⚠ **Il n'existe PAS de toit 2 pentes chez Abri Français** — uniquement du toit plat sur les 2 gammes.
 - **Fixation toiture** : vis inox sur pannes + planches de mur (voir notice fournie). Possibilité d'ajouter des accessoires (gouttières, panneaux solaires…) — ⚠ leur compatibilité n'est pas garantie par le fabricant.
 - **Visserie de montage** : vis électro-zinguées fournies pour l'assemblage complet. Charnières en acier inoxydable. Poignée et serrure fournies.
 - **Bac acier anti-condensation** : sur-toiture métallique qui évite la condensation à l'intérieur. Recommandé pour stockage d'outils, matériaux sensibles à l'humidité.
@@ -49,6 +49,11 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - Gamme Origine : hauteur sous plafond ~2,05m, faîtage ~2,40m HT.
 - Gamme Essentiel : faîtage ~2,27m HT.
 - ⚠ Hauteur > 2,65m ou portée > 6m → orienter vers Destombes Bois directement.
+
+**Plancher abri**
+- Lambourdes 45×70mm espacées tous les ~60cm avec lames par-dessus.
+- **Non porteur** — pas conçu pour charges lourdes. Pour vis de fondation = une par lambourde.
+- L'option plancher surélève l'abri → l'eau s'écoule à l'extérieur (recommandé si dalle plus grande que l'abri).
 
 **Fondations**
 - Dalle béton non obligatoire. Plots béton (minimum 3, aux angles) ou plots réglables suffisants pour sols stables.
@@ -143,12 +148,15 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 
 **Plancher**
 - **Option plancher standard** : structure 145mm + OSB 18mm = **163mm total** (~16,3cm). La face supérieure du plancher est à environ 16cm au-dessus de la dalle béton.
+- **Option plancher porteur** : structure renforcée pour charges lourdes (mobilier lourd, piano, etc.). Seulement **6 plots** nécessaires (vs davantage avec plancher standard). Pour les très lourdes charges, une dalle béton reste recommandée.
 - **Option plancher renforcé** : section variable selon la profondeur du studio (demander à préciser la configuration — informer le client que la cote exacte sera confirmée par le bureau d'études).
 - Sans plancher : le studio repose directement sur la dalle béton (prévoir isolation par l'intérieur si besoin).
+- **Finition plancher** : option **EXTÉRIEURE** purement cosmétique — habillage bas du studio côté extérieur, assorti au bardage. Ce n'est PAS une finition de sol intérieur.
 
 **Menuiseries**
 - PORTE VITREE, FENETRE SIMPLE, FENETRE DOUBLE, BAIE VITREE, PORTE DOUBLE VITREE
 - Matériaux : PVC (standard) ou ALU (premium, requis pour baie vitrée + porte double)
+- ⚠ **BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement**. Si le client veut du PVC pour une grande ouverture → proposer **2 PORTE VITREE PVC côte à côte** (2 × 1,10m = 2,20m, montant central entre les deux).
 - **Couleurs PVC** : blanc intérieur / gris extérieur (bicolore)
 - 1 menuiserie occupe 1 module (1,10m). Anti-chevauchement automatique.
 - Murs disponibles : MUR DE FACE, MUR DE GAUCHE, MUR DE DROITE, MUR DU FOND
@@ -175,6 +183,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - Toujours renvoyer vers la mairie pour vérifier le PLU local.
 - Raccordement électrique : habilité par un électricien — non inclus.
 - **Terrain non-constructible** : option châssis roulant envisageable (studio sur roues = pas de fondation en dur). Cependant, nous ne nous engageons pas sur la conformité réglementaire — toujours renvoyer le client vers sa mairie et son notaire pour valider la faisabilité.
+- **Configuration 3 murs** : possible (studio adossé à une maison existante). Le client l'indique dans les annotations de commande lors de la validation en ligne.
 
 **Livraison et montage**
 - Livraison gratuite 4-5 semaines (studios : prévoir 5-7 semaines). Semi-remorque avec chariot embarqué.
@@ -222,7 +231,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Ventelles bois** (sens largeur ou profondeur) : lames orientées, ombre partielle, esthétique traditionnelle.
 - **Platelage bois** (lames jointives) : couverture totale. Exige ventelles largeur ou profondeur. Non étanche à la pluie.
 - **Lattage bois** (lames espacées) : couverture décorative, ombre tamisée. Plus économique.
-- **Polycarbonate** : transparent, résistant UV, protection pluie. Lumière naturelle préservée. ⚠ Les plaques sont **clipsées** : risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)**. Pour installer une **gouttière** : décaler légèrement les plaques de polycarbonate par rapport à la structure pour que l'eau s'écoule dans la gouttière. La gouttière se pose sur le **devant** de la pergola (côté opposé au mur pour une adossée), pas entre le mur et la pergola.
+- **Polycarbonate plein (monolithique)** : 100% transparent comme un toit en verre — qualité premium (PAS alvéolaire). Résistant UV, protection pluie. Lumière naturelle préservée. ⚠ Les plaques sont **clipsées** : risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)**. Pour installer une **gouttière** : décaler légèrement les plaques de polycarbonate par rapport à la structure pour que l'eau s'écoule dans la gouttière. La gouttière se pose sur le **devant** de la pergola (côté opposé au mur pour une adossée), pas entre le mur et la pergola.
 - **Voilage** : toile semi-transparente, ombrage léger, look contemporain.
 - **Bioclimatique Samkit** : lames **bois** orientables **manuellement**. Réglage par manipulation directe des lames. Option premium (protection pluie en position fermée). ⚠ Les lames sont en **bois** (PAS en aluminium). La motorisation n'est PAS incluse — des options de motorisation sont disponibles séparément sur le site Samkit. ⚠ **Non vendu au détail** : le système bioclimatique n'est disponible qu'en option intégrée à la pergola complète — impossible de l'acheter séparément pour une structure existante.
 - **Notice pergola** : téléchargeable à **mapergolabois.fr/notice** + QR code fourni avec la commande.
@@ -239,7 +248,12 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 **Sur-mesure**
 - Option sur-mesure disponible (+199,90€) pour dimensions intermédiaires entre deux tailles standard.
 - Ex : pergola 7,60×3,42m → sélectionner variation 8×4m + activer sur-mesure + entrer dimensions exactes.
+- **Cotes intérieures** : hors tout − 2 × 12cm (poteaux). Ex : hors tout 8,79m × 4,99m → intérieur ≈ 8,55m × 4,75m.
+- Les ventelles sur-mesure sont découpées à la longueur exacte. Le client peut noter une longueur spécifique dans les annotations de commande.
 - Sur le site : ajouter l'option "Modification de dimensions" (1 article par dimension à modifier).
+
+**Panneaux solaires**
+- ⚠ Nos pergolas bois ne sont **PAS conçues** pour supporter des panneaux solaires (~700kg de charge). Rediriger vers **Abri Cerisier** (www.abri-cerisier.fr).
 
 **Visserie fournie (références)**
 - Structure principale : vis bois Inox A2 6×100mm FM-WOOD PRO TF (Etanco, T30)
@@ -270,6 +284,8 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 ---
 
 ### 🪵 TERRASSES BOIS (Terrasse en Bois.fr)
+
+**Composite / bambou** : nous ne commercialisons PAS de terrasse en bois composite ni bambou — uniquement du bois massif. Rediriger vers **Destombes Bois** au **03 20 29 04 46**.
 
 **Essences disponibles et durabilité**
 
@@ -412,6 +428,8 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 
 **Paiement et commande**
 - CB, virement, chèque, PayPal, 3× sans frais.
+- **Paiement CB en ligne** : via le lien "Commander en ligne" en bas du devis PDF (ou QR code). 3× sans frais disponible.
+- **Paiement CB hors site (devis Odoo)** : lien Up2Pay (Crédit Agricole) envoyé par le commercial. Pour commandes spéciales ou ajustements de prix.
 - Annulation : gratuite si pas encore en production.
 - Retour : 14 jours après réception, produit non utilisé, emballage original. Frais retour à charge client.
 - Clients pro/collectivités : virement + bon de commande acceptés.

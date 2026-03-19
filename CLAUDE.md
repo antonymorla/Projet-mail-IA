@@ -781,7 +781,7 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 
 | | **Gamme Origine** | **Gamme Essentiel** |
 |---|---|---|
-| **Toit** | Toit plat (pente 2°) | Toit 2 pentes |
+| **Toit** | Toit plat (pente ~5%) | Toit plat (pente ~5%) avec bandeau périphérique suivant la pente (aspect mono-pente) |
 | **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
@@ -793,7 +793,7 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 | **Fondations** | Pas de dalle nécessaire — plots béton ou réglables | Pas de dalle nécessaire — plots béton ou réglables |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
 
-> ⚠ **RÈGLE ABSOLUE** : ne jamais inventer de différences techniques entre les 2 gammes. Les 2 utilisent le **même bois** (pin autoclave 28mm), la **même méthode de construction** (madriers emboîtables). La seule différence fondamentale est le **type de toit** et la **personnalisation**.
+> ⚠ **RÈGLE ABSOLUE** : ne jamais inventer de différences techniques entre les 2 gammes. Les 2 utilisent le **même bois** (pin autoclave 28mm), la **même méthode de construction** (madriers emboîtables), le **même type de toit** (toit plat). La seule différence fondamentale est la **personnalisation** (Origine = configurable, Essentiel = préconçu). ⚠ **Il n'existe PAS de toit 2 pentes chez Abri Français** — uniquement du toit plat. La Gamme Essentiel a un bandeau périphérique qui suit la pente, donnant un aspect mono-pente, mais c'est bien un toit plat.
 
 > Prix → générer le devis ou `rechercher_produits_detail`. Promos → `verifier_promotions_actives`.
 
@@ -963,6 +963,18 @@ Cordialement,
 42. **Paiement CB** : diriger le client vers le lien "Commander en ligne" en bas du devis (ou QR code). Paiement CB + 3× sans frais directement en ligne. Ne pas proposer de rappel téléphonique pour accompagner sauf demande explicite du commercial.
 43. **Commandes cross-site** : les produits de sites différents (ex : planches abri-francais.fr + terrasse terrasseenbois.fr) nécessitent des commandes séparées. Utiliser le regroupement livraison : sélectionner "Retrait Illies" sur la commande secondaire + annotation pour grouper avec la commande principale.
 44. **Terrasse — ajustement nb_lames** : si le configurateur en mode m² calcule moins de lames que le client souhaite (ex : 18 au lieu de 22), utiliser `configurations_supplementaires` pour ajouter la différence exacte en mode `nb_lames` (ex : config principale en mode m² + config supplémentaire avec `nb_lames=4`). Ne PAS simplement augmenter nb_lames car cela crée un écart entre les accessoires calculés et les lames.
+45. **Abri — toit plat UNIQUEMENT** : il n'existe **PAS** de toit 2 pentes chez Abri Français. Les 2 gammes (Origine et Essentiel) ont un **toit plat** (pente ~5%). La Gamme Essentiel a un bandeau périphérique qui suit la pente, donnant un aspect mono-pente, mais c'est bien un toit plat. Ne JAMAIS écrire "toit 2 pentes" dans un email client.
+46. **Abri — plancher non porteur** : le plancher abri est constitué de lambourdes 45×70mm espacées tous les ~60cm avec des lames par-dessus. Il n'est PAS porteur (pas conçu pour charges lourdes). Pour les vis de fondation = une par lambourde. Fondations recommandées : plots de terrasse réglables ou parpaings — pas de dalle béton obligatoire.
+47. **Studio — configuration 3 murs** : il est possible de commander un studio avec seulement 3 murs (adossé à une maison existante). Le client doit l'indiquer dans les **annotations de commande** lors de la validation en ligne. Dans l'email : "Merci de préciser dans les annotations de commande que le studio sera adossé à votre habitation (configuration 3 murs)."
+48. **Studio — baie vitrée = ALU uniquement** : les `BAIE VITREE` et `PORTE DOUBLE VITREE` ne sont disponibles qu'en **ALU**. Si le client veut du PVC pour une grande ouverture (2 modules), proposer **2 PORTE VITREE PVC côte à côte** comme alternative — cela couvre la même largeur (2 × 1,10m = 2,20m) avec un montant central entre les deux portes.
+49. **Polycarbonate pergola = plein (monolithique)** : nos plaques de polycarbonate sont **pleines** (monolithiques), PAS alvéolaires. 100% transparentes comme un toit en verre — qualité premium. Ne pas confondre avec le polycarbonate alvéolaire (moins cher, translucide, moins résistant).
+50. **Destombes Bois — composite/bambou** : pour toute demande de terrasse en bois composite ou bambou, rediriger vers **Destombes Bois** directement au **03 20 29 04 46**. Nous ne commercialisons pas de composite — uniquement du bois massif.
+51. **Pergola sur-mesure — cotes intérieures** : les dimensions hors tout incluent les poteaux (12cm de section chaque côté). **Cotes intérieures = hors tout − 2 × 12cm** (soit −24cm). Ex : pergola hors tout 8,79m × 4,99m → intérieur utile ≈ 8,55m × 4,75m. Toujours mentionner cette distinction si le client raisonne en cotes intérieures.
+52. **Pergola sur-mesure — ventelles longueur** : quand le sur-mesure est activé, les ventelles sont découpées à la longueur exacte. Si le client veut une longueur de ventelle spécifique, il peut l'indiquer dans les **annotations de commande** lors de la validation en ligne.
+53. **Panneaux solaires sur pergola** : nos pergolas bois ne sont **PAS conçues** pour supporter des panneaux solaires (~700kg de charge). Pour une pergola photovoltaïque → rediriger vers **Abri Cerisier** (www.abri-cerisier.fr) qui propose des structures adaptées.
+54. **Studio — plancher porteur** : avec l'option "Plancher porteur", seulement **6 plots** sont nécessaires (structure renforcée). Le plancher porteur est conçu pour des charges lourdes (mobilier lourd, piano, etc.). Avec le plancher standard, davantage de plots sont nécessaires.
+55. **Studio — finition plancher** : la "finition plancher" est une option **EXTÉRIEURE** purement cosmétique — un habillage bas du studio côté extérieur, assorti au bardage. Ce n'est PAS une finition de sol intérieur. Ne jamais la présenter comme un revêtement de sol.
+56. **Up2Pay / liens de paiement Odoo** : pour les devis générés directement dans Odoo (pas via WooCommerce), le paiement CB se fait via un lien Up2Pay (Crédit Agricole) envoyé par le commercial. Ce mode est utilisé pour les commandes spéciales, les ajustements de prix, ou les clients qui ne passent pas par le site.
 
 ---
 

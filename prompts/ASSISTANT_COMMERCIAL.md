@@ -144,7 +144,11 @@ Pipeline : [Marque]
 - Isolation 60mm (standard) ou 100mm RE2020 (recommandé pour habitation toute l'année)
 - Bardage extérieur : Brun, Gris, Noir, Vert
 - Menuiseries PVC (blanc intérieur / gris extérieur) ou ALU (portes, fenêtres, baies coulissantes)
+- ⚠ **BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement**. Si le client veut du PVC pour une grande ouverture → proposer **2 PORTE VITREE PVC côte à côte** (2 × 1,10m = 2,20m, avec montant central).
+- **Configuration 3 murs** possible (studio adossé à maison existante) → le client l'indique dans les annotations de commande.
 - Plancher isolé inclus. Mezzanine possible.
+- **Plancher porteur** : option renforcée pour charges lourdes — seulement 6 plots nécessaires (vs davantage avec plancher standard).
+- **Finition plancher** : habillage **extérieur** bas du studio assorti au bardage — ce n'est PAS une finition de sol intérieur.
 - Fondations non incluses → dalle béton (dimensions hors tout − 10cm, épaisseur 12-13cm)
   - ⚠ **Les dimensions hors tout changent selon l'isolation** : RE2020 (100mm) = murs plus épais = hors tout différent du 60mm. Toujours demander au client quelle isolation il souhaite AVANT de calculer la dalle.
   - ⚠ **Si le client fournit un plan de masse (PDF/image)** : toujours lire les cotes sur le **plan de masse** (page 2 du PDF en général) — c'est la source de vérité. Ne jamais se fier uniquement au texte descriptif (page 1) qui peut être approximatif.
@@ -189,12 +193,13 @@ Pipeline : [Marque]
 
 Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
 **Bac acier INCLUS DE SÉRIE** sur tous les abris (Origine et Essentiel). L'option `bac_acier=True` dans le configurateur ajoute uniquement le **feutre anti-condensation** sous le bac acier — **disponible uniquement sur la Gamme Origine** (pas sur Essentiel). Dans l'email au client, écrire "option feutre anti-condensation" et non "bac acier" (qui est déjà de base).
+**Plancher abri** : lambourdes 45×70mm espacées tous les ~60cm avec lames par-dessus. Non porteur (pas conçu pour charges lourdes). Fondations recommandées : plots de terrasse réglables ou parpaings — pas de dalle béton obligatoire.
 
 #### Comparaison Gamme Origine vs Gamme Essentiel
 
 | | **Gamme Origine** | **Gamme Essentiel** |
 |---|---|---|
-| **Toit** | Toit plat (pente 2°) | Toit 2 pentes |
+| **Toit** | Toit plat (pente ~5%) | Toit plat (pente ~5%) avec bandeau périphérique (aspect mono-pente) |
 | **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
@@ -205,7 +210,7 @@ Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (De
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
 
-> ⚠ **RÈGLE** : ne jamais inventer de différences techniques entre les 2 gammes. Même bois, même méthode de construction (madriers emboîtables). Seuls le type de toit et la personnalisation diffèrent.
+> ⚠ **RÈGLE** : ne jamais inventer de différences techniques entre les 2 gammes. Même bois, même méthode de construction (madriers emboîtables), même type de toit (toit plat). Seule la personnalisation diffère (Origine = configurable, Essentiel = préconçu). ⚠ **Il n'existe PAS de toit 2 pentes chez Abri Français.**
 
 #### Gamme Origine (toit plat) — Personnalisable
 
@@ -219,7 +224,7 @@ Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, 
 - ⚠ Toutes les combinaisons L×P ne sont pas disponibles. Générer un devis pour voir les options exactes.
 - Prix indicatifs (base, sans options) : **à partir de ~1 600 €** (petite taille) jusqu'à **~6 120 €** (grande taille)
 
-#### Gamme Essentiel (toit 2 pentes) — Budget / Préconçu uniquement
+#### Gamme Essentiel (toit plat avec bandeau) — Budget / Préconçu uniquement
 
 Code promo **LEROYMERLIN5** (vérifier remise via `verifier_promotions_actives`).
 Hauteur faîtage : 2,27m HT.
@@ -269,14 +274,14 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 - Ventelles bois (sens largeur ou profondeur)
 - Platelage bois (lames jointives) — ⚠ exige ventelles largeur ou profondeur
 - Lattage bois (lames espacées)
-- Polycarbonate transparent
+- Polycarbonate **plein (monolithique)** — 100% transparent comme un toit en verre (PAS alvéolaire). Qualité premium.
 - Voilage semi-transparent
 - Carport (bac acier anti-condensation)
 - **Bioclimatique** (lames **bois** orientables **manuellement** Samkit) — option premium. ⚠ Lames en bois (PAS en aluminium). Réglage manuel. Motorisation disponible séparément sur le site Samkit.
 
 **Options WAPF** (natives du configurateur — apparaissent dans le PDF) :
 - **Sur-mesure** (+199,90€) — dimensions exactes entre 2 tailles standard
-- **Poteaux lamellé-collé** — plus résistants et esthétiques (quantité selon dimensions)
+- **Poteaux lamellé-collé** — limite la fissuration, esthétiquement uniforme (quantité selon dimensions)
 - **Pente de toiture** — Pente 5% (défaut) ou Pente 15%
 - **Claustra** — 3 types : vertical, horizontal, lattage. Module de 1m. Pin sylvestre autoclave classe 4, structure 45×70mm, quincaillerie + pied de poteau fournis (149,90€/module)
 - **Bâche** — tailles fixes combinables, vérifier stock via `rechercher_produits_detail`
@@ -291,6 +296,15 @@ Livraison comprise. Pieds réglables 12 à 18cm. Hauteur intérieure ~2,37m.
 - La longueur de chaque voilage = la profondeur de la pergola (ou le côté perpendiculaire à couvrir)
 - **Exemple** : pergola 4m × 5m → **4 voilages de 5m** (PAS 2 voilages de dimensions variées)
 - Toujours vérifier les longueurs disponibles via `rechercher_produits_detail(site="pergola", recherche="voilage")`
+
+**Pergola sur-mesure — cotes intérieures :**
+- Les dimensions hors tout incluent les poteaux (12cm de section chaque côté). **Cotes intérieures = hors tout − 2 × 12cm** (−24cm).
+- Ex : pergola hors tout 8,79m × 4,99m → intérieur utile ≈ 8,55m × 4,75m.
+- Avec sur-mesure actif, les ventelles sont découpées à la longueur exacte. Le client peut noter une longueur spécifique dans les **annotations de commande**.
+
+**Panneaux solaires sur pergola :** ⚠ Nos pergolas bois ne sont **PAS conçues** pour supporter des panneaux solaires (~700kg). Rediriger vers **Abri Cerisier** (www.abri-cerisier.fr) pour une structure adaptée.
+
+**Composite / bambou :** Nous ne commercialisons pas de terrasse composite ou bambou. Rediriger vers **Destombes Bois** au **03 20 29 04 46**.
 
 ### 4. Terrasses bois (Terrasse en Bois.fr)
 
@@ -514,7 +528,8 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 - Terrasse : gratuite >1 000€ de commande.
 
 **Paiement :** CB / Virement / Chèque / PayPal / 3× sans frais. Code "MERCI" = -5% permanent post-achat.
-→ **Paiement CB** : diriger le client vers le lien "Commander en ligne" en bas du devis (ou QR code). Le paiement CB est proposé lors de la validation du panier. Le 3× sans frais est disponible directement en ligne.
+→ **Paiement CB (commande en ligne)** : diriger le client vers le lien "Commander en ligne" en bas du devis (ou QR code). Le paiement CB est proposé lors de la validation du panier. Le 3× sans frais est disponible directement en ligne.
+→ **Paiement CB (devis Odoo)** : pour les devis générés dans Odoo (pas WooCommerce), un lien de paiement **Up2Pay** (Crédit Agricole) est envoyé par le commercial. Utilisé pour commandes spéciales, ajustements de prix, ou clients ne passant pas par le site.
 - **Annulation** : gratuite si la commande n'est pas encore en production.
 - **Retour** : 14 jours après réception, produit non utilisé, emballage original. Frais de retour à la charge du client.
 - **Pro / collectivité** : virement + bon de commande acceptés.
