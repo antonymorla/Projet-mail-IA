@@ -167,10 +167,21 @@ def _chercher_url_studio_wc(base_url: str, largeur: str, profondeur: str) -> str
 
 
 # Largeur d'un module de mur studio (préfabriqué ossature bois).
-# Chaque menuiserie occupe exactement UN module de 1,10 m.
 # Les positions disponibles dans le configurateur WPC sont espacées de 1,10 m.
 # Deux menuiseries ne peuvent pas partager le même module sur un mur.
 MODULE_STUDIO = 1.10
+
+# Nombre de modules occupés par chaque type de menuiserie.
+# Les menuiseries "doubles" (BAIE VITREE, FENETRE DOUBLE, PORTE DOUBLE VITREE)
+# occupent 2 modules consécutifs (2 × 1,10 m = 2,20 m).
+# Les menuiseries "simples" (PORTE VITREE, FENETRE SIMPLE) occupent 1 module.
+MENUISERIE_MODULES = {
+    "PORTE VITREE": 1,
+    "FENETRE SIMPLE": 1,
+    "FENETRE DOUBLE": 2,
+    "BAIE VITREE": 2,
+    "PORTE DOUBLE VITREE": 2,
+}
 
 
 def _print_wpc_tree(node: dict, indent: int = 0):
@@ -217,7 +228,9 @@ class ConfigStudio:
     #   "droite"          → dernier module libre
     #   "centre"          → module libre le plus proche du centre du mur
     #   "1,29" etc.       → offset exact en mètres (notation française)
-    # Note : chaque menuiserie occupe un module de 1,10 m — pas de chevauchement possible
+    # Largeur par type (modules de 1,10 m) :
+    #   1 module : PORTE VITREE, FENETRE SIMPLE
+    #   2 modules : BAIE VITREE, FENETRE DOUBLE, PORTE DOUBLE VITREE
     bardage_exterieur: str = "Gris"    # Gris, Brun, Noir, Vert
     isolation: str = "60mm"            # "60mm" ou "100 mm (RE2020)"
     rehausse: bool = False             # OUI/NON (hauteur 3,20m)
@@ -781,6 +794,7 @@ class GenerateurDevis:
             await self.page.wait_for_timeout(500)
 
         # Menuiseries — positionnement intelligent par modules de 1,10 m
+        # Menuiseries doubles (BAIE VITREE, FENETRE DOUBLE, PORTE DOUBLE VITREE) occupent 2 modules
         # used_modules_per_wall : {mur_str: set(module_index)} — initialisé vide
         used_modules_per_wall: dict = {}
         for menu in config.menuiseries:
@@ -834,7 +848,10 @@ class GenerateurDevis:
     ) -> str:
         """Ajoute une menuiserie studio avec positionnement intelligent anti-chevauchement.
 
-        Chaque menuiserie occupe exactement un module de 1,10 m (MODULE_STUDIO).
+        Chaque menuiserie occupe 1 ou 2 modules de 1,10 m (MODULE_STUDIO) selon son type :
+        - 1 module (1,10 m) : PORTE VITREE, FENETRE SIMPLE
+        - 2 modules (2,20 m) : BAIE VITREE, FENETRE DOUBLE, PORTE DOUBLE VITREE
+
         Deux menuiseries sur le même mur ne peuvent pas partager le même module.
 
         position_hint :
@@ -847,6 +864,9 @@ class GenerateurDevis:
         Retourne l'offset sélectionné (ex: "1,29").
         Modifie used_modules_per_wall[mur] en place.
         """
+        # Nombre de modules consécutifs requis pour cette menuiserie
+        nb_modules = MENUISERIE_MODULES.get(type_menu, 1)
+
         # ── Étape 1 : Naviguer jusqu'au mur et lire toutes les positions disponibles ──
         nav = await self.page.evaluate("""
             (args) => {
@@ -900,16 +920,23 @@ class GenerateurDevis:
             return float(s.replace(",", "."))
 
         def module_idx(offset: float) -> int:
-            return int(offset / MODULE_STUDIO)
+            return int(round(offset / MODULE_STUDIO))
 
         offsets = [(p["text"], p["uid"], parse_fr(p["text"])) for p in available]
         used_modules = used_modules_per_wall.get(mur, set())
-        free = [(t, u, o) for t, u, o in offsets if module_idx(o) not in used_modules]
+
+        # Pour les menuiseries multi-modules, une position est "libre" si TOUS les
+        # modules consécutifs qu'elle occupe sont libres (module_idx, module_idx+1, ...).
+        def is_position_free(offset: float) -> bool:
+            start = module_idx(offset)
+            return all((start + i) not in used_modules for i in range(nb_modules))
+
+        free = [(t, u, o) for t, u, o in offsets if is_position_free(o)]
 
         hint = (position_hint or "auto").strip().lower()
 
         if not free:
-            print(f"    ⚠ Tous les modules occupés sur {mur} pour {type_menu} — fallback premier")
+            print(f"    ⚠ Pas assez de modules libres consécutifs sur {mur} pour {type_menu} ({nb_modules} modules) — fallback premier")
             sel_text, sel_uid, sel_off = offsets[0]
         elif hint in ("auto", "gauche", "left", ""):
             sel_text, sel_uid, sel_off = free[0]
@@ -926,8 +953,8 @@ class GenerateurDevis:
             else:
                 # Chercher dans toutes les positions (même module occupé)
                 all_match = next(((t, u, o) for t, u, o in offsets if t == hint), None)
-                if all_match and module_idx(all_match[2]) in used_modules:
-                    print(f"    ⚠ Module pour '{hint}' déjà occupé — sélection forcée")
+                if all_match and not is_position_free(all_match[2]):
+                    print(f"    ⚠ Module(s) pour '{hint}' déjà occupé(s) — sélection forcée")
                     sel_text, sel_uid, sel_off = all_match
                 elif all_match:
                     sel_text, sel_uid, sel_off = all_match
@@ -959,9 +986,14 @@ class GenerateurDevis:
         if isinstance(click, dict) and click.get("error"):
             raise ValueError(f"Menuiserie studio click: {click['error']}")
 
-        used_modules_per_wall.setdefault(mur, set()).add(module_idx(sel_off))
+        # Marquer TOUS les modules occupés par cette menuiserie (1 ou 2 selon le type)
+        start_mod = module_idx(sel_off)
+        wall_used = used_modules_per_wall.setdefault(mur, set())
+        for i in range(nb_modules):
+            wall_used.add(start_mod + i)
         await self.page.wait_for_timeout(500)
-        print(f"    ✓ {type_menu} {materiau} > {mur} @ {sel_text} (hint={position_hint or 'auto'})")
+        modules_str = f"modules {start_mod}-{start_mod + nb_modules - 1}" if nb_modules > 1 else f"module {start_mod}"
+        print(f"    ✓ {type_menu} {materiau} > {mur} @ {sel_text} ({modules_str}, hint={position_hint or 'auto'})")
         return sel_text
 
     async def ajouter_produit_woo(

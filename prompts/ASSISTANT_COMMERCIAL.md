@@ -1220,6 +1220,10 @@ Pour un devis préconçu (Essentiel ou Haut de Gamme), utiliser **`produits_uniq
 - `menuiseries.type` : "PORTE VITREE", "FENETRE SIMPLE", "FENETRE DOUBLE", "BAIE VITREE", "PORTE DOUBLE VITREE"
 - `menuiseries.mur` : "MUR DE FACE", "MUR DE GAUCHE", "MUR DE DROITE", "MUR DU FOND"
 - `menuiseries.materiau` : "PVC", "ALU" — ⚠ BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement
+- `menuiseries.position` : "auto", "gauche", "droite", "centre", ou offset exact en mètres ("2,20", "4,40"...)
+  - **Largeur par type** : PORTE VITREE/FENETRE SIMPLE = 1 module (1,10m) | BAIE VITREE/FENETRE DOUBLE/PORTE DOUBLE VITREE = 2 modules (2,20m)
+  - **Grille modulaire** : mur 8,8m = 8 modules (pos. 0 à 7) | mur 5,7m = 5 modules (pos. 0 à 4)
+  - **Quand le client fournit un plan** : convertir les positions en offsets et passer `"position": "2,20"` etc.
 
 **Abri ouvertures :**
 - `type` : "Porte Vitrée", "Porte Pleine", "Porte double Vitrée", "Porte double Pleine", "Fenêtre Horizontale", "Fenêtre Verticale"

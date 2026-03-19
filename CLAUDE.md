@@ -209,7 +209,7 @@ generer_devis_studio(
     client_email="jean@example.com", client_telephone="0600000000",
     client_adresse="1 Rue Test, 75001 Paris",
     code_promo="",
-    menuiseries='[{"type": "PORTE VITREE", "mur": "MUR DE FACE", "materiau": "PVC"}]',
+    menuiseries='[{"type": "PORTE VITREE", "mur": "MUR DE FACE", "materiau": "PVC", "position": "centre"}]',
     bardage_exterieur="Gris",   # "Gris"|"Brun"|"Noir"|"Vert"
     isolation="60mm",           # "60mm"|"100 mm (RE2020)"
     rehausse=False,
@@ -237,11 +237,24 @@ generer_devis_studio(
 - Types : `PORTE VITREE`, `FENETRE SIMPLE`, `FENETRE DOUBLE`, `BAIE VITREE`, `PORTE DOUBLE VITREE`
 - Murs : `MUR DE FACE`, `MUR DE GAUCHE`, `MUR DE DROITE`, `MUR DU FOND`
 - Matériaux : `PVC` | `ALU` — ⚠ `BAIE VITREE` et `PORTE DOUBLE VITREE` = ALU uniquement
-- **Positionnement** : chaque menuiserie occupe un module préfabriqué de 1,10 m. Le script détecte les conflits automatiquement.
+- **Largeur par type** (modules de 1,10 m chacun) :
+  - **1 module** (1,10 m) : `PORTE VITREE`, `FENETRE SIMPLE`
+  - **2 modules** (2,20 m) : `BAIE VITREE`, `FENETRE DOUBLE`, `PORTE DOUBLE VITREE`
+- **Positionnement** : le script détecte les conflits automatiquement — aucune menuiserie ne peut chevaucher un module déjà occupé (y compris les modules adjacents réservés par les menuiseries doubles).
   - `"gauche"` / `"auto"` → premier module libre depuis l'angle origine du mur
   - `"droite"` → dernier module libre
   - `"centre"` → module libre le plus proche du centre du mur
   - `"1,29"` etc. → offset exact en mètres (notation française) ; fallback sur le plus proche si occupé
+- **Grille modulaire par mur** : nombre de modules = `floor(dimension_mur / 1,10)`. Exemples :
+  - Mur 8,8m → 8 modules (positions 0 à 7)
+  - Mur 5,7m → 5 modules (positions 0 à 4)
+  - Mur 5,5m → 5 modules (positions 0 à 4)
+- **Quand le client fournit un plan** : convertir les positions souhaitées en offsets métriques et les passer dans `"position"` de chaque menuiserie. Exemple pour un mur de 8,8m (8 modules) :
+  - Position gauche du mur → `"0,00"`
+  - Position centre-gauche → `"2,20"` (module 2)
+  - Position centre → `"3,30"` ou `"4,40"`
+  - Position droite → `"droite"` ou `"7,70"` (dernier module)
+  - ⚠ Pour une BAIE VITREE à la position `"2,20"`, elle occupera les modules 2 ET 3 (2,20m de large)
 
 **Studio — dimensions disponibles (largeur × profondeur) :**
 ```
