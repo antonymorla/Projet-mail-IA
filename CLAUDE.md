@@ -825,7 +825,7 @@ Pieds réglables 12 à 18cm. Livraison comprise.
 ⚠ **Bioclimatique** : lames en **bois** (PAS aluminium), orientables **manuellement** (PAS motorisé). Options de motorisation disponibles séparément sur le site Samkit.
 **Options WAPF** (natives du configurateur) :
 - **Sur-mesure** (+199,90€) — dimensions exactes entre 2 tailles standard
-- **Poteaux lamellé-collé** — plus résistants et esthétiques
+- **Poteaux lamellé-collé** — sections ~40mm collées sous pression, limite la fissuration (PAS "plus résistant")
 - **Claustra** — 3 types : vertical, horizontal, lattage. Modules de 1m. Ex : pergola 4m → 4 claustras pour remplir un côté
 - **Bâche** — tailles fixes, combinables pour couvrir les grandes pergolas
 
@@ -946,6 +946,15 @@ Cordialement,
 25. **Pente pergola sur-mesure tarification** : largeur/profondeur sur-mesure = prix de la taille standard juste au-dessus (bois coupé à partir du standard). Hauteur sur-mesure = poteaux physiquement plus longs = surcoût matière.
 26. **Polycarbonate et vent** : les plaques sont clipsées, risque de soulèvement en cas de tempête/couloir de vent. Si client exposé au vent → préconiser Bac Acier (Carport).
 27. **Claustras modulaires** : modulables au moment de l'installation (choix libre d'emplacement). Une fois vissés, déplacement contraignant mais faisable (dévisser).
+28. **Contreventement pergola** : assuré par les **contrefiches** (pièces diagonales), PAS par les ventelles. Les ventelles servent uniquement à l'ombrage/couverture.
+29. **Poteaux lamellé-collé** : sections de ~40mm recollées sous pression. Avantage = **limite la fissuration** (PAS "plus résistant" ni "sans nœuds"). Résistance structurelle comparable au bois massif.
+30. **Pergola profondeur max** : 5,00m dans le configurateur. Impossible de dépasser. Si >5m largeur avec ventelles largeur → 3 poteaux par côté (2 angle + 1 intermédiaire).
+31. **Dalle béton studio** : dimensions hors tout − 10cm. ⚠ Les dimensions hors tout changent selon l'isolation (RE2020 100mm = murs plus épais). Si le client fournit un plan de masse (PDF), lire les cotes sur le **plan de masse** (page 2) = source de vérité, pas le texte descriptif (page 1).
+32. **Studio ossature bois — accès montage** : les panneaux se vissent depuis l'extérieur → prévoir 50-60cm d'espace libre autour du studio. Alternative : assembler chaque mur à plat puis lever le panneau complet.
+33. **Terrain non-constructible** : option châssis roulant envisageable (studio sur roues). Cependant, nous ne nous engageons pas sur la conformité réglementaire — toujours renvoyer vers mairie + notaire.
+34. **Cloison intérieure studio** : produit WooCommerce ID 5766, 60€/ml, variation_id=0 (produit simple). Quantité = mètres linéaires. Chercher via `rechercher_produits_detail(site="studio", recherche="cloison")`.
+35. **Lambourdes terrasse** : sections disponibles = 45×70 et 45×145 uniquement (PAS de 45×100). Niove exotique 40×60 pour bois exotiques/milieux humides.
+36. **Emails courts** : quand la situation est simple (attente retour poseur, suivi commande…), écrire 2-3 phrases max. Pas de formules commerciales inutiles.
 
 ---
 

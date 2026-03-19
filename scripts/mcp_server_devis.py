@@ -750,13 +750,14 @@ async def generer_devis_pergola_bois(
     Args:
         largeur              : "2m","3m","4m","5m","6m","7m","8m","9m","10m"
                                Toute combinaison avec profondeur est acceptée, y compris largeur < profondeur.
-        profondeur           : "2m","3m","4m","5m"
+        profondeur           : "2m","3m","4m","5m" — ⚠ max 5m, impossible de dépasser
         fixation             : "adossee" | "independante"
         ventelle             : "largeur" | "profondeur" | "retro" | "sans"
         option               : "non" | "platelage" | "voilage" | "bioclimatique" |
                                "carport" | "lattage" | "polycarbonate"
                                ⚠ platelage nécessite ventelle="largeur" ou "profondeur"
-        poteau_lamelle_colle : True pour ajouter des poteaux en bois lamellé-collé
+        poteau_lamelle_colle : True pour poteaux lamellé-collé (sections ~40mm collées,
+                               limite la fissuration — PAS "plus résistant")
         nb_poteaux_lamelle_colle : Nombre de poteaux lamellé-collé (0 = auto-calculé depuis
                                la description de variation). Fournir si auto-calcul échoue.
         claustra_type        : Type de claustra : "" (aucun) | "vertical" | "horizontal" |

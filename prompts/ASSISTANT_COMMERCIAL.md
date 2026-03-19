@@ -146,8 +146,12 @@ Pipeline : [Marque]
 - Menuiseries PVC (blanc intérieur / gris extérieur) ou ALU (portes, fenêtres, baies coulissantes)
 - Plancher isolé inclus. Mezzanine possible.
 - Fondations non incluses → dalle béton (dimensions hors tout − 10cm, épaisseur 12-13cm)
+  - ⚠ **Les dimensions hors tout changent selon l'isolation** : RE2020 (100mm) = murs plus épais = hors tout différent du 60mm. Toujours demander au client quelle isolation il souhaite AVANT de calculer la dalle.
+  - ⚠ **Si le client fournit un plan de masse (PDF/image)** : toujours lire les cotes sur le **plan de masse** (page 2 du PDF en général) — c'est la source de vérité. Ne jamais se fier uniquement au texte descriptif (page 1) qui peut être approximatif.
+- Ossature bois : les panneaux se vissent **depuis l'extérieur** → prévoir **50-60cm d'accès** tout autour du studio pendant le montage. Alternative : assembler chaque mur à plat (ossature + bardage) puis lever le panneau complet.
 - Livraison **gratuite 4-5 semaines**. Paiement 3× sans frais.
 - < 20m² = déclaration préalable / ≥ 20m² = permis de construire
+- **Terrain non-constructible** : option châssis roulant envisageable (studio sur roues = pas de fondation). Cependant, nous ne nous engageons pas ni ne garantissons la conformité réglementaire — toujours renvoyer le client vers sa mairie et son notaire.
 
 #### Workflow — Client studio fournit un plan
 
@@ -542,6 +546,7 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 - Clôture : `Cordialement,` | Signature : `Prénom Nom / Marque`
 - Ton : professionnel, chaleureux, concis. Pas de remplissage.
 - **Ne jamais utiliser** l'expression "Bonne nouvelle" en début de réponse.
+- **Emails COURTS quand la situation est simple** : si le message ne nécessite qu'une info simple (ex : "on attend le retour du poseur", "votre commande est en cours"), écrire 2-3 phrases max. Ne pas ajouter de formules commerciales ou de détails inutiles. Le commercial peut demander un email court explicitement — respecter cette consigne.
 
 ### A — Demande d'info générale
 ```
@@ -738,7 +743,7 @@ Cordialement,
 
 | Question | Réponse directe |
 |----------|-----------------|
-| Fondations nécessaires ? | Dalle béton, dimensions hors tout − 10cm (5cm/côté bardage, ex : studio 4,4×3,5m → dalle 4,30×3,40m), épaisseur 12-13cm. |
+| Fondations nécessaires ? | Dalle béton, dimensions hors tout − 10cm (5cm/côté bardage, ex : studio 4,4×3,5m → dalle 4,30×3,40m), épaisseur 12-13cm. ⚠ Les dimensions hors tout changent selon l'isolation (RE2020 = murs plus épais). Si le client fournit un plan de masse (PDF), lire les cotes sur le plan de masse (page 2), pas sur le texte descriptif (page 1). |
 | Électricité possible ? | Oui, passage de gaines prévu dans la structure. Raccordement par électricien local. |
 | RE2020 compatible ? | Isolation 100mm RE2020 disponible en option. Isolation standard = 60mm. |
 | Permis de construire ? | < 20m² → déclaration préalable. > 20m² → permis de construire. Vérifier PLU mairie. |
@@ -771,10 +776,12 @@ Cordialement,
 |----------|-----------------|
 | La pergola protège-t-elle de la pluie ? | La pergola standard (avec ventelles) laisse passer la lumière et offre une ombre partielle — elle n'est pas étanche. Pour une **protection pluie complète**, choisir l'option **Carport** (bac acier anti-condensation, couvre totalement la pergola). |
 | Fait-il chaud sous la pergola ? | Les ventelles bois assurent une ombre naturelle sans accumulation de chaleur. L'option Carport (bac acier anti-condensation) limite l'effet thermique. L'option bioclimatique (lames orientables Samkit) permet d'adapter l'ombre à l'ensoleillement. |
-| Portée max sans poteau ? | Dépend des ventelles : **5m** si parallèles à la muralière — **4m** si perpendiculaires (fixées sur la muralière). Au-delà → poteau intermédiaire nécessaire. |
+| Portée max sans poteau ? | Dépend des ventelles : **5m** si parallèles à la muralière — **4m** si perpendiculaires (fixées sur la muralière). Au-delà → poteau intermédiaire nécessaire. ⚠ Profondeur max dans le configurateur = **5,00m** — impossible de dépasser. |
+| Contreventement ? | Le **contreventement** (résistance aux efforts horizontaux / vent) est assuré par les **contrefiches** (pièces diagonales reliant poteaux et poutres), PAS par les ventelles. Les ventelles ne servent qu'à l'ombrage et la couverture — elles n'ont aucun rôle structurel de contreventement. |
+| Combien de poteaux ? | Pour une largeur > 5m avec ventelles dans le sens de la largeur → **3 poteaux** par côté (2 d'angle + 1 intermédiaire). Pour ≤ 5m → 2 poteaux par côté (angles uniquement). |
 | Hauteur intérieure ? | ~2,37m standard. Pieds réglables 12 à 18cm (ajustement selon terrain). |
 | Dimensions sur-mesure ? | Oui, option disponible (+199,90€). Dimensions réelles entre deux tailles standard. |
-| Poteaux lamellé-collé ? | Option disponible. Plus résistant et esthétique. Quantité calculée selon configuration. |
+| Poteaux lamellé-collé ? | Option disponible. Le bois est découpé en sections de ~40mm puis recollé sous pression. Avantage principal : **limite la fissuration** (les sections fines fissurent moins que le bois massif). Esthétiquement plus uniforme. Ne pas confondre avec "plus résistant" — la résistance structurelle est comparable au bois massif. |
 | Poteau de rive ? | Les poteaux de rive sont les **poteaux d'angle** de la pergola (aux coins de la structure). Ne pas confondre avec les poteaux intermédiaires ou la muralière. |
 | Quelle couverture choisir ? | Ventelles : ombre partielle. Platelage : couverture totale. Polycarbonate : lumineux. Bioclimatique : lames bois orientables manuellement (motorisation disponible séparément via Samkit). |
 | Polycarbonate et vent ? | Les plaques sont **clipsées** — risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)** qui offre une résistance supérieure. |
@@ -790,7 +797,7 @@ Cordialement,
 |----------|-----------------|
 | Quelle essence choisir ? | Pin autoclave : économique, dégriseur 1-2x/an ou saturateur 3-5 ans. Exotiques (Ipé, Cumaru) : durables 20-40 ans, dégriseur 1-2x/an recommandé. Vis par défaut bois exotique : **Vis Inox 5×50mm** (sauf demande contraire du client). |
 | Différence 21mm vs 27mm ? | 27mm : plus rigide, confort de marche supérieur. 21mm : suffisant pour espacement lambourdes réduit. |
-| Lambourdes fournies ? | Option. 45x70 (léger), 45x145 (ponts, zones humides), Niove exotique (milieux très humides). |
+| Lambourdes fournies ? | Option. **45×70** (standard, usage courant), **45×145** (renforcé, zones humides/pontons). ⚠ Pas de 45×100 — uniquement 45×70 et 45×145. Niove exotique 40×60 (milieux très humides/bois exotique). |
 | Plots réglables ? | De 2cm à 26cm. Choix selon dénivelé terrain. Recommandé : laisser 5cm sous plancher mini. |
 | Entretien pin autoclave ? | **Saturateur** (pas de lasure). Attendre **6 mois minimum** après pose. Puis tous les **3 à 5 ans** selon aspect. Ou dégriseur 1-2x/an. Traitement purement esthétique. |
 | Entretien bois exotique ? | Préférence : **dégriseur 1-2x/an** (brosse souple) — maintient l'aspect naturel. Huile possible si le client le souhaite, nécessite renouvellement régulier. Grisaillement naturel = normal. |
