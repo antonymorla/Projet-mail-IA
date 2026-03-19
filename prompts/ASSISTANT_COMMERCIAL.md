@@ -431,6 +431,15 @@ generer_devis_terrasse_bois_detail(
 → Comparer le prix du configurateur avec le prix au détail et choisir l'option la plus avantageuse — le client ne doit pas se sentir perdant.
 → Si une longueur est en rupture → prendre la longueur en stock la plus proche et informer le client.
 
+**Ajustement nb_lames via configurations_supplementaires :**
+→ Si le configurateur en mode m² calcule moins de lames que le client souhaite (ex : 18 au lieu de 22), **ne pas simplement passer nb_lames=22** (cela fausse le ratio accessoires/lames). À la place, utiliser `configurations_supplementaires` pour ajouter la différence exacte en mode `nb_lames` :
+→ Config principale : mode m² (donne 18 lames + lambourdes + plots + vis correctement calculés)
+→ Config supplémentaire : `{"nb_lames": 4}` (ajoute exactement 4 lames sans accessoires superflus)
+→ Total : 22 lames + accessoires correctement dimensionnés ✓
+
+**Commandes cross-site :**
+→ Les produits de sites différents (ex : planches sur abri-francais.fr + terrasse sur terrasseenbois.fr) nécessitent des **commandes séparées** (2 paniers différents). Utiliser le regroupement livraison : sélectionner "Retrait Illies" sur la commande secondaire + préciser dans les annotations de grouper avec la commande principale → expédition en une seule livraison.
+
 #### Kits terrasse préconçus (WooCommerce)
 Surfaces fixes : **10 / 20 / 40 / 60 / 80 m²** — utiliser uniquement si le client veut exactement ces surfaces.
 → `rechercher_produits_detail(site="terrasse", recherche="[essence]")` pour trouver le kit.
@@ -505,6 +514,7 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 - Terrasse : gratuite >1 000€ de commande.
 
 **Paiement :** CB / Virement / Chèque / PayPal / 3× sans frais. Code "MERCI" = -5% permanent post-achat.
+→ **Paiement CB** : diriger le client vers le lien "Commander en ligne" en bas du devis (ou QR code). Le paiement CB est proposé lors de la validation du panier. Le 3× sans frais est disponible directement en ligne.
 - **Annulation** : gratuite si la commande n'est pas encore en production.
 - **Retour** : 14 jours après réception, produit non utilisé, emballage original. Frais de retour à la charge du client.
 - **Pro / collectivité** : virement + bon de commande acceptés.
@@ -743,7 +753,7 @@ Cordialement,
 
 | Question | Réponse directe |
 |----------|-----------------|
-| Fondations nécessaires ? | Dalle béton, dimensions hors tout − 10cm (5cm/côté bardage, ex : studio 4,4×3,5m → dalle 4,30×3,40m), épaisseur 12-13cm. ⚠ Les dimensions hors tout changent selon l'isolation (RE2020 = murs plus épais). Si le client fournit un plan de masse (PDF), lire les cotes sur le plan de masse (page 2), pas sur le texte descriptif (page 1). |
+| Fondations nécessaires ? | Dalle béton = emprise de l'**ossature** (hors tout − ~10cm). Le bardage déborde de chaque côté (~5cm) et ne repose PAS sur la dalle. L'ossature se pose à ras de la dalle. Ex : studio 4,4×3,5m hors-tout → dalle ~4,30×3,40m, épaisseur 12-13cm. ⚠ Les dimensions hors tout changent selon l'isolation (RE2020 = murs plus épais → dalle différente). Si le client fournit un plan de masse (PDF), lire les cotes sur le plan de masse (page 2 = source de vérité), pas sur le texte descriptif (page 1). |
 | Électricité possible ? | Oui, passage de gaines prévu dans la structure. Raccordement par électricien local. |
 | RE2020 compatible ? | Isolation 100mm RE2020 disponible en option. Isolation standard = 60mm. |
 | Permis de construire ? | < 20m² → déclaration préalable. > 20m² → permis de construire. Vérifier PLU mairie. |
@@ -764,7 +774,9 @@ Cordialement,
 | Code promo ? | Codes LEROYMERLIN10 (Gamme Origine) / LEROYMERLIN5 (Gamme Essentiel). Vérifier la remise en cours via `verifier_promotions_actives`. |
 | Extension toiture ? | Oui, en Droite ou Gauche : 1m, 1,5m, 2m, 3,5m. |
 | Prédécoupe ? | Option à +299€ (Gamme Origine uniquement). Les **planches de mur** sont prédécoupées en usine aux dimensions exactes de l'abri → montage plus rapide, pas de coupe à faire sur les murs. ⚠ Le client devra toujours couper lui-même les **poteaux, chevrons de toiture, bandeaux de toiture et la dernière feuille de bac acier**. Paramètre : `predecoupe=True` dans `generer_devis_abri`. |
+| Peut-on supprimer le bardage sur une face (abri adossé) ? | Oui, les madriers s'emboîtent face par face — on peut ne pas monter les madriers d'une ou plusieurs faces. ⚠ **Attention contreventement** : les madriers emboîtés dans les rainures des poteaux rigidifient la structure. En supprimant le bardage, les poteaux libres doivent être **fixés dans les murs existants** (équerres, tirefonds) pour compenser la perte de contreventement. Toujours le mentionner dans l'email. |
 | Peut-on inverser la façade / déplacer la porte ? | Oui, les madriers étant emboîtables et symétriques, on peut inverser la façade au montage (ex : porte à droite au lieu de gauche). Le mur du fond doit être inversé **UNIQUEMENT** si c'est un abri double avec poteau H entre les deux murs. Sur un abri simple, seule la façade est inversée — rien à modifier sur la commande. |
+| Notice de montage disponible avant commande ? | La notice détaillée est fournie avec la commande (pas avant). Pour se faire une idée : les modèles préconçus ont des notices téléchargeables sur abri-francais.fr — chercher un modèle similaire à la configuration. Le principe d'assemblage est identique entre les gammes (poteaux → madriers → toiture). |
 | Usage habitation possible ? | ⚠ Non — l'abri n'est pas conçu pour l'isolation thermique (usage stockage/atelier uniquement). Pour un espace de vie chauffé → voir les Studios de jardin. |
 | Stockage avant montage ? | Max **3 semaines** après réception. Au-delà → risque de déformation non couverte par la garantie. À prévoir si dalle non prête à la livraison. |
 | Dalle existante plus grande que l'abri ? | ⚠ Risque d'infiltration sur la partie non couverte. Solutions : (1) option plancher (recommandée), (2) carrelage aux cotes de l'abri, (3) couper la dalle, (4) prendre un abri plus grand et couper les lames sur place. |
@@ -782,6 +794,8 @@ Cordialement,
 | Hauteur intérieure ? | ~2,37m standard. Pieds réglables 12 à 18cm (ajustement selon terrain). |
 | Dimensions sur-mesure ? | Oui, option disponible (+199,90€). Dimensions réelles entre deux tailles standard. |
 | Poteaux lamellé-collé ? | Option disponible. Le bois est découpé en sections de ~40mm puis recollé sous pression. Avantage principal : **limite la fissuration** (les sections fines fissurent moins que le bois massif). Esthétiquement plus uniforme. Ne pas confondre avec "plus résistant" — la résistance structurelle est comparable au bois massif. |
+| Bioclimatique au détail (sans structure) ? | Non — le système bioclimatique Samkit (lames bois orientables manuellement) n'est vendu qu'en option intégrée à notre pergola complète. Impossible de l'acheter séparément pour une structure existante. Si le client veut l'ensemble → proposer un devis pergola avec `option="bioclimatique"`. |
+| Notice de montage pergola ? | Disponible à mapergolabois.fr/notice + QR code fourni avec la commande. |
 | Poteau de rive ? | Les poteaux de rive sont les **poteaux d'angle** de la pergola (aux coins de la structure). Ne pas confondre avec les poteaux intermédiaires ou la muralière. |
 | Quelle couverture choisir ? | Ventelles : ombre partielle. Platelage : couverture totale. Polycarbonate : lumineux. Bioclimatique : lames bois orientables manuellement (motorisation disponible séparément via Samkit). |
 | Polycarbonate et vent ? | Les plaques sont **clipsées** — risque de soulèvement en cas de tempête ou couloir de vent. Si le client est exposé au vent, préconiser plutôt l'option **Bac Acier (Carport)** qui offre une résistance supérieure. |
@@ -796,6 +810,7 @@ Cordialement,
 | Question | Réponse directe |
 |----------|-----------------|
 | Quelle essence choisir ? | Pin autoclave : économique, dégriseur 1-2x/an ou saturateur 3-5 ans. Exotiques (Ipé, Cumaru) : durables 20-40 ans, dégriseur 1-2x/an recommandé. Vis par défaut bois exotique : **Vis Inox 5×50mm** (sauf demande contraire du client). |
+| Forets fournis avec les vis ? | Non — les forets ne sont PAS fournis avec les boîtes de vis. Pour les bois exotiques (Cumaru, Ipé, Padouk), un **pré-perçage est obligatoire** avant chaque vissage (bois très dur, risque de fendre). Forets HSS ou carbure de tungstène, diamètre 3,5 à 4mm (pour vis 5×50). Prévoir plusieurs forets (usure rapide dans le bois exotique). Disponible en GSB. |
 | Différence 21mm vs 27mm ? | 27mm : plus rigide, confort de marche supérieur. 21mm : suffisant pour espacement lambourdes réduit. |
 | Lambourdes fournies ? | Option. **45×70** (standard, usage courant), **45×145** (renforcé, zones humides/pontons). ⚠ Pas de 45×100 — uniquement 45×70 et 45×145. Niove exotique 40×60 (milieux très humides/bois exotique). |
 | Plots réglables ? | De 2cm à 26cm. Choix selon dénivelé terrain. Recommandé : laisser 5cm sous plancher mini. |
