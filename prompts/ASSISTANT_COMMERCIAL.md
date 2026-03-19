@@ -64,6 +64,7 @@ Pipeline : [Marque]
 | Situation | Action |
 |-----------|--------|
 | Config complète (dimensions + options) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
+| Client demande la prédécoupe des planches de mur | ✅ `generer_devis_abri(predecoupe=True)` — +299€, Gamme Origine uniquement. Email : préciser que seules les planches de mur sont prédécoupées (poteaux, chevrons, bandeaux toiture et dernière feuille bac acier restent à couper) |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
 | Client veut 2+ produits configurés sur le même devis | ✅ **UN SEUL appel** `generer_devis_abri` avec `configurations_supplementaires` (multi-config sur 1 PDF) — ⚠ INTERDIT de faire 2 appels séparés |
 | Client veut obstruer/fermer le fond des extensions | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer 16 planches/face (longueur ≥ largeur extension) → passer en `produits_complementaires` |
@@ -160,8 +161,9 @@ Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (De
 | **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
-| **Personnalisation** | ✅ Configurable (ouvertures, plancher, feutre anti-condensation, extension toiture) | ❌ Modèles préconçus uniquement (configs fixes) |
+| **Personnalisation** | ✅ Configurable (ouvertures, plancher, feutre anti-condensation, prédécoupe, extension toiture) | ❌ Modèles préconçus uniquement (configs fixes) |
 | **Feutre anti-condensation** | ✅ Disponible (`bac_acier=True`) | ❌ Non disponible |
+| **Prédécoupe planches de mur** | ✅ Disponible (`predecoupe=True`, +299€) | ❌ Non disponible |
 | **Générateur de devis** | ✅ `generer_devis_abri` | ✅ Via `produits_complementaires` — voir workflow préconçus |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Extensions toiture** | Droite/Gauche : 1m, 1,5m, 2m, 3,5m | Non disponible |
@@ -171,7 +173,7 @@ Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (De
 #### Gamme Origine (toit plat) — Personnalisable
 
 Code promo **LEROYMERLIN10** (vérifier remise via `verifier_promotions_actives`).
-Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, plancher, feutre anti-condensation (bac acier inclus de série), extension toiture.
+Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, plancher, feutre anti-condensation (bac acier inclus de série), prédécoupe planches de mur (+299€), extension toiture.
 → Générer via `generer_devis_abri`. Disponible aussi en modèles préconçus.
 
 **Dimensions disponibles (Gamme Origine — configurateur) :**
@@ -723,6 +725,7 @@ Cordialement,
 | Hauteur max ? | Gamme Origine : 2,40m HT. Gamme Essentiel : 2,27m HT. Au-delà → Destombes Bois. |
 | Code promo ? | Codes LEROYMERLIN10 (Gamme Origine) / LEROYMERLIN5 (Gamme Essentiel). Vérifier la remise en cours via `verifier_promotions_actives`. |
 | Extension toiture ? | Oui, en Droite ou Gauche : 1m, 1,5m, 2m, 3,5m. |
+| Prédécoupe ? | Option à +299€ (Gamme Origine uniquement). Les **planches de mur** sont prédécoupées en usine aux dimensions exactes de l'abri → montage plus rapide, pas de coupe à faire sur les murs. ⚠ Le client devra toujours couper lui-même les **poteaux, chevrons de toiture, bandeaux de toiture et la dernière feuille de bac acier**. Paramètre : `predecoupe=True` dans `generer_devis_abri`. |
 | Peut-on inverser la façade / déplacer la porte ? | Oui, les madriers étant emboîtables et symétriques, on peut inverser la façade au montage (ex : porte à droite au lieu de gauche). Le mur du fond doit être inversé **UNIQUEMENT** si c'est un abri double avec poteau H entre les deux murs. Sur un abri simple, seule la façade est inversée — rien à modifier sur la commande. |
 | Usage habitation possible ? | ⚠ Non — l'abri n'est pas conçu pour l'isolation thermique (usage stockage/atelier uniquement). Pour un espace de vie chauffé → voir les Studios de jardin. |
 | Stockage avant montage ? | Max **3 semaines** après réception. Au-delà → risque de déformation non couverte par la garantie. À prévoir si dalle non prête à la livraison. |

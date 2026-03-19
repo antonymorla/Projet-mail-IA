@@ -73,6 +73,7 @@ Corps: …
 | Situation | Action |
 |-----------|--------|
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis_abri` ou `generer_devis_studio` + email B2 court |
+| Client demande la prédécoupe des planches de mur | ✅ `generer_devis_abri(predecoupe=True)` — +299€, Gamme Origine uniquement. Dans l'email : préciser que seules les planches de mur sont prédécoupées (poteaux, chevrons, bandeaux de toiture et dernière feuille de bac acier restent à couper par le client) |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis_abri`/`generer_devis_studio` avec `produits_complementaires` |
 | Client veut 2+ produits personnalisés sur le même devis | ✅ **UN SEUL appel** à l'outil correspondant (`generer_devis_abri`, `generer_devis_studio`, `generer_devis_pergola_bois`, `generer_devis_terrasse_bois`, `generer_devis_cloture_bois`) avec `configurations_supplementaires` — ⚠ INTERDIT de faire 2 appels séparés |
 | Client veut obstruer/fermer le fond des extensions | ✅ `rechercher_produits_detail(site="abri", recherche="planche 27x130")` → calculer quantités (16 planches/face, longueur ≥ largeur extension) → passer en `produits_complementaires` |
@@ -724,8 +725,9 @@ Pin autoclave classe 3, madriers 28mm rainure-languette. Fabriqué à Lille (Des
 | **Hauteur faîtage** | 2,40 m HT | 2,27 m HT |
 | **Hauteur intérieure** | ~2,05 m | ~1,95 m |
 | **Matériaux** | Pin autoclave 28mm, madriers emboîtables | Pin autoclave 28mm, madriers emboîtables |
-| **Personnalisation** | ✅ Configurable (ouvertures, plancher, feutre anti-condensation, extension toiture) | ❌ Modèles préconçus uniquement (configs porte+fenêtre fixes) |
+| **Personnalisation** | ✅ Configurable (ouvertures, plancher, feutre anti-condensation, prédécoupe, extension toiture) | ❌ Modèles préconçus uniquement (configs porte+fenêtre fixes) |
 | **Feutre anti-condensation** | ✅ Disponible (`bac_acier=True`) | ❌ Non disponible |
+| **Prédécoupe planches de mur** | ✅ Disponible (`predecoupe=True`, +299€) | ❌ Non disponible |
 | **Générateur de devis** | ✅ `generer_devis_abri` | ✅ Via `produits_complementaires` — voir workflow préconçus ci-dessous |
 | **Code promo** | **LEROYMERLIN10** (-10%) | **LEROYMERLIN5** (-5%) |
 | **Fondations** | Pas de dalle nécessaire — plots béton ou réglables | Pas de dalle nécessaire — plots béton ou réglables |

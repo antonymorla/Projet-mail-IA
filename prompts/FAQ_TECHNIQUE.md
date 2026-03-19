@@ -68,6 +68,12 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 **Inversion de façade au montage**
 - Les madriers étant emboîtables et symétriques, il est possible d'**inverser la façade** lors du montage (ex : déplacer la porte du côté gauche vers le côté droit). Le mur du fond doit être inversé **UNIQUEMENT** si c'est un abri double avec un poteau en H entre les deux murs. Sur un abri simple, seule la façade est inversée — rien à modifier sur la commande.
 
+**Prédécoupe planches de mur** (+299€, Gamme Origine uniquement)
+- Les **planches de mur** sont prédécoupées en usine aux dimensions exactes de l'abri → montage plus rapide, pas de coupe à faire sur les murs.
+- ⚠ Le client devra toujours couper lui-même : les **poteaux**, les **chevrons de toiture**, les **bandeaux de toiture** et la **dernière feuille de bac acier**.
+- Paramètre : `predecoupe=True` dans `generer_devis_abri`.
+- Non disponible sur la Gamme Essentiel (modèles préconçus).
+
 **Ouvertures disponibles**
 - Porte Vitrée, Porte Pleine, Porte double Vitrée, Porte double Pleine
 - Fenêtre Horizontale (bandeau), Fenêtre Verticale (haute)
