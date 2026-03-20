@@ -1420,7 +1420,11 @@ class GenerateurDevis:
         IMPORTANT : La recherche de position est scopée à la face sélectionnée
         pour éviter de cliquer une position d'une autre face.
         """
-        # 1. Cliquer sur le type d'ouverture pour l'expandre
+        # 0. Ouvrir visuellement le groupe parent "OUVERTURES" (scroll + clic)
+        await self._click_by_data_text("OUVERTURES")
+        await self.page.wait_for_timeout(500)
+
+        # 1. Cliquer sur le type d'ouverture pour l'expandre (scroll visible)
         await self._click_by_data_text(type_ouverture)
         await self.page.wait_for_timeout(800)
 

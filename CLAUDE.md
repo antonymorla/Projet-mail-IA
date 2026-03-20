@@ -75,6 +75,7 @@ Corps: …
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
 | **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` → `generer_devis_terrasse_bois_detail` (quantités exactes) |
+| **Pergola — pièces détachées (polycarbonate, rails…)** | ✅ `rechercher_produits_detail(site="pergola")` → `generer_devis_pergola_bois(produits_uniquement=True, produits_complementaires=[...])` |
 | Client avec budget serré pour un abri | ✉ Proposer Gamme Essentiel (renvoyer vers le site — non génératable) |
 | Infos manquantes | ✉ Email B — demander les compléments |
 | Demande d'info générale | ✉ Email A — informatif + questions qualificatives |
@@ -97,7 +98,7 @@ Corps: …
 | `verifier_promotions_actives` | **Appeler EN PREMIER** — scrape les 5 sites, retourne codes promo + remises actives |
 | `rechercher_produits_detail` | **Catalogue live** — trouver produit par nom, obtenir variation_id + stock |
 | `generer_devis` | Abri ou Studio (WPC Booster, images de config dans PDF) |
-| `generer_devis_pergola_bois` | Pergola bois (mapergolabois.fr) |
+| `generer_devis_pergola_bois` | Pergola bois (mapergolabois.fr) — `produits_uniquement=True` pour pièces détachées seules |
 | `generer_devis_terrasse_bois` | Terrasse bois — mode surface m² ou nb_lames/nb_lambourdes (configurateur WAPF) |
 | `generer_devis_terrasse_bois_detail` | Terrasse bois — **quantités EXACTES** (au détail, sans configurateur) |
 | `generer_devis_cloture_bois` | Kit clôture bois (cloturebois.fr) |
@@ -245,10 +246,13 @@ generer_devis_pergola_bois(
     produits_complementaires='[]',
     # Multi-config : ajouter une 2ème pergola au même panier/PDF
     configurations_supplementaires='[]',
+    # Mode pièces détachées : sauter le configurateur, ajouter uniquement les produits_complementaires
+    produits_uniquement=False,  # True = pas de pergola configurée, juste les produits au panier
 )
 ```
 
 > ⚠ `platelage` exige `ventelle="largeur"` ou `ventelle="profondeur"`
+> ⚠ `produits_uniquement=True` : les paramètres largeur/profondeur/fixation/ventelle sont ignorés. Utile pour commandes de pièces détachées (polycarbonate, rails, accessoires).
 
 **Accessoires pergola notables :**
 - **Poteau Rive** → `rechercher_produits_detail(site="pergola", recherche="poteau rive")`

@@ -1199,10 +1199,10 @@ async def _configurer_et_ajouter_pergola(
 
 
 async def generer_devis_pergola(
-    largeur: str,
-    profondeur: str,
-    fixation: str,
-    ventelle: str,
+    largeur: str = "",
+    profondeur: str = "",
+    fixation: str = "",
+    ventelle: str = "",
     option: str = "non",
     poteau_lamelle_colle: bool = False,
     nb_poteaux_lamelle_colle: int = 0,
@@ -1223,6 +1223,7 @@ async def generer_devis_pergola(
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
     configurations_supplementaires: str = "[]",
+    produits_uniquement: bool = False,
     headless: bool = False,
 ) -> tuple:
     """
@@ -1246,6 +1247,8 @@ async def generer_devis_pergola(
                                 Format : {"field_id": "valeur"} ou {"field_id": {"type": "swatch", "value": "..."}}
                                 Permet de piloter n'importe quel champ WAPF non prévu explicitement.
         client_*              : coordonnées client pour le PDF
+        produits_uniquement   : True → sauter le configurateur, ajouter UNIQUEMENT les
+                                produits_complementaires au panier. Pour commandes de pièces détachées.
         configurations_supplementaires : JSON array de configs supplémentaires.
             Chaque élément est un dict avec les mêmes clés que la config principale :
             {"largeur": "5m", "profondeur": "3m", "fixation": "independante",
@@ -1268,21 +1271,26 @@ async def generer_devis_pergola(
     print(f"\n{'='*60}")
     print(f"  DEVIS PERGOLA — mapergolabois.fr")
     print(f"  Client : {client_prenom} {client_nom}")
-    extra = " | lamellé-collé" if poteau_lamelle_colle else ""
-    if claustra_type:
-        extra += f" | claustra={claustra_type}×{nb_claustra}"
-    if pente:
-        extra += f" | pente={pente}"
-    if sur_mesure and largeur_hors_tout:
-        sm = f" | SUR-MESURE {largeur_hors_tout}m×{profondeur_hors_tout}m"
-        if hauteur_hors_tout:
-            sm += f" h={hauteur_hors_tout}m"
-        extra += sm
-    if wapf_opts:
-        extra += f" | wapf={list(wapf_opts.keys())}"
-    print(f"  {largeur} × {profondeur} | {fixation} | ventelle={ventelle} | option={option}{extra}")
-    if configs_sup:
-        print(f"  + {len(configs_sup)} configuration(s) supplémentaire(s)")
+    if produits_uniquement:
+        produits_list_pre = json.loads(produits_complementaires) if produits_complementaires and produits_complementaires != "[]" else []
+        print(f"  Mode : produits_uniquement (sans configurateur)")
+        print(f"  {len(produits_list_pre)} produit(s) à ajouter")
+    else:
+        extra = " | lamellé-collé" if poteau_lamelle_colle else ""
+        if claustra_type:
+            extra += f" | claustra={claustra_type}×{nb_claustra}"
+        if pente:
+            extra += f" | pente={pente}"
+        if sur_mesure and largeur_hors_tout:
+            sm = f" | SUR-MESURE {largeur_hors_tout}m×{profondeur_hors_tout}m"
+            if hauteur_hors_tout:
+                sm += f" h={hauteur_hors_tout}m"
+            extra += sm
+        if wapf_opts:
+            extra += f" | wapf={list(wapf_opts.keys())}"
+        print(f"  {largeur} × {profondeur} | {fixation} | ventelle={ventelle} | option={option}{extra}")
+        if configs_sup:
+            print(f"  + {len(configs_sup)} configuration(s) supplémentaire(s)")
     print(f"{'='*60}\n")
 
     SITE_URL = "https://mapergolabois.fr"
@@ -1299,52 +1307,56 @@ async def generer_devis_pergola(
         try:
             nb_items_panier = 0
 
-            # ── Configuration principale ───────────────────────────────
-            await _configurer_et_ajouter_pergola(
-                page, PRODUCT_URL,
-                largeur=largeur, profondeur=profondeur, fixation=fixation,
-                ventelle=ventelle, option=option,
-                poteau_lamelle_colle=poteau_lamelle_colle,
-                nb_poteaux_lamelle_colle=nb_poteaux_lamelle_colle,
-                claustra_type=claustra_type, nb_claustra=nb_claustra,
-                sur_mesure=sur_mesure, largeur_hors_tout=largeur_hors_tout,
-                profondeur_hors_tout=profondeur_hors_tout, hauteur_hors_tout=hauteur_hors_tout,
-                pente=pente, options_wapf=wapf_opts,
-                nb_attendu=1, site_url=SITE_URL,
-            )
-            nb_items_panier = 1
-
-            # ── Configurations supplémentaires (multi-pergola) ─────────
-            for idx, cfg in enumerate(configs_sup):
-                print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configs_sup)} ───")
-                nb_items_panier += 1
-                # Parser options_wapf de la config supplémentaire
-                cfg_wapf = cfg.get("options_wapf", {})
-                if isinstance(cfg_wapf, str):
-                    cfg_wapf = json.loads(cfg_wapf) if cfg_wapf and cfg_wapf != "{}" else {}
+            # --- Mode produits_uniquement : sauter le configurateur ---
+            if not produits_uniquement:
+                # ── Configuration principale ───────────────────────────────
                 await _configurer_et_ajouter_pergola(
                     page, PRODUCT_URL,
-                    largeur=cfg.get("largeur", ""),
-                    profondeur=cfg.get("profondeur", ""),
-                    fixation=cfg.get("fixation", "independante"),
-                    ventelle=cfg.get("ventelle", "sans"),
-                    option=cfg.get("option", "non"),
-                    poteau_lamelle_colle=cfg.get("poteau_lamelle_colle", False),
-                    nb_poteaux_lamelle_colle=cfg.get("nb_poteaux_lamelle_colle", 0),
-                    claustra_type=cfg.get("claustra_type", ""),
-                    nb_claustra=cfg.get("nb_claustra", 0),
-                    sur_mesure=cfg.get("sur_mesure", False),
-                    largeur_hors_tout=cfg.get("largeur_hors_tout", ""),
-                    profondeur_hors_tout=cfg.get("profondeur_hors_tout", ""),
-                    hauteur_hors_tout=cfg.get("hauteur_hors_tout", ""),
-                    pente=cfg.get("pente", pente),  # hérite de la config principale si non spécifié
-                    options_wapf=cfg_wapf or wapf_opts,  # idem
-                    nb_attendu=nb_items_panier, site_url=SITE_URL,
+                    largeur=largeur, profondeur=profondeur, fixation=fixation,
+                    ventelle=ventelle, option=option,
+                    poteau_lamelle_colle=poteau_lamelle_colle,
+                    nb_poteaux_lamelle_colle=nb_poteaux_lamelle_colle,
+                    claustra_type=claustra_type, nb_claustra=nb_claustra,
+                    sur_mesure=sur_mesure, largeur_hors_tout=largeur_hors_tout,
+                    profondeur_hors_tout=profondeur_hors_tout, hauteur_hors_tout=hauteur_hors_tout,
+                    pente=pente, options_wapf=wapf_opts,
+                    nb_attendu=1, site_url=SITE_URL,
                 )
+                nb_items_panier = 1
 
-            # ── Produits complémentaires ─────────────────────────────────
+                # ── Configurations supplémentaires (multi-pergola) ─────────
+                for idx, cfg in enumerate(configs_sup):
+                    print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configs_sup)} ───")
+                    nb_items_panier += 1
+                    # Parser options_wapf de la config supplémentaire
+                    cfg_wapf = cfg.get("options_wapf", {})
+                    if isinstance(cfg_wapf, str):
+                        cfg_wapf = json.loads(cfg_wapf) if cfg_wapf and cfg_wapf != "{}" else {}
+                    await _configurer_et_ajouter_pergola(
+                        page, PRODUCT_URL,
+                        largeur=cfg.get("largeur", ""),
+                        profondeur=cfg.get("profondeur", ""),
+                        fixation=cfg.get("fixation", "independante"),
+                        ventelle=cfg.get("ventelle", "sans"),
+                        option=cfg.get("option", "non"),
+                        poteau_lamelle_colle=cfg.get("poteau_lamelle_colle", False),
+                        nb_poteaux_lamelle_colle=cfg.get("nb_poteaux_lamelle_colle", 0),
+                        claustra_type=cfg.get("claustra_type", ""),
+                        nb_claustra=cfg.get("nb_claustra", 0),
+                        sur_mesure=cfg.get("sur_mesure", False),
+                        largeur_hors_tout=cfg.get("largeur_hors_tout", ""),
+                        profondeur_hors_tout=cfg.get("profondeur_hors_tout", ""),
+                        hauteur_hors_tout=cfg.get("hauteur_hors_tout", ""),
+                        pente=cfg.get("pente", pente),  # hérite de la config principale si non spécifié
+                        options_wapf=cfg_wapf or wapf_opts,  # idem
+                        nb_attendu=nb_items_panier, site_url=SITE_URL,
+                    )
+
+            # ── Produits (complémentaires ou uniquement) ─────────────────
+            label = "Produits" if produits_uniquement else "Produits complémentaires"
             produits_list = json.loads(produits_complementaires) if produits_complementaires and produits_complementaires != "[]" else []
             if produits_list:
+                print(f"\n  ─── {label} ({len(produits_list)}) ───")
                 await _ajouter_produits_complementaires(page, produits_list, site_url=SITE_URL)
 
             # ── Panier : code promo, livraison, date estimée ─────────────

@@ -62,6 +62,7 @@ Pipeline : [Marque]
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes) → `generer_devis_terrasse_bois_detail` |
 | **Terrasse — devis comparatif essences différentes** | ✅ Recalculer nb_lames selon longueurs dispo de chaque essence (longueurs ≠ entre Pin et exotiques) |
+| **Pergola — pièces détachées uniquement (polycarbonate, rails…)** | ✅ `rechercher_produits_detail(site="pergola")` → `generer_devis_pergola_bois(produits_uniquement=True, produits_complementaires=[...])` |
 | Client avec budget serré pour un abri | ✅ `generer_devis(site="abri", produits_uniquement=True)` pour Gamme Essentiel (rechercher via `rechercher_produits_detail(site="abri", recherche="essentiel")`) |
 | Infos manquantes | Email B (demander dimensions/options) |
 | Info générale | Email A (questions qualificatives + configurateur en ligne) |
@@ -688,7 +689,7 @@ Tu disposes de **8 outils MCP** (disponibles depuis Claude Desktop avec le MCP s
 | `verifier_promotions_actives` | **À appeler EN PREMIER** — scrape les 5 sites, retourne codes promo + remises actives |
 | `rechercher_produits_detail` | **Catalogue live** — chercher un produit par nom sur n'importe quel site + vérification stock |
 | `generer_devis` | Abri de jardin ou Studio de jardin (configurateur WPC Booster) |
-| `generer_devis_pergola_bois` | Pergola bois (mapergolabois.fr) |
+| `generer_devis_pergola_bois` | Pergola bois (mapergolabois.fr) — `produits_uniquement=True` pour pièces détachées seules |
 | `generer_devis_terrasse_bois` | Terrasse bois — mode surface m² ou nb_lames/nb_lambourdes (configurateur WAPF) |
 | `generer_devis_terrasse_bois_detail` | Terrasse bois — **quantités EXACTES** au détail (lames + lambourdes + plots + vis séparément) |
 | `generer_devis_cloture_bois` | Kit clôture bois (cloturebois.fr) |

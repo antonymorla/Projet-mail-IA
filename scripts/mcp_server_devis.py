@@ -536,10 +536,10 @@ def verifier_promotions_actives() -> str:
 
 @mcp.tool()
 async def generer_devis_pergola_bois(
-    largeur: str,
-    profondeur: str,
-    fixation: str,
-    ventelle: str,
+    largeur: str = "",
+    profondeur: str = "",
+    fixation: str = "",
+    ventelle: str = "",
     option: str = "non",
     poteau_lamelle_colle: bool = False,
     nb_poteaux_lamelle_colle: int = 0,
@@ -560,13 +560,17 @@ async def generer_devis_pergola_bois(
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
     configurations_supplementaires: str = "[]",
+    produits_uniquement: bool = False,
 ) -> str:
     """Génère un devis pergola bois sur mapergolabois.fr.
 
     Args:
         largeur              : "2m","3m","4m","5m","6m","7m","8m","9m","10m"
+                               (optionnel si produits_uniquement=True)
         profondeur           : "2m","3m","4m","5m"
+                               (optionnel si produits_uniquement=True)
         fixation             : "adossee" | "independante"
+                               (optionnel si produits_uniquement=True)
         ventelle             : "largeur" | "profondeur" | "retro" | "sans"
         option               : "non" | "platelage" | "voilage" | "bioclimatique" |
                                "carport" | "lattage" | "polycarbonate"
@@ -602,6 +606,10 @@ async def generer_devis_pergola_bois(
                                est un dict avec les mêmes clés : {"largeur": "5m", "profondeur": "3m",
                                "fixation": "independante", "ventelle": "largeur", "option": "non", ...}
                                Permet de mettre plusieurs pergolas sur le même devis PDF.
+        produits_uniquement  : True pour générer un devis avec UNIQUEMENT les
+                               produits_complementaires (sans configurer de pergola).
+                               Utile pour commandes de pièces détachées (polycarbonate, rails, etc.).
+                               Les paramètres largeur/profondeur/fixation/ventelle sont ignorés.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -620,6 +628,7 @@ async def generer_devis_pergola_bois(
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
         "configurations_supplementaires": configurations_supplementaires,
+        "produits_uniquement": produits_uniquement,
     }, client_prenom, client_nom)
 
 
