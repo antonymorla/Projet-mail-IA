@@ -1142,32 +1142,48 @@ async def _configurer_et_ajouter_pergola(
         await page.wait_for_timeout(300)
         # JS click direct — page.click() échoue sur les swatches WAPF car le
         # <input radio> caché (opacity:0, position:absolute) intercepte le clic
+        # ⚠ Vérifier si déjà sélectionné AVANT de cliquer (sinon toggle = désélection)
         js_result = await page.evaluate("""
             (args) => {
                 var c = document.querySelector('.wapf-field-container.field-' + args.fid + ':not(.wapf-hide)');
                 if (!c) return {ok: false, error: 'container_not_found'};
                 var labels = c.querySelectorAll('div.wapf-swatch label[aria-label]');
                 var target = args.pct.replace('%', '').trim();
+                // Chercher le label cible
+                var targetLabel = null;
                 for (var l of labels) {
                     var aria = l.getAttribute('aria-label') || '';
                     if (aria === args.pct || aria === ('Pente ' + args.pct)) {
-                        l.click();
-                        return {ok: true, aria: aria, method: 'exact'};
+                        targetLabel = l; break;
                     }
                 }
-                for (var l of labels) {
-                    var aria = l.getAttribute('aria-label') || '';
-                    if (aria.replace('%', '').trim().indexOf(target) !== -1) {
-                        l.click();
-                        return {ok: true, aria: aria, method: 'partial'};
+                if (!targetLabel) {
+                    for (var l of labels) {
+                        var aria = l.getAttribute('aria-label') || '';
+                        if (aria.replace('%', '').trim().indexOf(target) !== -1) {
+                            targetLabel = l; break;
+                        }
                     }
                 }
-                var available = Array.from(labels).map(l => l.getAttribute('aria-label'));
-                return {ok: false, error: 'no_match', available: available};
+                if (!targetLabel) {
+                    var available = Array.from(labels).map(l => l.getAttribute('aria-label'));
+                    return {ok: false, error: 'no_match', available: available};
+                }
+                // Vérifier si déjà sélectionné (input:checked à l'intérieur)
+                var input = targetLabel.querySelector('input');
+                if (input && input.checked) {
+                    return {ok: true, aria: targetLabel.getAttribute('aria-label'), method: 'already_selected'};
+                }
+                targetLabel.click();
+                return {ok: true, aria: targetLabel.getAttribute('aria-label'), method: 'clicked'};
             }
         """, {"fid": PENTE_FIELD_ID, "pct": pente_pct})
         if js_result.get("ok"):
-            print(f"    ✓ Pente de toiture sélectionnée : {js_result['aria']}")
+            method = js_result.get('method', '')
+            if method == 'already_selected':
+                print(f"    ✓ Pente {js_result['aria']} (déjà sélectionnée)")
+            else:
+                print(f"    ✓ Pente de toiture sélectionnée : {js_result['aria']}")
         else:
             print(f"    ⚠ Pente swatch non trouvé ({pente_pct}): {js_result}")
         await page.wait_for_timeout(500)

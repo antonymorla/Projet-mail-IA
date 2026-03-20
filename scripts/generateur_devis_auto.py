@@ -1289,7 +1289,11 @@ class GenerateurDevis:
                 var descendants = group.querySelectorAll('li.wpc-control-item');
                 for (var d of descendants) {
                     if (d.getAttribute('data-text') === args.optionText && d.classList.contains('current')) {
-                        return true;
+                        // Vérifier que c'est le bouton visible (pas un homonyme caché)
+                        var isHidden = d.classList.contains('wpc-cl-hide-group')
+                                    || d.classList.contains('wpc-cl-hide-layer')
+                                    || window.getComputedStyle(d).display === 'none';
+                        if (!isHidden) return true;
                     }
                 }
                 return false;
@@ -1330,7 +1334,11 @@ class GenerateurDevis:
                 var descendants = group.querySelectorAll('li.wpc-control-item');
                 for (var d of descendants) {
                     if (d.getAttribute('data-text') === args.optionText) {
-                        if (!d.classList.contains('wpc-cl-hide-group')) { option = d; break; }
+                        // Vérifier les 2 classes de masquage WPC + le display CSS
+                        var isHidden = d.classList.contains('wpc-cl-hide-group')
+                                    || d.classList.contains('wpc-cl-hide-layer')
+                                    || window.getComputedStyle(d).display === 'none';
+                        if (!isHidden) { option = d; break; }
                         if (!option) option = d;
                     }
                 }
@@ -1338,7 +1346,10 @@ class GenerateurDevis:
                     var available = [];
                     for (var d of descendants) {
                         var dt = d.getAttribute('data-text');
-                        if (dt && !d.classList.contains('wpc-cl-hide-group')) available.push(dt);
+                        var dHidden = d.classList.contains('wpc-cl-hide-group')
+                                   || d.classList.contains('wpc-cl-hide-layer')
+                                   || window.getComputedStyle(d).display === 'none';
+                        if (dt && !dHidden) available.push(dt);
                     }
                     return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText,
                             available: available.slice(0, 10)};
