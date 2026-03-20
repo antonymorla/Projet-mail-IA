@@ -601,12 +601,13 @@ class GenerateurDevis:
 
         # --- Configuration via clics WPC ---
         # Helper JS pour sélectionner une option par data-text dans un groupe
-        async def select_option(group_text: str, option_text: str):
+        async def select_option(group_text: str, option_text: str, _expand_retries: int = 0):
             """Clique sur option_text dans le groupe group_text.
 
             Découvre les options disponibles dans le groupe avant de cliquer.
             Vérifie si l'option est DÉJÀ sélectionnée (via wpc-encoded) pour
             éviter de la désélectionner par un double-clic.
+            Si l'option est dans un accordion fermé, ouvre le groupe et réessaie.
             Lève ValueError si le groupe ou l'option n'existe pas.
             """
             result = await self.page.evaluate("""
@@ -667,6 +668,19 @@ class GenerateurDevis:
                         var available = listChildren(group);
                         return {error: 'option_not_found', option: args.optionText, group: args.groupText, available_options: available};
                     }
+
+                    // Vérifier si l'option est visible (pas dans un accordion fermé)
+                    var optVisible = option.offsetHeight > 0 || option.offsetParent !== null;
+                    if (!optVisible) {
+                        // L'option est masquée — probablement dans un groupe accordion fermé
+                        // Ouvrir le groupe en cliquant sur son wpc-layer-title-wrap
+                        var groupTitleWrap = group.querySelector(':scope > .wpc-layer-title-wrap');
+                        if (groupTitleWrap) {
+                            groupTitleWrap.click();
+                            return {needs_expand: true, group: args.groupText, option: args.optionText};
+                        }
+                    }
+
                     // Dump diagnostic de l'option pour le debug
                     var optUid = option.getAttribute('data-uid') || '';
                     var optId = option.getAttribute('data-id') || '';
@@ -709,6 +723,17 @@ class GenerateurDevis:
                     return {ok: true, already_selected: false, available_options: available, diag: diag};
                 }
             """, {"groupText": group_text, "optionText": option_text})
+            if isinstance(result, dict) and result.get("needs_expand"):
+                # Groupe accordion fermé — on l'a ouvert, attendre l'animation Alpine.js puis réessayer
+                if _expand_retries >= 2:
+                    raise ValueError(
+                        f"Groupe '{group_text}' reste fermé après {_expand_retries} tentatives d'ouverture. "
+                        f"L'option '{option_text}' est introuvable ou masquée."
+                    )
+                print(f"    ⚠ Groupe '{group_text}' fermé (accordion) — ouverture en cours...")
+                await self.page.wait_for_timeout(800)
+                # Réessayer le même appel maintenant que le groupe est ouvert
+                return await select_option(group_text, option_text, _expand_retries + 1)
             if isinstance(result, dict) and result.get("error"):
                 err_type = result["error"]
                 if err_type == "group_not_found":
