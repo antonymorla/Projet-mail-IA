@@ -1320,7 +1320,7 @@ class GenerateurDevis:
             print(f"    ⚠ Groupe '{group_text}' non trouvé via Playwright — fallback JS")
         await self.page.wait_for_timeout(500)
 
-        # Étape 3 : Trouver et cliquer l'option dans le groupe via JS
+        # Étape 3 : Trouver l'option visible dans le groupe → retourner son data-uid pour clic Playwright
         result = await self.page.evaluate("""
             (args) => {
                 var allItems = document.querySelectorAll('li.wpc-control-item');
@@ -1356,8 +1356,8 @@ class GenerateurDevis:
                 }
 
                 if (option.classList.contains('current')) return {ok: true, already: true};
-                option.click();
-                return {ok: true, already: false};
+                // Retourner l'uid pour clic Playwright (visible à l'écran)
+                return {ok: true, already: false, uid: option.getAttribute('data-uid') || ''};
             }
         """, {"groupText": group_text, "optionText": option_text})
 
@@ -1368,6 +1368,30 @@ class GenerateurDevis:
         if result.get("already"):
             print(f"    ✓ {option_text} (déjà sélectionné)")
         else:
+            # Clic Playwright visible : scroll + clic trusted (l'utilisateur voit la sélection)
+            uid = result.get("uid", "")
+            if uid:
+                opt_selector = f'li.wpc-control-item[data-uid="{uid}"]'
+            else:
+                opt_selector = f'li.wpc-control-item[data-text="{option_text}"]'
+            try:
+                opt_el = self.page.locator(opt_selector).first
+                await opt_el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{opt_selector} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await opt_el.click(timeout=3000)
+            except PlaywrightTimeout:
+                # Fallback JS si Playwright ne trouve pas l'élément
+                await self.page.evaluate("""
+                    (optText) => {
+                        var items = document.querySelectorAll('li.wpc-control-item');
+                        for (var item of items) {
+                            if (item.getAttribute('data-text') === optText) { item.click(); return; }
+                        }
+                    }
+                """, option_text)
             await self.page.wait_for_timeout(800)
             print(f"    ✓ {option_text}")
 
@@ -1406,11 +1430,10 @@ class GenerateurDevis:
     async def _click_ouverture_face_and_position(self, type_ouverture: str, face: str, position: str):
         """Trouve la bonne face visible sous le type d'ouverture et clique face + position.
 
-        IMPORTANT: La position est recherchée uniquement DANS la face sélectionnée
-        (via data-uid), pas dans tout le type. Cela évite de sélectionner une
-        position d'une autre face qui porte le même nom (ex: "Centre" sous Face 1
-        au lieu de "Centre" sous Droite).
+        Utilise JS pour trouver les UIDs, puis Playwright pour les clics visibles (scroll + clic trusted).
+        La position est recherchée uniquement DANS la face sélectionnée (via data-uid).
         """
+        # Étape 1 : Trouver les UIDs de la face et de la position via JS
         result = await self.page.evaluate("""
             (args) => {
                 var typeText = args.typeText;
@@ -1419,100 +1442,104 @@ class GenerateurDevis:
 
                 function isWpcVisible(el) {
                     if (el.classList.contains('wpc-cl-hide-group')) return false;
-                    var display = window.getComputedStyle(el).display;
-                    return display !== 'none';
+                    return window.getComputedStyle(el).display !== 'none';
                 }
 
-                // 1. Trouver le type d'ouverture
                 var typeItem = document.querySelector('li.wpc-control-item[data-text="' + typeText + '"]');
                 if (!typeItem) return {error: 'type not found: ' + typeText};
 
-                // 2. Trouver toutes les faces avec ce nom sous ce type
                 var faces = typeItem.querySelectorAll('li.wpc-control-item[data-text="' + faceText + '"]');
                 var bestFace = null;
 
-                // Priorité 1 : face visible + contient la position demandée
                 for (var f = 0; f < faces.length; f++) {
                     if (!isWpcVisible(faces[f])) continue;
                     var posItems = faces[f].querySelectorAll('li.wpc-control-item[data-text="' + posText + '"]');
                     for (var p = 0; p < posItems.length; p++) {
-                        if (isWpcVisible(posItems[p])) {
-                            bestFace = faces[f];
-                            break;
-                        }
+                        if (isWpcVisible(posItems[p])) { bestFace = faces[f]; break; }
                     }
                     if (bestFace) break;
                 }
-
-                // Priorité 2 : face visible (même sans la position exacte visible)
                 if (!bestFace) {
                     for (var f = 0; f < faces.length; f++) {
-                        if (isWpcVisible(faces[f])) {
-                            bestFace = faces[f];
-                            break;
-                        }
+                        if (isWpcVisible(faces[f])) { bestFace = faces[f]; break; }
                     }
                 }
-
                 if (!bestFace) return {error: 'face not found: ' + faceText + ' under ' + typeText};
 
-                // 3. Cliquer sur la face pour l'expandre
-                var tw = bestFace.querySelector('.wpc-layer-title-wrap');
-                if (tw) tw.click();
-                else bestFace.click();
+                var faceUid = bestFace.getAttribute('data-uid') || '';
 
-                var faceUid = bestFace.getAttribute('data-uid');
-
-                // 4. Cliquer la position DANS cette face (scopé au bestFace)
+                // Trouver la position visible dans cette face
+                var posUid = '';
                 var posItems = bestFace.querySelectorAll('li.wpc-control-item[data-text="' + posText + '"]');
-                var clickedPos = null;
                 for (var p = 0; p < posItems.length; p++) {
-                    if (isWpcVisible(posItems[p])) {
-                        var ptw = posItems[p].querySelector('.wpc-layer-title-wrap');
-                        if (ptw) ptw.click();
-                        else posItems[p].click();
-                        clickedPos = posItems[p].getAttribute('data-uid');
-                        break;
-                    }
+                    if (isWpcVisible(posItems[p])) { posUid = posItems[p].getAttribute('data-uid') || ''; break; }
                 }
-
-                // Fallback position : premier item visible dans la face
-                if (!clickedPos) {
+                // Fallback : premier item visible
+                if (!posUid) {
                     var allPos = bestFace.querySelectorAll('li.wpc-control-item');
                     for (var a = 0; a < allPos.length; a++) {
                         if (isWpcVisible(allPos[a]) && allPos[a].getAttribute('data-text')) {
-                            var atw = allPos[a].querySelector('.wpc-layer-title-wrap');
-                            if (atw) atw.click();
-                            else allPos[a].click();
-                            clickedPos = allPos[a].getAttribute('data-uid');
+                            posUid = allPos[a].getAttribute('data-uid') || '';
                             break;
                         }
                     }
                 }
+                if (!posUid) return {error: 'position not found: ' + posText + ' in face ' + faceText};
 
-                if (!clickedPos) return {error: 'position not found: ' + posText + ' in face ' + faceText, faceUid: faceUid};
-
-                return {
-                    clicked: true,
-                    faceUid: faceUid,
-                    posUid: clickedPos,
-                    faceText: bestFace.getAttribute('data-text'),
-                    debug: 'face+pos clicked in single pass'
-                };
+                return {faceUid: faceUid, posUid: posUid, faceText: bestFace.getAttribute('data-text')};
             }
         """, {"typeText": type_ouverture, "faceText": face, "posText": position})
 
         if isinstance(result, dict) and result.get("error"):
             raise ValueError(f"Ouverture: {result['error']}")
 
+        face_text = result.get("faceText", face)
+
+        # Étape 2 : Clic Playwright sur la face (scroll visible + ouvre l'accordion)
+        face_uid = result.get("faceUid", "")
+        if face_uid:
+            face_sel = f'li.wpc-control-item[data-uid="{face_uid}"]'
+            try:
+                face_el = self.page.locator(face_sel).first
+                await face_el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{face_sel} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await face_el.click(timeout=3000)
+                await self.page.wait_for_timeout(400)
+            except PlaywrightTimeout:
+                await self.page.evaluate("""(uid) => {
+                    var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
+                    if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+                }""", face_uid)
+
+        # Étape 3 : Clic Playwright sur la position (scroll visible)
+        pos_uid = result.get("posUid", "")
+        if pos_uid:
+            pos_sel = f'li.wpc-control-item[data-uid="{pos_uid}"]'
+            try:
+                pos_el = self.page.locator(pos_sel).first
+                await pos_el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{pos_sel} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await pos_el.click(timeout=3000)
+            except PlaywrightTimeout:
+                await self.page.evaluate("""(uid) => {
+                    var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
+                    if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+                }""", pos_uid)
+
         await self.page.wait_for_timeout(500)
-        face_text = result.get("faceText", face) if isinstance(result, dict) else face
         print(f"    ✓ Ouverture: {type_ouverture} > {face_text} > {position}")
 
     async def _click_visible_by_data_text(self, text: str, parent_text: str = ""):
         """Clique sur le premier élément VISIBLE avec ce data-text.
-        Utilisé pour extension de toiture et options (pas pour les ouvertures)."""
-        clicked = await self.page.evaluate("""
+        Utilisé pour extension de toiture, bac acier, etc.
+        Utilise JS pour trouver l'uid, puis Playwright pour le clic visible."""
+        uid = await self.page.evaluate("""
             (args) => {
                 var targetText = args.targetText;
                 var parentText = args.parentText;
@@ -1530,25 +1557,36 @@ class GenerateurDevis:
                 var items = searchRoot.querySelectorAll('li.wpc-control-item[data-text="' + targetText + '"]');
                 for (var i = 0; i < items.length; i++) {
                     if (items[i].offsetHeight > 0 || items[i].offsetParent !== null) {
-                        var tw = items[i].querySelector('.wpc-layer-title-wrap');
-                        if (tw) tw.click();
-                        else items[i].click();
-                        return true;
+                        return items[i].getAttribute('data-uid') || '';
                     }
                 }
-
-                // Fallback: cliquer le premier trouvé
-                if (items.length > 0) {
-                    var tw = items[0].querySelector('.wpc-layer-title-wrap');
-                    if (tw) tw.click();
-                    else items[0].click();
-                    return true;
-                }
-                return false;
+                // Fallback: premier trouvé
+                if (items.length > 0) return items[0].getAttribute('data-uid') || '';
+                return null;
             }
         """, {"targetText": text, "parentText": parent_text})
-        if not clicked:
+        if uid is None:
             raise ValueError(f"Élément visible data-text='{text}' non trouvé (parent: {parent_text})")
+
+        # Clic Playwright visible (scroll + clic trusted)
+        if uid:
+            selector = f'li.wpc-control-item[data-uid="{uid}"]'
+        else:
+            selector = f'li.wpc-control-item[data-text="{text}"]'
+        try:
+            el = self.page.locator(selector).first
+            await el.scroll_into_view_if_needed(timeout=3000)
+            tw = self.page.locator(f'{selector} > .wpc-layer-title-wrap')
+            if await tw.count() > 0:
+                await tw.first.click(timeout=3000)
+            else:
+                await el.click(timeout=3000)
+        except PlaywrightTimeout:
+            # Fallback JS
+            await self.page.evaluate("""(uid) => {
+                var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
+                if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+            }""", uid)
 
     async def _click_first_visible_image_in_group(self, group_text: str):
         """Clique sur le premier item IMAGE visible dans un groupe."""
