@@ -9,3 +9,7 @@ build/
 .env
 *.pdf
 devis_log.json
+.DS_Store
+.venv/
+screenshots/
+scripts/wpc_analysis_*.json

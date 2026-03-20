@@ -110,9 +110,16 @@ Pipeline : [Marque]
 
 - Structure ossature bois, fabriqué en France
 - Isolation 60mm (standard) ou 100mm RE2020 (recommandé pour habitation toute l'année)
-- Bardage extérieur : Brun, Gris, Noir, Vert
+- **Rehausse** : disponible **uniquement avec isolation RE2020** (ajoute ~50cm de hauteur sous plafond)
+- Bardage extérieur : Gris, Brun, Noir, Vert
 - Menuiseries PVC ou ALU (portes, fenêtres, baies coulissantes)
-- Plancher isolé inclus. Mezzanine possible.
+- **Plancher en option** (4 choix via le configurateur) :
+  - Sans plancher (par défaut)
+  - Plancher standard
+  - Plancher RE2020 (isolé renforcé)
+  - Plancher porteur (charges lourdes)
+  - Finition plancher : OUI / NON (revêtement de sol)
+- **Mezzanine** : disponible uniquement sur les modèles préconçus du site studio-francais.fr (pas dans le configurateur `generer_devis`)
 - Fondations non incluses → dalle béton (dimensions hors tout − 10cm, épaisseur 12-13cm)
 - Livraison **gratuite 4-5 semaines**. Paiement 3× sans frais.
 - < 20m² = déclaration préalable / ≥ 20m² = permis de construire
@@ -504,11 +511,14 @@ Cordialement,
 | Fondations nécessaires ? | Dalle béton, dimensions hors tout − 10cm (5cm/côté bardage, ex : studio 4,4×3,5m → dalle 4,30×3,40m), épaisseur 12-13cm. |
 | Électricité possible ? | Oui, passage de gaines prévu dans la structure. Raccordement par électricien local. |
 | RE2020 compatible ? | Isolation 100mm RE2020 disponible en option. Isolation standard = 60mm. |
+| Rehausse ? | Disponible **uniquement avec isolation RE2020** (100mm). Ajoute ~50cm de hauteur sous plafond. Non disponible avec isolation standard 60mm. |
 | Permis de construire ? | < 20m² → déclaration préalable. > 20m² → permis de construire. Vérifier PLU mairie. |
-| Hauteur hors tout ? | 2,70m HT (sans rehausse) / 3,20m HT (avec rehausse). |
-| Hauteur sous plafond ? | ~2,50m standard / ~3,00m avec rehausse. |
+| Hauteur hors tout ? | 2,70m HT (sans rehausse) / 3,20m HT (avec rehausse RE2020). |
+| Hauteur sous plafond ? | ~2,50m standard / ~3,00m avec rehausse RE2020. |
+| Plancher ? | **4 options** : Sans plancher (défaut), Plancher standard (163mm), Plancher RE2020 (isolé renforcé), Plancher porteur (charges lourdes). Finition plancher en option (revêtement de sol). |
 | Hauteur du plancher ? | **Plancher standard : 163mm** (structure 145mm + OSB 18mm). Face supérieure à ~16cm au-dessus de la dalle. **Plancher renforcé :** section variable selon profondeur du studio → confirmer avec le bureau d'études. |
-| Bardage extérieur ? | Brun, Gris, Noir. Bardage intérieur OSB ou panneaux bois massif épicéa. |
+| Mezzanine ? | Disponible uniquement sur les **modèles préconçus** du site studio-francais.fr. Non disponible via le configurateur sur-mesure. |
+| Bardage extérieur ? | Gris, Brun, Noir, Vert. Bardage intérieur OSB ou panneaux bois massif épicéa. |
 | Livraison + pose ? | Livraison gratuite 4-5 semaines (semi-remorque). **Service de pose disponible** via notre partenaire Clément Vannier (Vano Création) — devis séparé, garantie décennale. Contact : 06 19 64 35 58 / vannier.clement@gmail.com |
 
 ### Abris de jardin

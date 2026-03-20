@@ -433,145 +433,22 @@ class GenerateurDevis:
         # Fermer les popups
         await self.fermer_popups()
 
-        # --- Configuration via clics WPC ---
-        # Helper : repère l'option en JS, clique via Playwright (trusted click)
-        async def select_option(group_text: str, option_text: str):
-            """Clique sur option_text dans le groupe group_text.
-
-            Phase 1 (JS) : localise le groupe et l'option, retourne data-uid.
-            Phase 2 (Playwright) : clic natif trusted sur le sélecteur CSS.
-            Cela garantit que Alpine.js (x-on:click.stop) reçoit un vrai événement.
-            """
-            # Phase 1 — Localiser l'option et obtenir son UID
-            result = await self.page.evaluate("""
-                (args) => {
-                    // Trouver le groupe
-                    var allItems = document.querySelectorAll('li.wpc-control-item');
-                    var group = null;
-                    for (var item of allItems) {
-                        if (item.getAttribute('data-text') === args.groupText) {
-                            group = item;
-                            break;
-                        }
-                    }
-                    if (!group) {
-                        // Fallback : chercher par match partiel (data-text contient le texte)
-                        for (var item of allItems) {
-                            var dt = item.getAttribute('data-text') || '';
-                            if (dt.trim() === args.groupText.trim()) { group = item; break; }
-                        }
-                    }
-                    if (!group) return {error: 'group not found: ' + args.groupText};
-
-                    // Trouver l'option dans le groupe (cherche dans TOUS les descendants)
-                    var option = null;
-                    var descendants = group.querySelectorAll('li.wpc-control-item');
-                    for (var d of descendants) {
-                        if (d.getAttribute('data-text') === args.optionText) {
-                            option = d;
-                            break;
-                        }
-                    }
-                    if (!option) {
-                        // Lister les options disponibles pour le debug
-                        var available = [];
-                        for (var d of descendants) {
-                            var dt = d.getAttribute('data-text');
-                            if (dt) available.push(dt);
-                        }
-                        return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText,
-                                available: available};
-                    }
-
-                    var uid = option.getAttribute('data-uid') || '';
-
-                    // Vérifier si déjà sélectionné (wpc-encoded ou classe current)
-                    var form = document.querySelector('form.cart');
-                    var enc = form ? form.querySelector('[name="wpc-encoded"]') : null;
-                    var encodedStr = (enc && enc.value) ? atob(enc.value) : '';
-                    var alreadySelected = uid && encodedStr.indexOf(uid) !== -1;
-                    if (!alreadySelected) {
-                        alreadySelected = option.classList.contains('current');
-                    }
-
-                    // Vérifier si l'élément est visible (pas dans un accordion fermé)
-                    var rect = option.getBoundingClientRect();
-                    var isVisible = rect.height > 0 && rect.width > 0;
-
-                    // Si accordion fermé, ouvrir le groupe parent
-                    if (!isVisible) {
-                        var titleWrap = group.querySelector(':scope > .wpc-layer-title-wrap');
-                        if (titleWrap) titleWrap.click();  // Ouvre l'accordion
-                        return {needsRetry: true, uid: uid, reason: 'accordion fermé — ouverture en cours'};
-                    }
-
-                    return {ok: true, uid: uid, alreadySelected: alreadySelected};
-                }
-            """, {"groupText": group_text, "optionText": option_text})
-
-            if isinstance(result, dict) and result.get("error"):
-                avail = result.get("available", [])
-                print(f"    ⚠ {result['error']}")
-                if avail:
-                    print(f"      Options disponibles: {avail[:10]}")
-                return
-
-            # Si accordion fermé, attendre et réessayer
-            if isinstance(result, dict) and result.get("needsRetry"):
-                print(f"    ⚠ {result.get('reason', 'retry')} — réessai après 800ms")
-                await self.page.wait_for_timeout(800)
-                await select_option(group_text, option_text)
-                return
-
-            uid = result.get("uid", "")
-            already = result.get("alreadySelected", False)
-
-            if already:
-                print(f"    ✓ {group_text} → {option_text} (déjà sélectionné)")
-                return
-
-            # Phase 2 — Clic Playwright natif (trusted, isTrusted=true)
-            if uid:
-                selector = f'li.wpc-control-item[data-uid="{uid}"]'
-            else:
-                selector = f'li.wpc-control-item[data-text="{option_text}"]'
-
-            try:
-                el = self.page.locator(selector).first
-                await el.scroll_into_view_if_needed(timeout=3000)
-                await el.click(timeout=5000)
-                print(f"    ✓ {group_text} → {option_text} (cliqué via Playwright)")
-            except Exception as e:
-                print(f"    ⚠ Clic Playwright échoué pour {option_text}: {e}")
-                # Fallback : clic JS forcé
-                await self.page.evaluate("""
-                    (uid) => {
-                        var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
-                        if (el) {
-                            el.click();
-                            var tw = el.querySelector('.wpc-layer-title-wrap');
-                            if (tw) tw.click();
-                        }
-                    }
-                """, uid)
-                print(f"    ↳ Fallback JS click pour {option_text}")
-
-            await self.page.wait_for_timeout(500)
+        # --- Configuration via clics WPC (méthode universelle _wpc_select) ---
 
         # Bardage extérieur
         if config.bardage_exterieur:
             print(f"  ➜ Bardage extérieur : {config.bardage_exterieur}")
-            await select_option("Bardage EXTERIEUR", config.bardage_exterieur)
+            await self._wpc_select("Bardage EXTERIEUR", config.bardage_exterieur)
 
         # Isolation
         if config.isolation:
             print(f"  ➜ Isolation : {config.isolation}")
-            await select_option("ISOLATION", config.isolation)
+            await self._wpc_select("ISOLATION", config.isolation)
 
-        # Rehausse
+        # Rehausse (disponible uniquement avec RE2020)
         if config.rehausse:
             print(f"  ➜ Rehausse : OUI")
-            await select_option("Rehausse", "OUI")
+            await self._wpc_select("Rehausse", "OUI")
 
         # Menuiseries — positionnement intelligent par modules de 1,10 m
         # used_modules_per_wall : {mur_str: set(module_index)} — initialisé vide
@@ -587,27 +464,33 @@ class GenerateurDevis:
         # Bardage intérieur
         if config.bardage_interieur:
             print(f"  ➜ Bardage intérieur : {config.bardage_interieur}")
-            await select_option("BARDAGE INTERIEUR", config.bardage_interieur)
+            await self._wpc_select("BARDAGE INTERIEUR", config.bardage_interieur)
 
         # Plancher
         if config.plancher and config.plancher != "Sans plancher":
             print(f"  ➜ Plancher : {config.plancher}")
-            await select_option("Plancher ", config.plancher)
+            await self._wpc_select("Plancher ", config.plancher)
 
         # Finition plancher
         if config.finition_plancher:
             print(f"  ➜ Finition plancher : OUI")
-            await select_option("Finition Plancher", "OUI")
+            await self._wpc_select("Finition Plancher", "OUI")
 
-        # Terrasse
+        # Terrasse (groupe WPC = "Terrasse bois" ou "Terrasse")
         if config.terrasse:
             print(f"  ➜ Terrasse : {config.terrasse}")
-            await select_option("Terrasse", config.terrasse)
+            try:
+                await self._wpc_select("Terrasse bois", config.terrasse)
+            except ValueError:
+                await self._wpc_select("Terrasse", config.terrasse)
 
-        # Pergola
+        # Pergola (groupe WPC = "PERGOLA" ou "Pergola")
         if config.pergola:
             print(f"  ➜ Pergola : {config.pergola}")
-            await select_option("Pergola", config.pergola)
+            try:
+                await self._wpc_select("PERGOLA", config.pergola)
+            except ValueError:
+                await self._wpc_select("Pergola", config.pergola)
 
         # Vérification finale : s'assurer que tous les éléments sont bien sélectionnés
         await self._verifier_config_wpc(label="studio")
@@ -640,16 +523,15 @@ class GenerateurDevis:
         Retourne l'offset sélectionné (ex: "1,29").
         Modifie used_modules_per_wall[mur] en place.
         """
-        # ── Étape 1 : Naviguer jusqu'au mur et lire toutes les positions disponibles ──
+        # ── Étape 1 : Ouvrir visuellement chaque niveau (type → matériau → mur) ──
+        # Scroll + clic Playwright hiérarchique pour que l'utilisateur voie les blocs s'ouvrir
+        # On utilise JS pour trouver le bon élément dans la hiérarchie (éviter les doublons data-text)
+        # puis Playwright scrollIntoView + click sur le title-wrap
         nav = await self.page.evaluate("""
             (args) => {
                 function isVisible(el) {
                     if (el.classList.contains('wpc-cl-hide-group')) return false;
                     return window.getComputedStyle(el).display !== 'none';
-                }
-                function clickItem(item) {
-                    var tw = item.querySelector('.wpc-layer-title-wrap');
-                    if (tw) tw.click(); else item.click();
                 }
                 function findVisibleChild(parent, text) {
                     for (var item of parent.querySelectorAll('li.wpc-control-item'))
@@ -657,19 +539,64 @@ class GenerateurDevis:
                             return item;
                     return null;
                 }
+                // Trouver type (racine)
                 var typeItem = null;
                 for (var item of document.querySelectorAll('li.wpc-control-item'))
                     if (item.getAttribute('data-text') === args.type) { typeItem = item; break; }
                 if (!typeItem) return {error: 'type not found: ' + args.type};
-                clickItem(typeItem);
-
+                // Trouver matériau dans type
                 var matItem = findVisibleChild(typeItem, args.materiau);
                 if (!matItem) return {error: 'materiau not found: ' + args.materiau + ' (BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement)'};
-                clickItem(matItem);
-
+                // Trouver mur dans matériau
                 var murItem = findVisibleChild(matItem, args.mur);
                 if (!murItem) return {error: 'mur not found: ' + args.mur};
-                clickItem(murItem);
+                // Retourner les UIDs pour scroll + clic Playwright
+                return {
+                    typeUid: typeItem.getAttribute('data-uid') || '',
+                    matUid: matItem.getAttribute('data-uid') || '',
+                    murUid: murItem.getAttribute('data-uid') || '',
+                };
+            }
+        """, {"type": type_menu, "materiau": materiau, "mur": mur})
+
+        if isinstance(nav, dict) and "error" in nav:
+            raise ValueError(f"Menuiserie studio: {nav['error']}")
+
+        # Scroll + clic Playwright sur chaque niveau pour ouvrir visuellement
+        for uid in [nav["typeUid"], nav["matUid"], nav["murUid"]]:
+            if not uid:
+                continue
+            selector = f'li.wpc-control-item[data-uid="{uid}"]'
+            try:
+                el = self.page.locator(selector).first
+                await el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{selector} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await el.click(timeout=3000)
+                await self.page.wait_for_timeout(400)
+            except PlaywrightTimeout:
+                # Fallback JS — cliquer directement
+                await self.page.evaluate("""
+                    (uid) => {
+                        var el = document.querySelector('[data-uid="' + uid + '"]');
+                        if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+                    }
+                """, uid)
+                await self.page.wait_for_timeout(400)
+
+        # Lire les positions disponibles sous le mur sélectionné
+        nav = await self.page.evaluate("""
+            (args) => {
+                function isVisible(el) {
+                    if (el.classList.contains('wpc-cl-hide-group')) return false;
+                    return window.getComputedStyle(el).display !== 'none';
+                }
+                var murItem = args.murUid
+                    ? document.querySelector('[data-uid="' + args.murUid + '"]')
+                    : null;
+                if (!murItem) return {error: 'mur not found by uid'};
 
                 var ul = murItem.querySelector(':scope > ul, :scope > .wpc-control-lists > ul');
                 if (!ul) return {positions: []};
@@ -679,7 +606,7 @@ class GenerateurDevis:
                         positions.push({text: li.getAttribute('data-text') || '', uid: li.getAttribute('data-uid') || ''});
                 return {positions: positions};
             }
-        """, {"type": type_menu, "materiau": materiau, "mur": mur})
+        """, {"murUid": nav["murUid"]})
         await self.page.wait_for_timeout(300)
 
         if isinstance(nav, dict) and "error" in nav:
@@ -1336,6 +1263,102 @@ class GenerateurDevis:
             if not clicked:
                 raise ValueError(f"Élément avec data-text '{text}' non trouvé")
         await self.page.wait_for_timeout(300)
+
+    async def _wpc_select(self, group_text: str, option_text: str):
+        """Méthode universelle pour sélectionner une option WPC dans un groupe.
+
+        Fonctionne pour TOUS les configurateurs (Abri + Studio) :
+        1. Vérifie d'abord si l'option est déjà sélectionnée (skip si oui)
+        2. Scrolle vers le groupe et l'ouvre visuellement (Playwright click = trusted + scroll)
+        3. Clique l'option enfant via JS item.click()
+        4. Gère les items dupliqués (wpc-cl-hide-group), les toggles, les accordions
+
+        Args:
+            group_text: data-text du groupe parent (ex: "Plancher ", "ISOLATION")
+            option_text: data-text de l'option à sélectionner (ex: "Plancher standard", "60mm")
+        """
+        # Étape 1 : Vérifier si l'option est déjà sélectionnée AVANT d'ouvrir le groupe
+        already = await self.page.evaluate("""
+            (args) => {
+                var allItems = document.querySelectorAll('li.wpc-control-item');
+                var group = null;
+                for (var item of allItems) {
+                    if (item.getAttribute('data-text') === args.groupText) { group = item; break; }
+                }
+                if (!group) return false;
+                var descendants = group.querySelectorAll('li.wpc-control-item');
+                for (var d of descendants) {
+                    if (d.getAttribute('data-text') === args.optionText && d.classList.contains('current')) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        """, {"groupText": group_text, "optionText": option_text})
+
+        if already:
+            print(f"    ✓ {option_text} (déjà sélectionné)")
+            return
+
+        # Étape 2 : Ouvrir le groupe visuellement (scroll + clic Playwright sur le title-wrap)
+        group_selector = f'li.wpc-control-item[data-text="{group_text}"]'
+        try:
+            group_el = self.page.locator(group_selector).first
+            await group_el.scroll_into_view_if_needed(timeout=3000)
+            # Cliquer le title-wrap pour ouvrir l'accordion
+            tw_selector = f'{group_selector} > .wpc-layer-title-wrap'
+            tw = self.page.locator(tw_selector)
+            if await tw.count() > 0:
+                await tw.first.click(timeout=3000)
+            else:
+                await group_el.click(timeout=3000)
+        except PlaywrightTimeout:
+            print(f"    ⚠ Groupe '{group_text}' non trouvé via Playwright — fallback JS")
+        await self.page.wait_for_timeout(500)
+
+        # Étape 3 : Trouver et cliquer l'option dans le groupe via JS
+        result = await self.page.evaluate("""
+            (args) => {
+                var allItems = document.querySelectorAll('li.wpc-control-item');
+                var group = null;
+                for (var item of allItems) {
+                    if (item.getAttribute('data-text') === args.groupText) { group = item; break; }
+                }
+                if (!group) return {error: 'group not found: ' + args.groupText};
+
+                var option = null;
+                var descendants = group.querySelectorAll('li.wpc-control-item');
+                for (var d of descendants) {
+                    if (d.getAttribute('data-text') === args.optionText) {
+                        if (!d.classList.contains('wpc-cl-hide-group')) { option = d; break; }
+                        if (!option) option = d;
+                    }
+                }
+                if (!option) {
+                    var available = [];
+                    for (var d of descendants) {
+                        var dt = d.getAttribute('data-text');
+                        if (dt && !d.classList.contains('wpc-cl-hide-group')) available.push(dt);
+                    }
+                    return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText,
+                            available: available.slice(0, 10)};
+                }
+
+                if (option.classList.contains('current')) return {ok: true, already: true};
+                option.click();
+                return {ok: true, already: false};
+            }
+        """, {"groupText": group_text, "optionText": option_text})
+
+        if isinstance(result, dict) and result.get("error"):
+            avail = result.get("available", [])
+            raise ValueError(f"{result['error']}" + (f" — disponibles: {avail}" if avail else ""))
+
+        if result.get("already"):
+            print(f"    ✓ {option_text} (déjà sélectionné)")
+        else:
+            await self.page.wait_for_timeout(800)
+            print(f"    ✓ {option_text}")
 
     async def _ajouter_ouverture(self, type_ouverture: str, face: str, position: str = "Centre"):
         """Ajoute une ouverture sur une face à une position donnée.
