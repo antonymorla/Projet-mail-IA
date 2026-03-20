@@ -136,7 +136,20 @@ async def _generer_direct(type_devis: str, params: dict,
     _bg_task_counter += 1
     task_id = f"{type_devis}_{client_prenom}_{client_nom}_{_bg_task_counter}"
     _background_tasks[task_id] = task
-    task.add_done_callback(lambda t: _background_tasks.pop(task_id, None))
+
+    def _on_bg_done(t):
+        _background_tasks.pop(task_id, None)
+        # Si le task a terminé en arrière-plan (après timeout), loguer le résultat
+        try:
+            filepath = t.result()
+            if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
+                _log_devis(filepath, type_devis, client_prenom, client_nom)
+                print(f"\n  ✅ DEVIS ARRIÈRE-PLAN TERMINÉ — {os.path.basename(filepath)} ({round(os.path.getsize(filepath)/1024, 1)} Ko)")
+                print(f"     📂 {filepath}")
+        except Exception:
+            pass
+
+    task.add_done_callback(_on_bg_done)
 
     try:
         # asyncio.shield empêche l'annulation du task interne quand wait_for expire
@@ -150,7 +163,11 @@ async def _generer_direct(type_devis: str, params: dict,
                 "filepath": filepath,
                 "filename": os.path.basename(filepath),
                 "size_kb": round(size_kb, 1),
-                "message": f"Devis {type_devis} généré pour {client_prenom} {client_nom}",
+                "message": (
+                    f"✅ Devis {type_devis} généré avec succès pour {client_prenom} {client_nom}. "
+                    f"PDF téléchargé : {os.path.basename(filepath)} ({round(size_kb, 1)} Ko) "
+                    f"dans ~/Downloads/"
+                ),
             })
         return json.dumps({"success": False, "error": f"PDF non trouvé : {filepath!r}"})
 
@@ -161,8 +178,9 @@ async def _generer_direct(type_devis: str, params: dict,
             "success": True,
             "status": "en_cours",
             "message": (
-                f"Génération démarrée en arrière-plan (prend ~2 min). "
-                f"Appelez lister_devis_generes dans 1-2 minutes pour récupérer le PDF de {nom}."
+                f"⏳ Génération en cours en arrière-plan (prend ~2 min). "
+                f"Le PDF sera automatiquement sauvegardé dans ~/Downloads/ dès qu'il sera prêt. "
+                f"Appelez lister_devis_generes dans 1-2 minutes pour vérifier que le PDF de {nom} est disponible."
             ),
         })
     except Exception as e:
@@ -1273,12 +1291,23 @@ def lister_devis_generes() -> str:
         if len(devis) >= 30:
             break
 
-    return json.dumps({
+    # Tâches en arrière-plan encore en cours
+    en_cours = [tid for tid, t in _background_tasks.items() if not t.done()]
+
+    result = {
         "devis": devis[:20],
         "total": len(devis),
         "dossier": download_dir,
-        "log_json": _DEVIS_LOG_FILE,
-    }, ensure_ascii=False)
+    }
+    if en_cours:
+        result["en_cours"] = en_cours
+        result["message"] = f"⏳ {len(en_cours)} devis encore en cours de génération : {', '.join(en_cours)}"
+    elif devis:
+        result["message"] = f"✅ {len(devis)} devis trouvé(s). Le plus récent : {devis[0].get('filename', '?')} ({devis[0].get('date', '?')})"
+    else:
+        result["message"] = "Aucun devis trouvé dans ~/Downloads/"
+
+    return json.dumps(result, ensure_ascii=False)
 
 
 # ═══════════════════════════════════════════════════════════════
