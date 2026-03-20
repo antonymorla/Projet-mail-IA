@@ -338,48 +338,49 @@ ALL_TESTS.update(ABRI_TESTS)
 
 async def _resolve_terrasse_detail_products():
     """Récupère les IDs produits terrasse au détail via l'API WooCommerce."""
-    import aiohttp
+    import urllib.request
     base = "https://terrasseenbois.fr"
     endpoint = f"{base}/wp-json/wc/store/v1/products"
 
-    async with aiohttp.ClientSession() as session:
-        # Chercher lames Cumaru
-        async with session.get(f"{endpoint}?per_page=5&search=cumaru lame") as r:
-            data = await r.json()
-        lame = None
-        for p in data:
-            if "cumaru" in p["name"].lower() and "lame" in p["name"].lower():
-                lame = p
-                break
+    def fetch(search):
+        url = f"{endpoint}?per_page=5&search={urllib.parse.quote(search)}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
 
-        # Chercher lambourdes Niove
-        async with session.get(f"{endpoint}?per_page=5&search=niove lambourde") as r:
-            data = await r.json()
-        lamb = None
-        for p in data:
-            if "niove" in p["name"].lower() or "lambourde" in p["name"].lower():
-                lamb = p
-                break
+    import re
+    def strip_html(s):
+        return re.sub(r'<[^>]+>', '', s)
 
-        # Chercher plots
-        async with session.get(f"{endpoint}?per_page=5&search=plot reglable") as r:
-            data = await r.json()
-        plot = None
-        for p in data:
-            if "plot" in p["name"].lower():
-                plot = p
-                break
+    lame = None
+    for p in fetch("cumaru"):
+        name = strip_html(p["name"]).lower()
+        if "cumaru" in name and "lame" in name:
+            lame = p
+            break
+
+    lamb = None
+    for p in fetch("lambourde"):
+        name = strip_html(p["name"]).lower()
+        if "niove" in name or "lambourde" in name:
+            lamb = p
+            break
+
+    plot = None
+    for p in fetch("plot"):
+        name = strip_html(p["name"]).lower()
+        if "plot" in name:
+            plot = p
+            break
 
     if not lame or not lamb or not plot:
-        print(f"  ⚠ Produits terrasse au détail non trouvés : lame={lame is not None}, lamb={lamb is not None}, plot={plot is not None}")
+        print(f"  ⚠ Produits non trouvés : lame={lame is not None}, lamb={lamb is not None}, plot={plot is not None}")
         return None
 
-    # Construire la liste produits — utiliser les premières variations disponibles
     produits = []
     for prod, qty, desc in [(lame, 30, "30 lames Cumaru"), (lamb, 15, "15 lambourdes Niove"), (plot, 50, "50 plots")]:
         slug = prod.get("slug", "")
         url = f"{base}/produit/{slug}/"
-        # Prendre la première variation si dispo
         var_id = 0
         attr_selects = {}
         if prod.get("variations", []):
@@ -425,7 +426,7 @@ async def run_test(test_id: str):
                 produits = await _resolve_terrasse_detail_products()
                 if not produits:
                     raise RuntimeError("Impossible de résoudre les produits terrasse au détail via API")
-                params["produits"] = json.dumps(produits)
+                params["produits"] = produits
             filepath, *_ = await generer_devis_terrasse_detail(**params)
         elif func_type == "cloture":
             filepath, *_ = await generer_devis_cloture(**params)
