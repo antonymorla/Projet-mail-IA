@@ -434,23 +434,18 @@ class GenerateurDevis:
         await self.fermer_popups()
 
         # --- Configuration via clics WPC ---
-        # Helper JS pour sélectionner une option par data-text dans un groupe
+        # Helper : repère l'option en JS, clique via Playwright (trusted click)
         async def select_option(group_text: str, option_text: str):
-            """Clique sur option_text dans le groupe group_text."""
+            """Clique sur option_text dans le groupe group_text.
+
+            Phase 1 (JS) : localise le groupe et l'option, retourne data-uid.
+            Phase 2 (Playwright) : clic natif trusted sur le sélecteur CSS.
+            Cela garantit que Alpine.js (x-on:click.stop) reçoit un vrai événement.
+            """
+            # Phase 1 — Localiser l'option et obtenir son UID
             result = await self.page.evaluate("""
                 (args) => {
-                    function findByText(parent, text) {
-                        var items = parent.querySelectorAll('li.wpc-control-item');
-                        for (var item of items) {
-                            if (item.getAttribute('data-text') === text) return item;
-                        }
-                        return null;
-                    }
-                    function clickItem(item) {
-                        var tw = item.querySelector('.wpc-layer-title-wrap');
-                        if (tw) tw.click();
-                        else item.click();
-                    }
+                    // Trouver le groupe
                     var allItems = document.querySelectorAll('li.wpc-control-item');
                     var group = null;
                     for (var item of allItems) {
@@ -459,16 +454,109 @@ class GenerateurDevis:
                             break;
                         }
                     }
+                    if (!group) {
+                        // Fallback : chercher par match partiel (data-text contient le texte)
+                        for (var item of allItems) {
+                            var dt = item.getAttribute('data-text') || '';
+                            if (dt.trim() === args.groupText.trim()) { group = item; break; }
+                        }
+                    }
                     if (!group) return {error: 'group not found: ' + args.groupText};
-                    var option = findByText(group, args.optionText);
-                    if (!option) return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText};
-                    clickItem(option);
-                    return {ok: true};
+
+                    // Trouver l'option dans le groupe (cherche dans TOUS les descendants)
+                    var option = null;
+                    var descendants = group.querySelectorAll('li.wpc-control-item');
+                    for (var d of descendants) {
+                        if (d.getAttribute('data-text') === args.optionText) {
+                            option = d;
+                            break;
+                        }
+                    }
+                    if (!option) {
+                        // Lister les options disponibles pour le debug
+                        var available = [];
+                        for (var d of descendants) {
+                            var dt = d.getAttribute('data-text');
+                            if (dt) available.push(dt);
+                        }
+                        return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText,
+                                available: available};
+                    }
+
+                    var uid = option.getAttribute('data-uid') || '';
+
+                    // Vérifier si déjà sélectionné (wpc-encoded ou classe current)
+                    var form = document.querySelector('form.cart');
+                    var enc = form ? form.querySelector('[name="wpc-encoded"]') : null;
+                    var encodedStr = (enc && enc.value) ? atob(enc.value) : '';
+                    var alreadySelected = uid && encodedStr.indexOf(uid) !== -1;
+                    if (!alreadySelected) {
+                        alreadySelected = option.classList.contains('current');
+                    }
+
+                    // Vérifier si l'élément est visible (pas dans un accordion fermé)
+                    var rect = option.getBoundingClientRect();
+                    var isVisible = rect.height > 0 && rect.width > 0;
+
+                    // Si accordion fermé, ouvrir le groupe parent
+                    if (!isVisible) {
+                        var titleWrap = group.querySelector(':scope > .wpc-layer-title-wrap');
+                        if (titleWrap) titleWrap.click();  // Ouvre l'accordion
+                        return {needsRetry: true, uid: uid, reason: 'accordion fermé — ouverture en cours'};
+                    }
+
+                    return {ok: true, uid: uid, alreadySelected: alreadySelected};
                 }
             """, {"groupText": group_text, "optionText": option_text})
+
             if isinstance(result, dict) and result.get("error"):
+                avail = result.get("available", [])
                 print(f"    ⚠ {result['error']}")
-            await self.page.wait_for_timeout(300)
+                if avail:
+                    print(f"      Options disponibles: {avail[:10]}")
+                return
+
+            # Si accordion fermé, attendre et réessayer
+            if isinstance(result, dict) and result.get("needsRetry"):
+                print(f"    ⚠ {result.get('reason', 'retry')} — réessai après 800ms")
+                await self.page.wait_for_timeout(800)
+                await select_option(group_text, option_text)
+                return
+
+            uid = result.get("uid", "")
+            already = result.get("alreadySelected", False)
+
+            if already:
+                print(f"    ✓ {group_text} → {option_text} (déjà sélectionné)")
+                return
+
+            # Phase 2 — Clic Playwright natif (trusted, isTrusted=true)
+            if uid:
+                selector = f'li.wpc-control-item[data-uid="{uid}"]'
+            else:
+                selector = f'li.wpc-control-item[data-text="{option_text}"]'
+
+            try:
+                el = self.page.locator(selector).first
+                await el.scroll_into_view_if_needed(timeout=3000)
+                await el.click(timeout=5000)
+                print(f"    ✓ {group_text} → {option_text} (cliqué via Playwright)")
+            except Exception as e:
+                print(f"    ⚠ Clic Playwright échoué pour {option_text}: {e}")
+                # Fallback : clic JS forcé
+                await self.page.evaluate("""
+                    (uid) => {
+                        var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
+                        if (el) {
+                            el.click();
+                            var tw = el.querySelector('.wpc-layer-title-wrap');
+                            if (tw) tw.click();
+                        }
+                    }
+                """, uid)
+                print(f"    ↳ Fallback JS click pour {option_text}")
+
+            await self.page.wait_for_timeout(500)
 
         # Bardage extérieur
         if config.bardage_exterieur:
@@ -483,27 +571,7 @@ class GenerateurDevis:
         # Rehausse
         if config.rehausse:
             print(f"  ➜ Rehausse : OUI")
-            await self._click_by_data_text("Rehausse")
-            await self.page.wait_for_timeout(300)
-            # Cliquer le premier OUI visible
-            await self.page.evaluate("""
-                () => {
-                    var rehausse = null;
-                    var items = document.querySelectorAll('li.wpc-control-item');
-                    for (var item of items) {
-                        if (item.getAttribute('data-text') === 'Rehausse') { rehausse = item; break; }
-                    }
-                    if (!rehausse) return;
-                    var ouis = rehausse.querySelectorAll('li.wpc-control-item[data-text="OUI"]');
-                    for (var o of ouis) {
-                        if (!o.classList.contains('wpc-cl-hide-group')) {
-                            var tw = o.querySelector('.wpc-layer-title-wrap');
-                            if (tw) tw.click(); else o.click();
-                            return;
-                        }
-                    }
-                }
-            """)
+            await select_option("Rehausse", "OUI")
 
         # Menuiseries — positionnement intelligent par modules de 1,10 m
         # used_modules_per_wall : {mur_str: set(module_index)} — initialisé vide
