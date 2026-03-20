@@ -147,7 +147,7 @@ generer_devis(
 
     # Options studio
     menuiseries='[{"type": "PORTE VITREE", "mur": "MUR DE FACE", "materiau": "PVC"}]',
-    bardage_exterieur="",  # "Brun" | "Gris" | "Noir"
+    bardage_exterieur="",  # "Brun" | "Gris" | "Noir" | "Vert"
     isolation="",          # "" | "60mm" | "100 mm (RE2020)"
     rehausse=False,
     bardage_interieur="",  # "OSB" | "Panneaux bois massif (3 plis épicéa)"
@@ -159,6 +159,12 @@ generer_devis(
     # ⚠ Utiliser d'abord rechercher_produits_detail pour trouver url, variation_id et attribut_selects
     produits_complementaires='[{"url": "https://...produit/cloison.../", "variation_id": 5766,
       "quantite": 3, "attribut_selects": {}, "description": "Cloison 60€/ml"}]',
+
+    # Multi-config : ajouter un 2ème abri/studio au même panier et PDF
+    configurations_supplementaires='[{"largeur": "3,45M", "profondeur": "2,15m", "ouvertures": [...]}]',
+
+    # Gamme Essentiel (abri) : ajouter au panier sans configurateur WPC
+    produits_uniquement=False,  # True = mode produit WooCommerce (pas de config WPC)
 )
 ```
 
@@ -227,12 +233,18 @@ generer_devis_pergola_bois(
     largeur_hors_tout="",    # Largeur réelle en mètres (ex: "8.79") — requis si sur_mesure=True
     profondeur_hors_tout="", # Profondeur réelle en mètres (ex: "4.99")
     hauteur_hors_tout="",    # Hauteur réelle en mètres (max 3.07m, ex: "2.52")
+    pente="",                # "" | "Pente 5%" | "Pente 15%" — inclinaison toiture
+    claustra_type="",        # "" | "claustra" — panneau bois latéral
+    nb_claustra=0,           # Nombre de claustras (0 = aucun)
+    options_wapf='{}',       # Options WAPF avancées (JSON field_id → value)
     code_promo="",           # ex: "LEROYMERLIN10"
     mode_livraison="",       # "" (ne pas changer) | "retrait" | "livraison" (~99€)
     client_nom="", client_prenom="", client_email="",
     client_telephone="", client_adresse="",
     # Produits complémentaires ✅ apparaissent dans le PDF
     produits_complementaires='[]',
+    # Multi-config : ajouter une 2ème pergola au même panier/PDF
+    configurations_supplementaires='[]',
 )
 ```
 
@@ -278,6 +290,8 @@ generer_devis_terrasse_bois(
     client_telephone="", client_adresse="",
     # ⚠ produits_complementaires : ajoutés au panier WC mais absents du PDF WQG
     produits_complementaires='[]',
+    # Multi-config : ajouter une 2ème terrasse au même panier/PDF
+    configurations_supplementaires='[]',
 )
 ```
 
@@ -312,6 +326,8 @@ generer_devis_cloture_bois(
     client_telephone="", client_adresse="",
     # ⚠ produits_complementaires : ajoutés au panier WC mais absents du PDF WQG
     produits_complementaires='[]',
+    # Multi-config : ajouter une 2ème clôture au même panier/PDF
+    configurations_supplementaires='[]',
 )
 ```
 

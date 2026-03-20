@@ -57,11 +57,12 @@ Pipeline : [Marque]
 | Config complète (dimensions + options) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
 | Client veut 2 abris accolés sur le même devis | ✅ `generer_devis` pour le 1er + `rechercher_produits_detail` pour le 2ème → `produits_complementaires` |
+| **Client veut 2 produits identiques (2 studios, 2 pergolas…)** | ✅ `configurations_supplementaires` pour ajouter une 2ème config au même panier/PDF |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
 | **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes) → `generer_devis_terrasse_bois_detail` |
 | **Terrasse — devis comparatif essences différentes** | ✅ Recalculer nb_lames selon longueurs dispo de chaque essence (longueurs ≠ entre Pin et exotiques) |
-| Client avec budget serré pour un abri | ✉ Proposer Gamme Essentiel (renvoyer vers le site — non génératable par `generer_devis`) |
+| Client avec budget serré pour un abri | ✅ `generer_devis(site="abri", produits_uniquement=True)` pour Gamme Essentiel (rechercher via `rechercher_produits_detail(site="abri", recherche="essentiel")`) |
 | Infos manquantes | Email B (demander dimensions/options) |
 | Info générale | Email A (questions qualificatives + configurateur en ligne) |
 | Suivi devis existant | Email M4 (répondre aux questions du client) |
@@ -196,6 +197,12 @@ Options couverture :
 
 Poteaux en bois lamellé-collé disponibles (quantité selon dimensions).
 
+**Options supplémentaires pergola :**
+- **Pente** : `pente="Pente 5%"` ou `pente="Pente 15%"` — inclinaison de la toiture pour évacuation des eaux.
+- **Claustra** : `claustra_type="claustra"` + `nb_claustra=1` — panneau bois décoratif sur le côté de la pergola.
+- **Configurations supplémentaires** : `configurations_supplementaires='[{...}]'` — ajouter une 2ème pergola au même panier/PDF.
+- **Options WAPF avancées** : `options_wapf='{"field_id": "value"}'` — pour des champs WAPF spécifiques non couverts par les paramètres standards.
+
 ### 4. Terrasses bois (Terrasse en Bois.fr)
 
 **Deux offres disponibles :**
@@ -232,6 +239,8 @@ generer_devis_terrasse_bois(
 Surfaces fixes : **10 / 20 / 40 / 60 / 80 m²** — utiliser uniquement si le client veut exactement ces surfaces.
 → `rechercher_produits_detail(site="terrasse", recherche="[essence]")` pour trouver le kit.
 
+**Multi-config terrasse :** `configurations_supplementaires='[{"essence":"PIN 27mm Autoclave Marron","longueur":"4.2","quantite":20,...}]'` pour ajouter une 2ème terrasse au même panier/PDF.
+
 ### 5. Clôtures (Clôture Bois)
 
 **Classique** (H=1,9m) : longueur 4 à 40 ml
@@ -239,6 +248,8 @@ Surfaces fixes : **10 / 20 / 40 / 60 / 80 m²** — utiliser uniquement si le cl
 > Prix → générer le devis via `generer_devis_cloture_bois`.
 
 Options : bardage 20-45mm, couleurs Vert/Marron/Gris/Noir, horizontal/vertical, recto-verso, poteaux bois ou métal.
+
+**Multi-config clôture :** `configurations_supplementaires='[{"modele":"classique","longeur":"10",...}]'` pour ajouter une 2ème clôture au même panier/PDF.
 
 ---
 
