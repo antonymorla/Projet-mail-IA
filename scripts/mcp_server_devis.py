@@ -543,10 +543,14 @@ async def generer_devis_pergola_bois(
     option: str = "non",
     poteau_lamelle_colle: bool = False,
     nb_poteaux_lamelle_colle: int = 0,
+    claustra_type: str = "",
+    nb_claustra: int = 0,
     sur_mesure: bool = False,
     largeur_hors_tout: str = "",
     profondeur_hors_tout: str = "",
     hauteur_hors_tout: str = "",
+    pente: str = "",
+    options_wapf: str = "{}",
     client_nom: str = "",
     client_prenom: str = "",
     client_email: str = "",
@@ -555,6 +559,7 @@ async def generer_devis_pergola_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis pergola bois sur mapergolabois.fr.
 
@@ -569,12 +574,23 @@ async def generer_devis_pergola_bois(
         poteau_lamelle_colle : True pour ajouter des poteaux en bois lamellé-collé
         nb_poteaux_lamelle_colle : Nombre de poteaux lamellé-collé (0 = auto-calculé depuis
                                la description de variation). Fournir si auto-calcul échoue.
+        claustra_type        : Type de claustra : "" (aucun) | "vertical" | "horizontal" |
+                               "lattage". Option native du configurateur WAPF (field-5219ffc).
+                               ⚠ NE PAS ajouter les claustras en produits_complementaires.
+                               Le bardage (panneau plein) est un produit séparé → utiliser produits_complementaires.
+        nb_claustra          : Nombre de modules claustra (1 module = 1m de large).
+                               Ex : pergola 4m → nb_claustra=4 pour remplir un côté.
         sur_mesure           : True pour activer la configuration sur-mesure (+199,90€)
                                Choisir largeur/profondeur = variation standard >= dimensions souhaitées
         largeur_hors_tout    : Largeur réelle hors-tout en mètres (ex: "7.60")
                                Obligatoire si sur_mesure=True
         profondeur_hors_tout : Profondeur réelle hors-tout en mètres (ex: "3.42")
         hauteur_hors_tout    : Hauteur hors-tout en mètres (max 3.07m, ex: "2.50")
+        pente                : Pente de toiture. "" (défaut 5%) | "5%" | "15%"
+                               ⚠ pente="15%" nécessite ventelle="largeur"
+        options_wapf         : JSON dict de champs WAPF supplémentaires à sélectionner.
+                               Format : {"field_id": "valeur"} ou {"field_id": {"type": "swatch", "value": "..."}}
+                               Permet de piloter n'importe quel champ WAPF non prévu explicitement.
         client_*             : coordonnées client
         mode_livraison       : "" (ne pas changer) | "retrait" (retrait atelier Illies)
                                | "livraison" (livraison à domicile, ~99€)
@@ -582,6 +598,10 @@ async def generer_devis_pergola_bois(
                                Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                                Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                           "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                               est un dict avec les mêmes clés : {"largeur": "5m", "profondeur": "3m",
+                               "fixation": "independante", "ventelle": "largeur", "option": "non", ...}
+                               Permet de mettre plusieurs pergolas sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -591,12 +611,15 @@ async def generer_devis_pergola_bois(
         "ventelle": ventelle, "option": option,
         "poteau_lamelle_colle": poteau_lamelle_colle,
         "nb_poteaux_lamelle_colle": nb_poteaux_lamelle_colle,
+        "claustra_type": claustra_type, "nb_claustra": nb_claustra,
         "sur_mesure": sur_mesure, "largeur_hors_tout": largeur_hors_tout,
         "profondeur_hors_tout": profondeur_hors_tout, "hauteur_hors_tout": hauteur_hors_tout,
+        "pente": pente, "options_wapf": options_wapf,
         "client_nom": client_nom, "client_prenom": client_prenom,
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -620,6 +643,7 @@ async def generer_devis_terrasse_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis terrasse bois sur terrasseenbois.fr (formulaire WAPF).
 
@@ -659,6 +683,10 @@ async def generer_devis_terrasse_bois(
                            Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                            Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                       "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                           est un dict avec les mêmes clés : {"essence": "...", "longueur": "...",
+                           "quantite": N, "lambourdes": "...", ...}
+                           Permet de mettre plusieurs terrasses sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -672,6 +700,7 @@ async def generer_devis_terrasse_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -744,6 +773,7 @@ async def generer_devis_cloture_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis kit clôture bois sur cloturebois.fr.
 
@@ -774,6 +804,10 @@ async def generer_devis_cloture_bois(
                          Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                          Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                     "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                         est un dict avec les mêmes clés : {"modele": "moderne", "longeur": "10",
+                         "hauteur": "1-9", "bardage": "21x145", ...}
+                         Permet de mettre plusieurs clôtures sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -787,6 +821,7 @@ async def generer_devis_cloture_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -814,6 +849,8 @@ async def generer_devis(
     pergola: str = "",
     produits_complementaires: str = "[]",
     code_promo: str = "",
+    produits_uniquement: bool = False,
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis PDF complet pour un produit configuré sur le site web.
 
@@ -881,8 +918,28 @@ async def generer_devis(
             - 2 abris accolés    : configurer le 1er abri normalement, puis rechercher_produits_detail(site="abri",
                                    recherche="[dimensions 2ème abri]") pour trouver le modèle préconçu du 2ème
                                    et l'ajouter ici → les 2 abris apparaissent sur le même devis PDF
-            - Gamme Essentiel    : NON génératable par ce configurateur. Utiliser rechercher_produits_detail(
-                                   site="abri", recherche="essentiel") → renvoyer le lien produit au client
+            - Gamme Essentiel    : utiliser produits_uniquement=True + rechercher_produits_detail(site="abri",
+                                   recherche="essentiel [options]") → trouver url + variation_id → passer
+                                   en produits_complementaires. Le PDF ne contiendra QUE le modèle préconçu.
+        produits_uniquement: (ABRI uniquement) True pour générer un devis avec UNIQUEMENT les
+            produits_complementaires, SANS passer par le configurateur WPC. Utilisé pour les
+            modèles préconçus (Gamme Essentiel, Haut de Gamme) qui sont des produits WooCommerce
+            simples. Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
+            ⚠ Nécessite au moins 1 produit dans produits_complementaires.
+        configurations_supplementaires: JSON array de configurations supplémentaires à ajouter
+            au MÊME devis PDF. Chaque élément est un dict avec les mêmes clés que la config
+            principale. Permet de mettre plusieurs produits personnalisés (ex: 2 abris Gamme Origine)
+            sur le même devis.
+
+            ABRI : [{"largeur": "4,70M", "profondeur": "3,45m",
+                     "ouvertures": [{"type": "...", "face": "...", "position": "..."}],
+                     "extension_toiture": "Gauche 3,5 M", "plancher": false, "bac_acier": true}]
+            STUDIO : [{"largeur": "3,3", "profondeur": "3,5",
+                       "menuiseries": [...], "bardage_exterieur": "Gris", ...}]
+
+            Le script configure le premier produit, l'ajoute au panier, puis navigue à nouveau
+            vers le configurateur pour chaque config supplémentaire. Les produits_complementaires
+            sont ajoutés après tous les produits configurés.
 
     Returns:
         JSON avec le chemin du PDF généré et les métadonnées.
@@ -894,6 +951,14 @@ async def generer_devis(
             produits_list = []
     except (json.JSONDecodeError, TypeError):
         produits_list = []
+
+    # Parser configurations_supplementaires
+    try:
+        configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) else configurations_supplementaires
+        if not isinstance(configs_sup, list):
+            configs_sup = []
+    except (json.JSONDecodeError, TypeError):
+        configs_sup = []
 
     try:
         if site == "studio":
@@ -925,6 +990,7 @@ async def generer_devis(
                 "pergola": pergola,
                 "produits_complementaires": produits_list,
                 "code_promo": code_promo,
+                "configurations_supplementaires": configs_sup,
             }
 
         else:  # abri
@@ -954,6 +1020,8 @@ async def generer_devis(
                 "bac_acier": bac_acier,
                 "produits_complementaires": produits_list,
                 "code_promo": code_promo,
+                "produits_uniquement": produits_uniquement,
+                "configurations_supplementaires": configs_sup,
             }
 
         return await _generer_direct(site, params, client_prenom, client_nom)
@@ -984,7 +1052,7 @@ def lister_sites() -> str:
             "nom": "Abri de jardin bois — Gamme Origine (toit plat)",
             "url": "https://www.xn--abri-franais-sdb.fr",
             "statut": "fonctionnel",
-            "note_gammes": "⚠ Ce configurateur génère UNIQUEMENT la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). La Gamme Essentiel (toit 2 pentes, 1190-2120€, promo LEROYMERLIN5 -5%) est UNIQUEMENT en modèles préconçus — utiliser rechercher_produits_detail(site='abri', recherche='essentiel') pour trouver ces modèles.",
+            "note_gammes": "Ce configurateur génère la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). Pour la Gamme Essentiel (toit 2 pentes, 1190-2120€, promo LEROYMERLIN5 -5%) : utiliser produits_uniquement=True + rechercher_produits_detail(site='abri', recherche='essentiel [options]') → passer le résultat en produits_complementaires. Le PDF ne contiendra que le modèle préconçu.",
             "dimensions": {
                 "largeurs": ["2,15M", "2,65M", "3,45M", "4,20M", "4,35M",
                              "4,70M", "5,20M", "5,50M", "6,00M", "6,80M",
