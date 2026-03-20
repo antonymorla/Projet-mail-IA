@@ -183,11 +183,14 @@ generer_devis(
 - Types : `PORTE VITREE`, `FENETRE SIMPLE`, `FENETRE DOUBLE`, `BAIE VITREE`, `PORTE DOUBLE VITREE`
 - Murs : `MUR DE FACE`, `MUR DE GAUCHE`, `MUR DE DROITE`, `MUR DU FOND`
 - Matériaux : `PVC` | `ALU` — ⚠ `BAIE VITREE` et `PORTE DOUBLE VITREE` = ALU uniquement
-- **Positionnement** : chaque menuiserie occupe un module préfabriqué de 1,10 m. Le script détecte les conflits automatiquement.
-  - `"gauche"` / `"auto"` → premier module libre depuis l'angle origine du mur
-  - `"droite"` → dernier module libre
-  - `"centre"` → module libre le plus proche du centre du mur
-  - `"1,29"` etc. → offset exact en mètres (notation française) ; fallback sur le plus proche si occupé
+- **Positionnement** : modules préfabriqués de 1,10 m. Point 0 = angle mur de face/gauche ET angle mur de droite/fond.
+  - **BAIE VITREE, FENETRE DOUBLE, PORTE DOUBLE VITREE** → **2 modules** (2,20 m)
+  - **PORTE VITREE, FENETRE SIMPLE** → **1 module** (1,10 m)
+  - Le script détecte les conflits automatiquement (pas de superposition de modules).
+  - `"gauche"` / `"auto"` → premier(s) module(s) libre(s) depuis l'angle origine du mur
+  - `"droite"` → dernier(s) module(s) libre(s)
+  - `"centre"` → module(s) libre(s) le(s) plus proche(s) du centre du mur
+  - `"1,29"` / `"3,3"` etc. → offset exact en mètres (notation française) ; fallback sur le plus proche si occupé
 
 **Studio — dimensions disponibles (largeur × profondeur) :**
 ```

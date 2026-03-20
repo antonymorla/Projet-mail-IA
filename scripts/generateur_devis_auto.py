@@ -96,10 +96,14 @@ SITES = {
 DOWNLOAD_DIR = os.path.expanduser("~/Downloads")
 
 # Largeur d'un module de mur studio (préfabriqué ossature bois).
-# Chaque menuiserie occupe exactement UN module de 1,10 m.
 # Les positions disponibles dans le configurateur WPC sont espacées de 1,10 m.
 # Deux menuiseries ne peuvent pas partager le même module sur un mur.
+# Point 0 (origine) = angle mur de face / mur de gauche ET angle mur de droite / mur du fond.
 MODULE_STUDIO = 1.10
+
+# Menuiseries qui occupent 2 modules consécutifs (2 × 1,10 m = 2,20 m).
+# Les autres menuiseries (PORTE VITREE, FENETRE SIMPLE) occupent 1 seul module.
+DOUBLE_MODULE_TYPES = {"BAIE VITREE", "FENETRE DOUBLE", "PORTE DOUBLE VITREE"}
 
 
 @dataclass
@@ -510,13 +514,17 @@ class GenerateurDevis:
     ) -> str:
         """Ajoute une menuiserie studio avec positionnement intelligent anti-chevauchement.
 
-        Chaque menuiserie occupe exactement un module de 1,10 m (MODULE_STUDIO).
-        Deux menuiseries sur le même mur ne peuvent pas partager le même module.
+        Chaque menuiserie occupe 1 ou 2 modules de 1,10 m (MODULE_STUDIO) :
+        - BAIE VITREE, FENETRE DOUBLE, PORTE DOUBLE VITREE → 2 modules (2,20 m)
+        - PORTE VITREE, FENETRE SIMPLE → 1 module (1,10 m)
+
+        Point 0 (origine) = angle mur de face / mur de gauche ET angle mur de droite / mur du fond.
+        Les offsets dans le configurateur sont des multiples de 1,10 m depuis le point 0.
 
         position_hint :
-          "auto" / "gauche"  → premier module libre (depuis l'angle origine du mur)
-          "droite"           → dernier module libre
-          "centre"           → module libre le plus proche du centre du mur
+          "auto" / "gauche"  → premier module(s) libre(s) (depuis l'angle origine du mur)
+          "droite"           → dernier module(s) libre(s)
+          "centre"           → module(s) libre(s) le(s) plus proche(s) du centre du mur
           "1,29" etc.        → offset exact souhaité (notation française) ; prend le
                                module libre le plus proche si non disponible
 
@@ -620,16 +628,26 @@ class GenerateurDevis:
             return float(s.replace(",", "."))
 
         def module_idx(offset: float) -> int:
-            return int(offset / MODULE_STUDIO)
+            return int(round(offset / MODULE_STUDIO))
+
+        # Nombre de modules occupés par cette menuiserie (1 ou 2)
+        is_double = type_menu.upper() in DOUBLE_MODULE_TYPES
+        nb_modules = 2 if is_double else 1
 
         offsets = [(p["text"], p["uid"], parse_fr(p["text"])) for p in available]
         used_modules = used_modules_per_wall.get(mur, set())
-        free = [(t, u, o) for t, u, o in offsets if module_idx(o) not in used_modules]
+
+        def is_free(offset: float) -> bool:
+            """Vérifie que les nb_modules consécutifs sont libres."""
+            idx = module_idx(offset)
+            return all((idx + k) not in used_modules for k in range(nb_modules))
+
+        free = [(t, u, o) for t, u, o in offsets if is_free(o)]
 
         hint = (position_hint or "auto").strip().lower()
 
         if not free:
-            print(f"    ⚠ Tous les modules occupés sur {mur} pour {type_menu} — fallback premier")
+            print(f"    ⚠ Pas assez de modules consécutifs libres sur {mur} pour {type_menu} ({nb_modules} modules) — fallback premier")
             sel_text, sel_uid, sel_off = offsets[0]
         elif hint in ("auto", "gauche", "left", ""):
             sel_text, sel_uid, sel_off = free[0]
@@ -639,15 +657,15 @@ class GenerateurDevis:
             mid = (offsets[0][2] + offsets[-1][2]) / 2
             sel_text, sel_uid, sel_off = min(free, key=lambda p: abs(p[2] - mid))
         else:
-            # Position exacte demandée (ex: "1,29")
+            # Position exacte demandée (ex: "1,29" ou "3,3")
             exact = next(((t, u, o) for t, u, o in free if t == hint), None)
             if exact:
                 sel_text, sel_uid, sel_off = exact
             else:
                 # Chercher dans toutes les positions (même module occupé)
                 all_match = next(((t, u, o) for t, u, o in offsets if t == hint), None)
-                if all_match and module_idx(all_match[2]) in used_modules:
-                    print(f"    ⚠ Module pour '{hint}' déjà occupé — sélection forcée")
+                if all_match and not is_free(all_match[2]):
+                    print(f"    ⚠ Module(s) pour '{hint}' déjà occupé(s) — sélection forcée")
                     sel_text, sel_uid, sel_off = all_match
                 elif all_match:
                     sel_text, sel_uid, sel_off = all_match
@@ -679,9 +697,13 @@ class GenerateurDevis:
         if isinstance(click, dict) and click.get("error"):
             raise ValueError(f"Menuiserie studio click: {click['error']}")
 
-        used_modules_per_wall.setdefault(mur, set()).add(module_idx(sel_off))
+        # Enregistrer les modules occupés (1 ou 2 selon le type de menuiserie)
+        idx = module_idx(sel_off)
+        for k in range(nb_modules):
+            used_modules_per_wall.setdefault(mur, set()).add(idx + k)
         await self.page.wait_for_timeout(500)
-        print(f"    ✓ {type_menu} {materiau} > {mur} @ {sel_text} (hint={position_hint or 'auto'})")
+        modules_str = f"modules {idx}-{idx+1}" if is_double else f"module {idx}"
+        print(f"    ✓ {type_menu} {materiau} > {mur} @ {sel_text} ({modules_str}, hint={position_hint or 'auto'})")
         return sel_text
 
     async def ajouter_produit_woo(
