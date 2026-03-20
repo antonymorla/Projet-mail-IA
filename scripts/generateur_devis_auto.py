@@ -601,15 +601,15 @@ class GenerateurDevis:
 
         # --- Configuration via clics WPC ---
         # Helper JS pour sélectionner une option par data-text dans un groupe
-        async def select_option(group_text: str, option_text: str, _expand_retries: int = 0):
+        async def select_option(group_text: str, option_text: str):
             """Clique sur option_text dans le groupe group_text.
 
-            Découvre les options disponibles dans le groupe avant de cliquer.
-            Vérifie si l'option est DÉJÀ sélectionnée (via wpc-encoded) pour
-            éviter de la désélectionner par un double-clic.
-            Si l'option est dans un accordion fermé, ouvre le groupe et réessaie.
-            Lève ValueError si le groupe ou l'option n'existe pas.
+            Phase 1 (JS evaluate) : localise l'option, vérifie si déjà sélectionnée.
+            Phase 2 (Playwright .click()) : clic trusted sur le sélecteur CSS ciblé.
+            Alpine.js (x-on:click.stop) nécessite un clic trusted (isTrusted=true)
+            que seul Playwright .click() peut fournir (pas DOM .click()).
             """
+            # Phase 1 — Identifier l'option et vérifier son état (JS pur, pas de clic)
             result = await self.page.evaluate("""
                 (args) => {
                     function findByText(parent, text) {
@@ -619,26 +619,17 @@ class GenerateurDevis:
                         }
                         return null;
                     }
-                    function clickItem(item) {
-                        var tw = item.querySelector('.wpc-layer-title-wrap');
-                        if (tw) tw.click();
-                        else item.click();
-                    }
                     function listChildren(parent) {
-                        // Essayer d'abord le sélecteur direct (> ul > li)
                         var items = parent.querySelectorAll(':scope > ul > li.wpc-control-item');
-                        // Fallback : certains groupes WPC ont un div intermédiaire (> div > ul > li)
                         if (items.length === 0) {
                             items = parent.querySelectorAll(':scope > div > ul > li.wpc-control-item');
                         }
-                        // Dernier fallback : chercher tous les descendants wpc-control-item
                         if (items.length === 0) {
                             items = parent.querySelectorAll('li.wpc-control-item');
                         }
                         return Array.from(items).map(i => i.getAttribute('data-text')).filter(Boolean);
                     }
                     function isAlreadySelected(item) {
-                        // Vérifier via wpc-encoded si le data-uid de l'item est déjà sélectionné
                         var uid = item.getAttribute('data-uid');
                         if (!uid) return false;
                         var form = document.querySelector('form.cart');
@@ -668,72 +659,32 @@ class GenerateurDevis:
                         var available = listChildren(group);
                         return {error: 'option_not_found', option: args.optionText, group: args.groupText, available_options: available};
                     }
-
-                    // Vérifier si l'option est visible (pas dans un accordion fermé)
-                    var optVisible = option.offsetHeight > 0 || option.offsetParent !== null;
-                    if (!optVisible) {
-                        // L'option est masquée — probablement dans un groupe accordion fermé
-                        // Ouvrir le groupe en cliquant sur son wpc-layer-title-wrap
-                        var groupTitleWrap = group.querySelector(':scope > .wpc-layer-title-wrap');
-                        if (groupTitleWrap) {
-                            groupTitleWrap.click();
-                            return {needs_expand: true, group: args.groupText, option: args.optionText};
-                        }
-                    }
-
-                    // Dump diagnostic de l'option pour le debug
+                    // Diagnostic
                     var optUid = option.getAttribute('data-uid') || '';
-                    var optId = option.getAttribute('data-id') || '';
                     var optClasses = option.className || '';
                     var diagForm = document.querySelector('form.cart');
                     var diagEnc = diagForm ? diagForm.querySelector('[name="wpc-encoded"]') : null;
                     var diagEncVal = (diagEnc && diagEnc.value) ? atob(diagEnc.value) : '';
-
-                    // Vérifier si déjà sélectionné AVANT de cliquer — multiples stratégies
-                    // 1. Via wpc-encoded (data-uid dans les UIDs sélectionnés)
+                    // Vérifier si déjà sélectionné
                     var alreadyByEncoded = isAlreadySelected(option);
-                    // 2. Via classe CSS (WPC ajoute souvent une classe sur les items actifs)
                     var alreadyByClass = option.classList.contains('wpc-active')
                         || option.classList.contains('active')
                         || option.classList.contains('selected')
-                        || option.classList.contains('wpc-cl-selected');
-                    // 3. Via l'image de l'item (WPC ajoute wpc-cl-img-active sur l'image sélectionnée)
-                    var img = option.querySelector('.wpc-cl-img');
-                    var alreadyByImg = img && (img.classList.contains('wpc-cl-img-active')
-                        || img.classList.contains('active'));
-                    // 4. Via aria-checked ou data-selected
-                    var alreadyByAttr = option.getAttribute('aria-checked') === 'true'
-                        || option.getAttribute('data-selected') === 'true';
-                    // 5. Via le style outline/border (WPC met parfois un outline sur les swatches actifs)
-                    var titleWrap = option.querySelector('.wpc-layer-title-wrap');
-                    var alreadyByOutline = false;
-                    if (titleWrap) {
-                        var cs = window.getComputedStyle(titleWrap);
-                        alreadyByOutline = cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px';
-                    }
-
-                    var isSelected = alreadyByEncoded || alreadyByClass || alreadyByImg || alreadyByAttr || alreadyByOutline;
+                        || option.classList.contains('wpc-cl-selected')
+                        || option.classList.contains('current');
+                    var isSelected = alreadyByEncoded || alreadyByClass;
                     var available = listChildren(group);
-                    var diag = {uid: optUid, id: optId, classes: optClasses, wpc_encoded: diagEncVal,
-                                checks: {encoded: alreadyByEncoded, css: alreadyByClass, img: alreadyByImg, attr: alreadyByAttr, outline: alreadyByOutline}};
+                    var diag = {uid: optUid, classes: optClasses, wpc_encoded: diagEncVal,
+                                checks: {encoded: alreadyByEncoded, css: alreadyByClass}};
                     if (isSelected) {
-                        return {ok: true, already_selected: true, method: alreadyByEncoded ? 'wpc-encoded' : alreadyByClass ? 'css-class' : alreadyByImg ? 'img-active' : alreadyByAttr ? 'aria-attr' : 'outline', available_options: available, diag: diag};
+                        return {ok: true, already_selected: true, method: alreadyByEncoded ? 'wpc-encoded' : 'css-class', available_options: available, diag: diag};
                     }
-                    clickItem(option);
-                    return {ok: true, already_selected: false, available_options: available, diag: diag};
+                    // Pas encore sélectionné — retourner le sélecteur CSS pour clic Playwright
+                    return {ok: true, already_selected: false, needs_click: true,
+                            selector: 'li.wpc-control-item[data-uid="' + optUid + '"]',
+                            available_options: available, diag: diag};
                 }
             """, {"groupText": group_text, "optionText": option_text})
-            if isinstance(result, dict) and result.get("needs_expand"):
-                # Groupe accordion fermé — on l'a ouvert, attendre l'animation Alpine.js puis réessayer
-                if _expand_retries >= 2:
-                    raise ValueError(
-                        f"Groupe '{group_text}' reste fermé après {_expand_retries} tentatives d'ouverture. "
-                        f"L'option '{option_text}' est introuvable ou masquée."
-                    )
-                print(f"    ⚠ Groupe '{group_text}' fermé (accordion) — ouverture en cours...")
-                await self.page.wait_for_timeout(800)
-                # Réessayer le même appel maintenant que le groupe est ouvert
-                return await select_option(group_text, option_text, _expand_retries + 1)
             if isinstance(result, dict) and result.get("error"):
                 err_type = result["error"]
                 if err_type == "group_not_found":
@@ -748,15 +699,18 @@ class GenerateurDevis:
                     )
             if isinstance(result, dict) and result.get("ok"):
                 diag = result.get("diag", {})
-                print(f"    [DIAG] {group_text}/{option_text}: uid={diag.get('uid')}, id={diag.get('id')}, "
+                print(f"    [DIAG] {group_text}/{option_text}: uid={diag.get('uid')}, "
                       f"classes={diag.get('classes', '')[:80]}, wpc_encoded={diag.get('wpc_encoded', '')[:120]}, "
                       f"checks={diag.get('checks', {})}")
                 if result.get("already_selected"):
                     method = result.get("method", "unknown")
                     print(f"    ✓ {group_text} → {option_text} (déjà sélectionné via {method} — clic ignoré)")
-                else:
-                    print(f"    ✓ {group_text} → {option_text} (cliqué)")
-            await self.page.wait_for_timeout(300)
+                elif result.get("needs_click"):
+                    # Phase 2 — Clic Playwright trusted (isTrusted=true) via sélecteur CSS
+                    selector = result["selector"]
+                    await self.page.click(selector, timeout=5000)
+                    print(f"    ✓ {group_text} → {option_text} (cliqué via Playwright)")
+            await self.page.wait_for_timeout(500)
 
         # Bardage extérieur
         if config.bardage_exterieur:
