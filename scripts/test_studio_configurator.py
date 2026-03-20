@@ -342,7 +342,7 @@ async def run_online_test(test_name: str, test_def: dict) -> dict:
     print(f"  {desc}")
     print(f"{'='*70}")
 
-    gen = GenerateurDevis(site="studio", headless=True)
+    gen = GenerateurDevis(site="studio", headless=False)
     result = {"name": test_name, "desc": desc, "status": "FAIL", "prix": None, "error": None, "uids": 0, "duration": 0}
     start = time.time()
 
