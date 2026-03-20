@@ -147,10 +147,10 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - ⚠ **La rehausse est nécessaire** pour atteindre 2,50m sous plafond. Sans rehausse, la hauteur intérieure est d'environ 2,30m.
 
 **Plancher**
-- **Plancher isolé simple** (disponible avec isolation 60mm) : structure 145mm + OSB 18mm = **163mm total** (~16,3cm). Face supérieure à environ 16cm au-dessus de la dalle béton.
-- **Plancher RE2020** (disponible avec isolation RE2020 100mm) : plancher isolé conforme RE2020. Épaisseur supérieure au plancher isolé simple.
-- **Plancher renforcé** (disponible avec les 2 isolations) : structure renforcée pour charges lourdes (mobilier lourd, piano, etc.). Seulement **6 plots** nécessaires (vs davantage avec plancher standard). Section variable selon profondeur du studio.
-- ⚠ **Correspondance configurateur** : le WPC affiche des options différentes selon l'isolation. Avec 60mm → "Plancher isolé simple" + "Plancher renforcé". Avec RE2020 → "Plancher RE2020" + "Plancher renforcé".
+- **Plancher standard** (disponible avec isolation 60mm — data-text WPC : `"Plancher standard"`) : structure 145mm + OSB 18mm = **163mm total** (~16,3cm). Face supérieure à environ 16cm au-dessus de la dalle béton.
+- **Plancher RE2020** (disponible avec isolation RE2020 100mm — data-text WPC : `"Plancher RE2020"`) : plancher isolé conforme RE2020. Épaisseur supérieure au plancher standard.
+- **Plancher porteur** (disponible avec les 2 isolations — data-text WPC : `"Plancher porteur"`) : structure renforcée pour charges lourdes (mobilier lourd, piano, etc.). Seulement **6 plots** nécessaires (vs davantage avec plancher standard). Section variable selon profondeur du studio.
+- ⚠ **Visibilité configurateur** : les 4 options existent toujours dans le DOM (Alpine.js gère la visibilité). Avec 60mm → "Plancher standard" + "Plancher porteur" visibles. Avec RE2020 → "Plancher RE2020" + "Plancher porteur" visibles.
 - Sans plancher : le studio repose directement sur la dalle béton (prévoir isolation par l'intérieur si besoin).
 - **Finition plancher** : option **EXTÉRIEURE** purement cosmétique — habillage bas du studio côté extérieur, assorti au bardage. Ce n'est PAS une finition de sol intérieur.
 

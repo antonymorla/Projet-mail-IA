@@ -228,27 +228,29 @@ def _valider_cloture(modele, longeur, hauteur, bardage) -> list:
 def _normaliser_plancher_studio(plancher: str, isolation: str) -> str:
     """Normalise le nom du plancher studio et corrige les incohérences isolation/plancher.
 
-    Mapping DOM WPC Booster :
-        - Isolation 60mm  → "Sans plancher", "Plancher isolé simple", "Plancher renforcé"
-        - Isolation RE2020 → "Sans plancher", "Plancher RE2020", "Plancher renforcé"
+    DOM WPC Booster data-text (4 options, toujours présentes, visibilité Alpine.js) :
+        "Sans plancher", "Plancher standard", "Plancher RE2020", "Plancher porteur"
+        - Isolation 60mm  → "Plancher standard" visible, "Plancher RE2020" masqué
+        - Isolation RE2020 → "Plancher RE2020" visible, "Plancher standard" masqué
+        - "Plancher porteur" toujours visible
 
     Alias acceptés :
-        - "Plancher standard" → "Plancher isolé simple"
-        - "Plancher porteur"  → "Plancher renforcé"
+        - "Plancher isolé simple" → "Plancher standard"
+        - "Plancher renforcé"     → "Plancher porteur"
     """
     if not plancher or plancher == "Sans plancher":
         return "Sans plancher"
-    # Résoudre les alias
+    # Résoudre les alias utilisateur → data-text DOM
     aliases = {
-        "Plancher standard": "Plancher isolé simple",
-        "Plancher porteur": "Plancher renforcé",
+        "Plancher isolé simple": "Plancher standard",
+        "Plancher renforcé": "Plancher porteur",
     }
     plancher = aliases.get(plancher, plancher)
     # Auto-correction cohérence isolation/plancher
     is_re2020 = "RE2020" in isolation or "100" in isolation
     if plancher == "Plancher RE2020" and not is_re2020:
-        plancher = "Plancher isolé simple"
-    elif plancher == "Plancher isolé simple" and is_re2020:
+        plancher = "Plancher standard"
+    elif plancher == "Plancher standard" and is_re2020:
         plancher = "Plancher RE2020"
     return plancher
 
@@ -1263,7 +1265,7 @@ async def generer_devis_studio(
         isolation: "60mm"|"100 mm (RE2020)"
         rehausse: True pour rehausse 3,20m
         bardage_interieur: "OSB"|"Panneaux bois massif (3 plis épicéa)"
-        plancher: "Sans plancher"|"Plancher isolé simple" (si 60mm)|"Plancher RE2020" (si RE2020)|"Plancher renforcé" (toujours dispo). Alias : "Plancher standard"→"isolé simple", "Plancher porteur"→"renforcé". Auto-correction si incohérence isolation/plancher.
+        plancher: "Sans plancher"|"Plancher standard" (si 60mm)|"Plancher RE2020" (si RE2020)|"Plancher porteur" (toujours dispo). Alias : "Plancher isolé simple"→"standard", "Plancher renforcé"→"porteur". Auto-correction si incohérence isolation/plancher.
         terrasse: ""|"2m (11m2)"|"4m (22m2)"
         pergola: ""|"4x2m (8m2)"|"4x4m (16m2)"
         produits_complementaires: JSON array produits au même panier. Utiliser rechercher_produits_detail d'abord.

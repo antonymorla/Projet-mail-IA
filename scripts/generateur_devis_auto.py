@@ -235,7 +235,7 @@ class ConfigStudio:
     isolation: str = "60mm"            # "60mm" ou "100 mm (RE2020)"
     rehausse: bool = False             # OUI/NON (hauteur 3,20m)
     bardage_interieur: str = "OSB"     # "OSB" ou "Panneaux bois massif (3 plis épicéa)"
-    plancher: str = "Sans plancher"    # "Sans plancher", "Plancher isolé simple" (60mm), "Plancher RE2020" (RE2020), "Plancher renforcé" (les 2)
+    plancher: str = "Sans plancher"    # "Sans plancher", "Plancher standard" (60mm), "Plancher RE2020" (RE2020), "Plancher porteur" (les 2)
     finition_plancher: bool = False    # OUI/NON
     terrasse: str = ""                 # "" (pas de terrasse), "2m (11m2)", "4m (22m2)"
     pergola: str = ""                  # "" (pas de pergola), "4x2m (8m2)", "4x4m (16m2)"
@@ -624,7 +624,16 @@ class GenerateurDevis:
                         else item.click();
                     }
                     function listChildren(parent) {
+                        // Essayer d'abord le sélecteur direct (> ul > li)
                         var items = parent.querySelectorAll(':scope > ul > li.wpc-control-item');
+                        // Fallback : certains groupes WPC ont un div intermédiaire (> div > ul > li)
+                        if (items.length === 0) {
+                            items = parent.querySelectorAll(':scope > div > ul > li.wpc-control-item');
+                        }
+                        // Dernier fallback : chercher tous les descendants wpc-control-item
+                        if (items.length === 0) {
+                            items = parent.querySelectorAll('li.wpc-control-item');
+                        }
                         return Array.from(items).map(i => i.getAttribute('data-text')).filter(Boolean);
                     }
                     function isAlreadySelected(item) {
@@ -811,22 +820,25 @@ class GenerateurDevis:
             await select_option("BARDAGE INTERIEUR", config.bardage_interieur)
 
         # Plancher — résolution intelligente selon l'isolation sélectionnée
-        # DOM WPC : avec RE2020 → "Sans plancher", "Plancher RE2020", "Plancher renforcé"
-        #           avec 60mm  → "Sans plancher", "Plancher isolé simple", "Plancher renforcé"
+        # DOM WPC data-text (4 options, toujours présentes, visibilité gérée par Alpine.js) :
+        #   "Sans plancher", "Plancher standard", "Plancher RE2020", "Plancher porteur"
+        # Avec isolation 60mm  → "Plancher standard" visible, "Plancher RE2020" masqué
+        # Avec isolation RE2020 → "Plancher RE2020" visible, "Plancher standard" masqué
+        # "Plancher porteur" toujours visible
         if config.plancher and config.plancher != "Sans plancher":
             is_re2020 = "RE2020" in config.isolation or "100" in config.isolation
-            # Table d'alias : anciens noms → noms DOM réels
+            # Table d'alias : noms alternatifs → data-text DOM réels
             _plancher_aliases = {
-                "Plancher standard": "Plancher isolé simple",
-                "Plancher porteur": "Plancher renforcé",
+                "Plancher isolé simple": "Plancher standard",
+                "Plancher renforcé": "Plancher porteur",
             }
             plancher_dom = _plancher_aliases.get(config.plancher, config.plancher)
-            # Vérification cohérence isolation ↔ plancher (auto-correction)
+            # Auto-correction cohérence isolation ↔ plancher
             if plancher_dom == "Plancher RE2020" and not is_re2020:
-                print(f"  ⚠ Plancher RE2020 incompatible avec isolation {config.isolation} → Plancher isolé simple")
-                plancher_dom = "Plancher isolé simple"
-            elif plancher_dom == "Plancher isolé simple" and is_re2020:
-                print(f"  ⚠ Plancher isolé simple incompatible avec isolation RE2020 → Plancher RE2020")
+                print(f"  ⚠ Plancher RE2020 incompatible avec isolation {config.isolation} → Plancher standard")
+                plancher_dom = "Plancher standard"
+            elif plancher_dom == "Plancher standard" and is_re2020:
+                print(f"  ⚠ Plancher standard incompatible avec isolation RE2020 → Plancher RE2020")
                 plancher_dom = "Plancher RE2020"
             print(f"  ➜ Plancher : {plancher_dom}")
             await select_option("Plancher ", plancher_dom)
@@ -2288,9 +2300,9 @@ async def generer_devis_studio(
             Positions: valeurs numériques (offset en mètres)
         bardage_exterieur: "Gris", "Brun", "Noir", "Vert"
         isolation: "60mm" ou "100 mm (RE2020)"
-        plancher: "Sans plancher", "Plancher isolé simple" (60mm), "Plancher RE2020" (RE2020), "Plancher renforcé" (les 2)
-            Alias acceptés : "Plancher standard" → "Plancher isolé simple", "Plancher porteur" → "Plancher renforcé"
-            Auto-correction si incohérence isolation/plancher (ex: RE2020 + isolé simple → RE2020)
+        plancher: "Sans plancher", "Plancher standard" (60mm), "Plancher RE2020" (RE2020), "Plancher porteur" (les 2)
+            Alias acceptés : "Plancher isolé simple" → "Plancher standard", "Plancher renforcé" → "Plancher porteur"
+            Auto-correction si incohérence isolation/plancher (ex: RE2020 + standard → RE2020)
         terrasse: "" (aucune), "2m (11m2)", "4m (22m2)"
         pergola: "" (aucune), "4x2m (8m2)", "4x4m (16m2)"
         client_*: coordonnées du client

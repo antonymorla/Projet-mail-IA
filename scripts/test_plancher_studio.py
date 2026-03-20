@@ -1,33 +1,36 @@
 """Test live : vérifie les 4 typologies de plancher studio.
 
+DOM WPC data-text : "Sans plancher", "Plancher standard", "Plancher RE2020", "Plancher porteur"
+Alias acceptés : "Plancher isolé simple" → "Plancher standard", "Plancher renforcé" → "Plancher porteur"
+
 Usage (choisir UN test à la fois) :
 
-    # Test 1 — Plancher isolé simple (isolation 60mm)
-    python scripts/test_plancher_studio.py isolé
+    # Test 1 — Plancher standard (isolation 60mm)
+    python3 scripts/test_plancher_studio.py standard
 
     # Test 2 — Plancher RE2020 (isolation RE2020)
-    python scripts/test_plancher_studio.py re2020
+    python3 scripts/test_plancher_studio.py re2020
 
-    # Test 3 — Plancher renforcé + isolation 60mm
-    python scripts/test_plancher_studio.py renforcé-60
+    # Test 3 — Plancher porteur + isolation 60mm
+    python3 scripts/test_plancher_studio.py porteur-60
 
-    # Test 4 — Plancher renforcé + isolation RE2020
-    python scripts/test_plancher_studio.py renforcé-re2020
+    # Test 4 — Plancher porteur + isolation RE2020
+    python3 scripts/test_plancher_studio.py porteur-re2020
 
     # Test 5 — Sans plancher (contrôle)
-    python scripts/test_plancher_studio.py sans
+    python3 scripts/test_plancher_studio.py sans
 
-    # Test 6 — Ancien nom "Plancher standard" (alias → isolé simple)
-    python scripts/test_plancher_studio.py alias-standard
+    # Test 6 — Alias "Plancher isolé simple" (→ Plancher standard)
+    python3 scripts/test_plancher_studio.py alias-isolé
 
-    # Test 7 — Ancien nom "Plancher porteur" (alias → renforcé)
-    python scripts/test_plancher_studio.py alias-porteur
+    # Test 7 — Alias "Plancher renforcé" (→ Plancher porteur)
+    python3 scripts/test_plancher_studio.py alias-renforcé
 
-    # Test 8 — Auto-correction : RE2020 demandé avec isolation 60mm → isolé simple
-    python scripts/test_plancher_studio.py autocorrect-re2020
+    # Test 8 — Auto-correction : RE2020 demandé avec isolation 60mm → standard
+    python3 scripts/test_plancher_studio.py autocorrect-re2020
 
-    # Test 9 — Auto-correction : isolé simple demandé avec isolation RE2020 → RE2020
-    python scripts/test_plancher_studio.py autocorrect-isolé
+    # Test 9 — Auto-correction : standard demandé avec isolation RE2020 → RE2020
+    python3 scripts/test_plancher_studio.py autocorrect-standard
 """
 
 import asyncio
@@ -60,50 +63,53 @@ _COMMON = dict(
 )
 
 SCENARIOS = {
-    "isolé": {
-        "desc": "Plancher isolé simple + isolation 60mm",
+    # --- Tests principaux (noms DOM data-text) ---
+    "standard": {
+        "desc": "Plancher standard + isolation 60mm",
         "isolation": "60mm",
-        "plancher": "Plancher isolé simple",
+        "plancher": "Plancher standard",
     },
     "re2020": {
         "desc": "Plancher RE2020 + isolation RE2020",
         "isolation": "100 mm (RE2020)",
         "plancher": "Plancher RE2020",
     },
-    "renforcé-60": {
-        "desc": "Plancher renforcé + isolation 60mm",
+    "porteur-60": {
+        "desc": "Plancher porteur + isolation 60mm",
         "isolation": "60mm",
-        "plancher": "Plancher renforcé",
+        "plancher": "Plancher porteur",
     },
-    "renforcé-re2020": {
-        "desc": "Plancher renforcé + isolation RE2020",
+    "porteur-re2020": {
+        "desc": "Plancher porteur + isolation RE2020",
         "isolation": "100 mm (RE2020)",
-        "plancher": "Plancher renforcé",
+        "plancher": "Plancher porteur",
     },
     "sans": {
         "desc": "Sans plancher (contrôle)",
         "isolation": "60mm",
         "plancher": "Sans plancher",
     },
-    "alias-standard": {
-        "desc": "Alias 'Plancher standard' → doit devenir 'Plancher isolé simple'",
+    # --- Tests alias (noms alternatifs → data-text DOM) ---
+    "alias-isolé": {
+        "desc": "Alias 'Plancher isolé simple' → résolu en 'Plancher standard'",
         "isolation": "60mm",
-        "plancher": "Plancher standard",
+        "plancher": "Plancher isolé simple",
     },
-    "alias-porteur": {
-        "desc": "Alias 'Plancher porteur' → doit devenir 'Plancher renforcé'",
+    "alias-renforcé": {
+        "desc": "Alias 'Plancher renforcé' → résolu en 'Plancher porteur'",
         "isolation": "60mm",
-        "plancher": "Plancher porteur",
+        "plancher": "Plancher renforcé",
     },
+    # --- Tests auto-correction incohérence isolation/plancher ---
     "autocorrect-re2020": {
-        "desc": "Auto-correction : RE2020 demandé avec 60mm → isolé simple",
+        "desc": "Auto-correction : RE2020 demandé avec 60mm → Plancher standard",
         "isolation": "60mm",
         "plancher": "Plancher RE2020",
     },
-    "autocorrect-isolé": {
-        "desc": "Auto-correction : isolé simple demandé avec RE2020 → RE2020",
+    "autocorrect-standard": {
+        "desc": "Auto-correction : standard demandé avec RE2020 → Plancher RE2020",
         "isolation": "100 mm (RE2020)",
-        "plancher": "Plancher isolé simple",
+        "plancher": "Plancher standard",
     },
 }
 
