@@ -155,10 +155,21 @@ Pipeline : [Marque]
 
 Pin autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille (Destombes Bois, 50 ans).
 
-#### Gamme Origine (toit plat) — Personnalisable
+#### Différence Essentiel vs Origine — IMPORTANT
+
+⚠ **Les deux gammes ont un toit plat** (pente bac acier 5%). Aucun modèle à deux pans chez Abri Français.
+La différence est **uniquement le bandeau périphérique de toiture** :
+- **Essentiel** : **1 seule lame de bandeau** qui suit la pente du bac acier → la pente est visible (bandeau incliné)
+- **Origine** : **bandeau droit multi-hauteur** (2 à 3 planches selon la profondeur) → cache complètement la pente et le bac acier → aspect toit plat finition premium
+
+Autres différences :
+- Essentiel = conception simplifiée, 1 seul chevron, positionnement optimisé, pas de configuration possible
+- Origine = conception robuste, 2-3 chevrons, configuration possible (ouvertures, plancher, extension toiture)
+
+#### Gamme Origine — Personnalisable
 
 Code promo **LEROYMERLIN10** (vérifier remise via `verifier_promotions_actives`).
-Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, plancher, bac acier, extension toiture.
+Hauteur intérieure : 2,08m. Personnalisable via le configurateur : ouvertures, plancher, bac acier, extension toiture.
 → Générer via `generer_devis(site="abri")`. Disponible aussi en modèles préconçus.
 
 **Dimensions disponibles (Gamme Origine — configurateur) :**
@@ -167,10 +178,10 @@ Hauteur faîtage : 2,40m HT. Personnalisable via le configurateur : ouvertures, 
 - ⚠ Toutes les combinaisons L×P ne sont pas disponibles. Générer un devis pour voir les options exactes.
 - Prix indicatifs (base, sans options) : **à partir de ~1 600 €** (petite taille) jusqu'à **~6 120 €** (grande taille)
 
-#### Gamme Essentiel (toit 2 pentes) — Budget / Préconçu uniquement
+#### Gamme Essentiel — Budget / Préconçu uniquement
 
 Code promo **LEROYMERLIN5** (vérifier remise via `verifier_promotions_actives`).
-Hauteur faîtage : 2,27m HT.
+Hauteur intérieure : 1,95m.
 ⚠ **Pas dans le configurateur WPC** — modèles préconçus uniquement (configurations porte+fenêtre prédéfinies).
 → Pour un devis Essentiel : renvoyer vers le site ou `rechercher_produits_detail(site="abri", recherche="essentiel")`.
 
@@ -225,7 +236,7 @@ Poteaux en bois lamellé-collé disponibles (quantité selon dimensions).
 
 **Options supplémentaires pergola :**
 - **Pente** : `pente="Pente 5%"` ou `pente="Pente 15%"` — inclinaison de la toiture pour évacuation des eaux.
-- **Claustra** : `claustra_type="claustra"` + `nb_claustra=1` — panneau bois décoratif sur le côté de la pergola.
+- **Claustra** : `claustra_type="claustra"` + `nb_claustra=N` — panneau bois décoratif. 1 module claustra = 1m de large. Compter par côté : pergola 7×5m avec claustras sur les 2 côtés de 5m → `nb_claustra=10` (pas 12).
 - **Configurations supplémentaires** : `configurations_supplementaires='[{...}]'` — ajouter une 2ème pergola au même panier/PDF.
 - **Options WAPF avancées** : `options_wapf='{"field_id": "value"}'` — pour des champs WAPF spécifiques non couverts par les paramètres standards.
 
@@ -573,7 +584,7 @@ Cordialement,
 | Bardage (planches) ? | Planches emboîtables **21×130mm** en pin sylvestre autoclave. Prix unitaire : **~21,90 €/m²**. Livraison : ~250€. Prévoir **10% de chute** pour les découpes. |
 | Fondations ? | Pas de dalle nécessaire. Plots béton ou plots réglables suffisants. |
 | Bac acier — pourquoi ? | Anti-condensation sous toiture. Recommandé si utilisation stockage matériaux sensibles. |
-| Hauteur max ? | Gamme Origine : 2,40m HT. Gamme Essentiel : 2,27m HT. Au-delà → Destombes Bois. |
+| Hauteur max ? | Gamme Origine : 2,08m hauteur intérieure. Gamme Essentiel : 1,95m hauteur intérieure. Au-delà → Destombes Bois. |
 | Code promo ? | Codes LEROYMERLIN10 (Gamme Origine) / LEROYMERLIN5 (Gamme Essentiel). Vérifier la remise en cours via `verifier_promotions_actives`. |
 | Extension toiture ? | Oui, en Droite ou Gauche : 1m, 1,5m, 2m, 3,5m. |
 | Usage habitation possible ? | ⚠ Non — l'abri n'est pas conçu pour l'isolation thermique (usage stockage/atelier uniquement). Pour un espace de vie chauffé → voir les Studios de jardin. |
@@ -836,3 +847,7 @@ Pour un devis Essentiel : renvoyer vers le site ou `rechercher_produits_detail(s
 8. **Service de pose (Vano Création)** → donner les coordonnées de Clément Vannier au client et lui indiquer de le **contacter directement** — nous ne faisons pas l'intermédiaire (06 19 64 35 58 / vannier.clement@gmail.com).
 9. **Stockage avant montage** → max 3 semaines — au-delà, déformation non couverte par la garantie. À mentionner si le client commande alors que son chantier n'est pas prêt.
 10. **Dimensions — règle fondamentale** → toujours choisir la dimension standard la plus grande possible **sans dépasser** la contrainte du client (dalle, terrain, espace disponible). Jamais proposer une taille supérieure à la contrainte sans l'expliquer et proposer les alternatives. Voir section "GESTION DES DIMENSIONS" ci-dessous.
+11. **Castorama / Leroy Merlin / ManoMano** → nos produits sont vendus sur ces plateformes. Si le client trouve un meilleur prix chez un revendeur, il peut y commander — c'est le même produit, issu de notre atelier. Les remises exclusives revendeurs ne sont pas alignables. Ne jamais dénigrer les canaux de distribution.
+12. **Phishing / arnaques** → signaler les pistes suspectes (domaine .site / .online, lien Jimdo/Wix, faux hôpital/collectivité sans nom ni téléphone, emails formatés "corporate" sans contenu concret). Recommander de passer en Perdu.
+13. **Commandes déjà payées** → ne JAMAIS relancer un client qui a payé en lui demandant un "point d'avancement" ou des infos de livraison. C'est à NOUS de donner des nouvelles. Dire : "la fabrication est en cours / terminée, le transporteur vous contactera pour proposer une date".
+14. **Multi-sites** → chaque commande est rattachée au site où elle a été passée. Si un client ne retrouve pas sa commande dans "Mes commandes", lui indiquer de se connecter sur le bon site (terrasseenbois.fr, abri-francais.fr, etc.).

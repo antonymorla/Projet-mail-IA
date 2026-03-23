@@ -422,8 +422,9 @@ Livraison **4-5 semaines gratuite**. Paiement 3× sans frais.
 ### Abris de jardin (Abri Français)
 
 Pin autoclave 28mm, fabriqué à Lille (Destombes Bois, 50 ans).
-Gamme **Origine** (toit plat) — code promo **LEROYMERLIN10**
-Gamme **Essentiel** (toit 2 pentes) — code promo **LEROYMERLIN5**
+⚠ **Les deux gammes ont un toit plat** (pente bac acier 5%). Aucun modèle à deux pans.
+Gamme **Origine** (bandeau droit multi-hauteur, cache la pente, hauteur intérieure 2,08m) — code promo **LEROYMERLIN10**
+Gamme **Essentiel** (bandeau incliné 1 lame, pente visible, hauteur intérieure 1,95m) — code promo **LEROYMERLIN5**
 > Prix → générer le devis ou `rechercher_produits_detail`. Promos → `verifier_promotions_actives`.
 
 ### Pergolas bois (Ma Pergola Bois)
