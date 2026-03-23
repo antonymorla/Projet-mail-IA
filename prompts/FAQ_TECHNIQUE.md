@@ -36,17 +36,18 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 **Matériaux et construction**
 - **Bois** : Pin sylvestre autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille, Destombes Bois (50 ans d'expérience). Bois d'origine Finlande/Suède, densité **550 kg/m³** (supérieure à l'épicéa).
 - **Portes** : épaisseur 45mm. Vitrage : verre 4mm (non polycarbonate).
-- **Toiture Origine** : toit plat (pente 2°), couverture bac acier ou feutre bitumé selon modèle.
-- **Toiture Essentiel** : toit à 2 pentes, couverture feutre bitumé.
+- **Toiture** : les 2 gammes ont un **toit plat** (pente bac acier 5%). Aucun modèle à 2 pans.
+  - **Origine** : bandeau droit multi-hauteur (2 à 3 planches selon profondeur) → cache la pente, aspect toit plat finition premium.
+  - **Essentiel** : 1 seule lame de bandeau qui suit la pente du bac acier → pente visible (bandeau incliné).
 - **Fixation toiture** : vis inox sur pannes + planches de mur (voir notice fournie). Possibilité d'ajouter des accessoires (gouttières, panneaux solaires…) — ⚠ leur compatibilité n'est pas garantie par le fabricant.
 - **Bac acier anti-condensation** : sur-toiture métallique qui évite la condensation à l'intérieur. Recommandé pour stockage d'outils, matériaux sensibles à l'humidité.
-- **Durée de vie** : 20 à 30 ans avec entretien régulier selon exposition.
+- **Durée de vie** : garantie 10 ans sur le traitement autoclave. Durée de vie variable selon exposition et entretien.
 - **Variations normales du bois** : tolérance dimensionnelle ±8mm (±5%). Noeuds, microfissures non traversantes = caractéristiques normales du bois, sans impact structurel.
 - ⚠ **L'abri de jardin n'est pas conçu pour l'isolation thermique** (usage stockage/atelier). Pour un espace de vie chauffé, voir les Studios de jardin.
 
 **Dimensions et hauteurs**
-- Gamme Origine : hauteur sous plafond ~2,05m, faîtage ~2,40m HT.
-- Gamme Essentiel : faîtage ~2,27m HT.
+- Gamme Origine : hauteur intérieure 2,08m.
+- Gamme Essentiel : hauteur intérieure 1,95m.
 - ⚠ Hauteur > 2,65m ou portée > 6m → orienter vers Destombes Bois directement.
 
 **Fondations**
