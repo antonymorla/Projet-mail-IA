@@ -154,9 +154,13 @@ async def run_studio_test(test_id: str):
     params = {**test["params"], **TEST_CLIENT}
     start = time.time()
     try:
-        filepath = await generer_devis_studio(**params)
+        result = await generer_devis_studio(**params)
+        filepath, date_livraison = result if isinstance(result, tuple) else (result, "")
         elapsed = time.time() - start
-        print(f"\n  ✅ {test_id} RÉUSSI en {elapsed:.0f}s — {filepath}")
+        msg = f"\n  ✅ {test_id} RÉUSSI en {elapsed:.0f}s — {filepath}"
+        if date_livraison:
+            msg += f" (livraison: {date_livraison})"
+        print(msg)
         return True
     except Exception as e:
         elapsed = time.time() - start
@@ -176,9 +180,13 @@ async def run_abri_test(test_id: str):
     params = {**test["params"], **TEST_CLIENT}
     start = time.time()
     try:
-        filepath = await generer_devis_abri(**params)
+        result = await generer_devis_abri(**params)
+        filepath, date_livraison = result if isinstance(result, tuple) else (result, "")
         elapsed = time.time() - start
-        print(f"\n  ✅ {test_id} RÉUSSI en {elapsed:.0f}s — {filepath}")
+        msg = f"\n  ✅ {test_id} RÉUSSI en {elapsed:.0f}s — {filepath}"
+        if date_livraison:
+            msg += f" (livraison: {date_livraison})"
+        print(msg)
         return True
     except Exception as e:
         elapsed = time.time() - start

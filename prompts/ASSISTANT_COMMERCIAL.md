@@ -297,8 +297,9 @@ Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `gener
 → Préciser dans l'email : "Merci d'indiquer dans les annotations de commande lors de votre commande en ligne que vous avez échangé avec notre équipe concernant la livraison à [ville]."
 
 **Date de livraison estimée :**
-→ L'outil retourne `date_livraison_estimee` dans le JSON (scrapée dans le panier WooCommerce).
-→ Si non vide : inclure dans l'email B2 "Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date]."
+→ L'outil retourne `date_livraison` dans le JSON de réponse (scrapée dans le panier WooCommerce).
+→ **TOUJOURS** inclure dans l'email si `date_livraison` est présent : "Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date]."
+→ Si absent ou vide → ne pas inventer de date, dire simplement "4 à 5 semaines".
 
 ### Règles promos
 - Ne jamais inventer un code promo — toujours vérifier avec `verifier_promotions_actives`.
@@ -405,7 +406,7 @@ Cordialement,
 
 **Règles :**
 - Mentionner en 1-2 phrases les options pertinentes **non choisies**. Ex : pas de visserie → proposer les vis inox ; pas de lambourdes → rappeler l'option ; pas de plots → mentionner les plots réglables ; pas de code promo → ne pas inventer.
-- Si le JSON retourné contient `date_livraison_estimee` non vide → inclure dans l'email : "Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date]."
+- Si le JSON retourné contient `date_livraison` non vide → **TOUJOURS** inclure dans l'email : "Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date]."
 - Si le client demande un retrait ou une livraison différente de l'adresse standard → utiliser `mode_livraison="retrait"` ou `"livraison"` dans l'outil MCP. Pour un retrait avec livraison spéciale (ex : autre ville), sélectionner `mode_livraison="retrait"` (supprime les 99€) et préciser dans l'email : "Merci d'indiquer dans les annotations de commande que vous avez échangé avec notre équipe concernant la livraison à [ville]."
 
 ```
@@ -413,7 +414,7 @@ Bonjour Monsieur/Madame [Nom],
 
 Suite à votre demande, veuillez trouver ci-joint votre devis pour [description courte].
 
-[Si date_livraison_estimee reçue] Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date].
+[Si date_livraison reçue dans le JSON] Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date].
 
 [Si options non choisies pertinentes → 1 phrase] Par exemple : "Je peux également vous établir un devis incluant les vis inox 5×50mm et/ou les plots réglables si vous souhaitez une installation clé en main."
 

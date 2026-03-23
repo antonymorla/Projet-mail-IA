@@ -35,6 +35,7 @@ except ImportError:
     sys.exit(1)
 
 from utils_playwright import appliquer_code_promo as _appliquer_code_promo_utils
+from generateur_devis_3sites import _traiter_panier
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1795,8 +1796,12 @@ async def generer_devis_abri(
                 else:
                     print(f"    ⚠ {desc} potentiellement absent après 2 tentatives")
 
-        # Appliquer le code promo dans le panier (si fourni)
-        await gen._appliquer_code_promo(code_promo)
+        # Panier : code promo + date de livraison estimée
+        panier_path = gen.site_config.get("panier", "/panier/")
+        date_livraison = await _traiter_panier(
+            gen.page, gen.base_url, code_promo, mode_livraison="",
+            panier_path=panier_path,
+        )
 
         client = Client(
             nom=client_nom,
@@ -1811,9 +1816,11 @@ async def generer_devis_abri(
         print(f"\n{'='*60}")
         print(f"  ✅ DEVIS GÉNÉRÉ EN {elapsed:.1f} SECONDES")
         print(f"  📄 Fichier : {filepath}")
+        if date_livraison:
+            print(f"  📦 Livraison estimée : {date_livraison}")
         print(f"{'='*60}\n")
 
-        return filepath
+        return filepath, date_livraison or ""
 
     except Exception as e:
         print(f"\n  ❌ Erreur : {e}")
@@ -1968,8 +1975,12 @@ async def generer_devis_studio(
                 else:
                     print(f"    ⚠ {desc} potentiellement absent après 2 tentatives")
 
-        # Appliquer le code promo dans le panier (si fourni)
-        await gen._appliquer_code_promo(code_promo)
+        # Panier : code promo + date de livraison estimée
+        panier_path = gen.site_config.get("panier", "/panier/")
+        date_livraison = await _traiter_panier(
+            gen.page, gen.base_url, code_promo, mode_livraison="",
+            panier_path=panier_path,
+        )
 
         client = Client(
             nom=client_nom,
@@ -1984,9 +1995,11 @@ async def generer_devis_studio(
         print(f"\n{'='*60}")
         print(f"  ✅ DEVIS STUDIO GÉNÉRÉ EN {elapsed:.1f} SECONDES")
         print(f"  📄 Fichier : {filepath}")
+        if date_livraison:
+            print(f"  📦 Livraison estimée : {date_livraison}")
         print(f"{'='*60}\n")
 
-        return filepath
+        return filepath, date_livraison or ""
 
     except Exception as e:
         print(f"\n  ❌ Erreur : {e}")

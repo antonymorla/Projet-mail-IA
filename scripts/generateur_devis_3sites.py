@@ -546,18 +546,20 @@ async def _traiter_panier(
     page, site_url: str,
     code_promo: str = "",
     mode_livraison: str = "",
+    panier_path: str = "/panier/",
 ) -> str:
     """Traite le panier : code promo, méthode de livraison, date estimée.
 
-    Navigue vers /panier/ pour appliquer le code promo, changer la méthode
+    Navigue vers panier_path pour appliquer le code promo, changer la méthode
     de livraison, et scraper la date de livraison estimée.
 
+    panier_path : chemin du panier (défaut "/panier/", abri utilise "/votre-panier/")
     mode_livraison : "" (ne pas changer) | "retrait" (local pickup)
                      | "livraison" (transport à domicile)
 
     Returns: date_livraison (str) — date estimée affichée dans le panier, ou ""
     """
-    panier_url = site_url.rstrip("/") + "/panier/"
+    panier_url = site_url.rstrip("/") + panier_path
     try:
         await page.goto(panier_url, wait_until="load", timeout=25000)
         await page.wait_for_timeout(1500)

@@ -104,6 +104,11 @@ Corps: …
 | `generer_devis_cloture_bois` | Kit clôture bois (cloturebois.fr) |
 | `lister_devis_generes` | Lister les PDF déjà générés |
 
+### Date de livraison estimée
+
+Tous les outils `generer_devis*` retournent `date_livraison` dans le JSON de réponse (scrapée dans le panier WooCommerce).
+Si `date_livraison` est présent et non vide → **toujours** l'inclure dans l'email : "Si vous commandez dès aujourd'hui, la date de livraison estimée est le [date]."
+
 ### Compatibilité `produits_complementaires`
 
 | Site | Compatible | Note |

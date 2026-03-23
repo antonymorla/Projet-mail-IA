@@ -92,23 +92,24 @@ def _log_devis(filepath: str, type_devis: str, client_prenom: str, client_nom: s
         pass  # log non-bloquant
 
 
-async def _run_generator(type_devis: str, params: dict) -> str:
-    """Appelle directement la fonction de génération appropriée."""
+async def _run_generator(type_devis: str, params: dict) -> tuple:
+    """Appelle directement la fonction de génération appropriée.
+    Retourne (filepath, date_livraison)."""
     if type_devis == "pergola":
-        fp, _ = await generer_devis_pergola(**params)
+        fp, dl = await generer_devis_pergola(**params)
     elif type_devis == "terrasse":
-        fp, _ = await generer_devis_terrasse(**params)
+        fp, dl = await generer_devis_terrasse(**params)
     elif type_devis == "cloture":
-        fp, _ = await generer_devis_cloture(**params)
+        fp, dl = await generer_devis_cloture(**params)
     elif type_devis == "terrasse_detail":
-        fp, _ = await generer_devis_terrasse_detail(**params)
+        fp, dl = await generer_devis_terrasse_detail(**params)
     elif type_devis == "abri":
-        fp = await generer_devis_abri(**params)
+        fp, dl = await generer_devis_abri(**params)
     elif type_devis == "studio":
-        fp = await generer_devis_studio(**params)
+        fp, dl = await generer_devis_studio(**params)
     else:
         raise ValueError(f"Type de devis inconnu: {type_devis}")
-    return fp
+    return fp, dl or ""
 
 
 async def _generer_direct(type_devis: str, params: dict,
@@ -141,7 +142,8 @@ async def _generer_direct(type_devis: str, params: dict,
         _background_tasks.pop(task_id, None)
         # Si le task a terminé en arrière-plan (après timeout), loguer le résultat
         try:
-            filepath = t.result()
+            result = t.result()
+            filepath = result[0] if isinstance(result, tuple) else result
             if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
                 _log_devis(filepath, type_devis, client_prenom, client_nom)
                 print(f"\n  ✅ DEVIS ARRIÈRE-PLAN TERMINÉ — {os.path.basename(filepath)} ({round(os.path.getsize(filepath)/1024, 1)} Ko)")
@@ -153,12 +155,13 @@ async def _generer_direct(type_devis: str, params: dict,
 
     try:
         # asyncio.shield empêche l'annulation du task interne quand wait_for expire
-        filepath = await asyncio.wait_for(asyncio.shield(task), timeout=55)
+        result = await asyncio.wait_for(asyncio.shield(task), timeout=55)
+        filepath, date_livraison = result if isinstance(result, tuple) else (result, "")
 
         if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
             size_kb = os.path.getsize(filepath) / 1024
             _log_devis(filepath, type_devis, client_prenom, client_nom)
-            return json.dumps({
+            resp = {
                 "success": True,
                 "filepath": filepath,
                 "filename": os.path.basename(filepath),
@@ -168,7 +171,11 @@ async def _generer_direct(type_devis: str, params: dict,
                     f"PDF téléchargé : {os.path.basename(filepath)} ({round(size_kb, 1)} Ko) "
                     f"dans ~/Downloads/"
                 ),
-            })
+            }
+            if date_livraison:
+                resp["date_livraison"] = date_livraison
+                resp["message"] += f" Livraison estimée : {date_livraison}."
+            return json.dumps(resp)
         return json.dumps({"success": False, "error": f"PDF non trouvé : {filepath!r}"})
 
     except asyncio.TimeoutError:
