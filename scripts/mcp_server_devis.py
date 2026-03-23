@@ -818,8 +818,10 @@ async def generer_devis_cloture_bois(
             longeur      : "4" | "10" | "20" | "30" | "40" (mètres linéaires)
             hauteur      : "1-9" (= 1.9m, seule option disponible)
             bardage      : "27x130" | "27x130-gris"
-            fixation_sol : "plots-beton"
-            type_poteaux : "90x90-h" | "metal7016"
+            fixation_sol : "plots-beton" | "pieds-galvanises-en-h"
+                           ⚠ "pieds-galvanises-en-h" nécessite type_poteaux="90x90-h"
+            type_poteaux : "90x90-h" (poteaux bois → déverrouille pieds galvanisés en H)
+                         | "metal7016" (poteaux métal → plots-beton uniquement)
             longueur_lames: "2-m"
 
         Kit moderne (productId=17434) :
@@ -1227,8 +1229,9 @@ def lister_sites() -> str:
                 "bardage":       ["27x130","27x130-gris"],
                 "type_poteaux":  ["90x90-h","metal7016"],
                 "longueur_lames":["2-m"],
-                "fixation_sol":  ["plots-beton"],
+                "fixation_sol":  ["plots-beton","pieds-galvanises-en-h"],
             },
+            "note_fixation": "pieds-galvanises-en-h nécessite type_poteaux=90x90-h",
             "prix_depart": "729,90 €",
         },
         "cloture_moderne": {

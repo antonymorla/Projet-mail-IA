@@ -275,10 +275,10 @@ Surfaces fixes : **10 / 20 / 40 / 60 / 80 m²** — utiliser uniquement si le cl
 
 Options : bardage 20-45mm, couleurs Vert/Marron/Gris/Noir, horizontal/vertical, recto-verso, poteaux bois ou métal.
 
-**⚠ Logique pieds de poteau (clôture classique) :**
-- `type_poteaux="90x90-h"` (poteaux bois 90×90) → **pieds galvanisés en H** fournis pour fixation au sol (pas de scellement béton direct)
-- `type_poteaux="metal7016"` (poteaux métal RAL7016) → poteaux à **sceller directement** dans le béton (pas de pieds en H)
-- ⚠ Si le client demande des "pieds galvanisés en H" → il faut sélectionner `type_poteaux="90x90-h"` (poteaux bois). C'est une condition : les pieds en H ne s'affichent qu'avec les poteaux bois.
+**⚠ Logique pieds de poteau (clôture classique ET moderne) :**
+- `type_poteaux="90x90-h"` (poteaux bois 90×90) → déverrouille l'option `fixation_sol="pieds-galvanises-en-h"`
+- `type_poteaux="metal7016"` (poteaux métal RAL7016) → poteaux à **sceller directement** dans le béton → `fixation_sol="plots-beton"` uniquement
+- ⚠ **IMPORTANT** : si le client demande des "pieds galvanisés en H" → il faut passer **les deux paramètres** : `type_poteaux="90x90-h"` ET `fixation_sol="pieds-galvanises-en-h"`. Le `type_poteaux` seul ne suffit pas — il faut aussi changer `fixation_sol`.
 
 **Multi-config clôture :** `configurations_supplementaires='[{"modele":"classique","longeur":"10",...}]'` pour ajouter une 2ème clôture au même panier/PDF.
 

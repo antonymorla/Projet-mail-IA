@@ -319,10 +319,10 @@ generer_devis_cloture_bois(
     longeur="10",            # "4"|"10"|"20"|"30"|"40" (mètres linéaires)
     hauteur="1-9",           # seule option
     bardage="27x130",        # "27x130" | "27x130-gris"
-    fixation_sol="plots-beton",
-    type_poteaux="90x90-h",  # "90x90-h" (poteaux bois → pieds galvanisés en H)
-                             # "metal7016" (poteaux métal → scellés directement)
-                             # ⚠ pieds galvanisés en H = uniquement avec "90x90-h"
+    fixation_sol="pieds-galvanises-en-h",  # "plots-beton" | "pieds-galvanises-en-h"
+                             # ⚠ "pieds-galvanises-en-h" n'apparaît que si type_poteaux="90x90-h"
+    type_poteaux="90x90-h",  # "90x90-h" (poteaux bois → déverrouille pieds galvanisés en H)
+                             # "metal7016" (poteaux métal → scellés directement, plots-beton uniquement)
     longueur_lames="2-m",
 
     # Kit moderne :
