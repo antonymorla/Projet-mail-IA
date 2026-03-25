@@ -172,6 +172,12 @@ Code promo **LEROYMERLIN10** (vérifier remise via `verifier_promotions_actives`
 Hauteur intérieure : 2,08m. Personnalisable via le configurateur : ouvertures, plancher, bac acier, extension toiture.
 → Générer via `generer_devis(site="abri")`. Disponible aussi en modèles préconçus.
 
+**⚠ Ouvertures — positions :**
+- Positions possibles : `Gauche`, `Centre`, `Droite`
+- **TOUJOURS respecter la position demandée par le client.** Si le client dit "porte à gauche", passer `position="Gauche"` — ne JAMAIS remplacer par "Centre".
+- Si le client ne précise pas → demander, ou utiliser `Centre` par défaut.
+- Porte double (Vitrée ou Pleine) occupe plus de largeur → sur un petit mur, seule la position Centre peut être disponible. Sur les grands murs, Gauche/Droite/Centre fonctionnent tous.
+
 **Dimensions disponibles (Gamme Origine — configurateur) :**
 - Largeurs : 2,15m — 2,65m — 3,45m — 4,20m — 4,35m — 4,70m — 5,20m — 5,50m — 6,00m — 6,40m — 6,80m — 6,90m — 7,70m — 8,60m
 - Profondeurs : 2,15m — 2,65m — 3,45m — 4,35m
