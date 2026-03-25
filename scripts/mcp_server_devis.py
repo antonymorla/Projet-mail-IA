@@ -53,6 +53,7 @@ try:
     from generateur_devis_3sites import (
         generer_devis_pergola, generer_devis_terrasse,
         generer_devis_cloture, generer_devis_terrasse_detail,
+        generer_devis_cloture_configurateur,
     )
     from generateur_devis_auto import generer_devis_abri, generer_devis_studio
     _GENERATORS_AVAILABLE = True
@@ -101,6 +102,8 @@ async def _run_generator(type_devis: str, params: dict) -> tuple:
         fp, dl = await generer_devis_terrasse(**params)
     elif type_devis == "cloture":
         fp, dl = await generer_devis_cloture(**params)
+    elif type_devis == "cloture_configurateur":
+        fp, dl = await generer_devis_cloture_configurateur(**params)
     elif type_devis == "terrasse_detail":
         fp, dl = await generer_devis_terrasse_detail(**params)
     elif type_devis == "abri":
@@ -857,6 +860,93 @@ async def generer_devis_cloture_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
+    }, client_prenom, client_nom)
+
+
+@mcp.tool()
+async def generer_devis_cloture_configurateur(
+    longueur: float,
+    hauteur: float,
+    type_cloture: str,
+    bardage: str,
+    espacement_poteaux: str = "2m5",
+    sens_bardage: str = "vertical",
+    recto_verso: str = "rv_non",
+    espacement_lames: str = "jointif",
+    type_poteaux: str = "bois",
+    fixation_sol: str = "plots",
+    poteaux_supplementaires: int = 0,
+    finition_superieure: bool = False,
+    isolation_phonique: bool = False,
+    bidon_goudron: bool = False,
+    client_nom: str = "",
+    client_prenom: str = "",
+    client_email: str = "",
+    client_telephone: str = "",
+    client_adresse: str = "",
+    code_promo: str = "",
+    mode_livraison: str = "",
+    produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
+) -> str:
+    """Génère un devis via le NOUVEAU configurateur clôture WAPF sur cloturebois.fr.
+
+    Ce configurateur permet des dimensions libres et plus d'options que les anciens kits.
+
+    Args:
+        longueur             : longueur en mètres (min 2, ex: 10.0)
+        hauteur              : hauteur en mètres (0.3 à 2.5, ex: 1.9)
+        type_cloture         : "moderne" | "classique"
+
+        Bardage moderne (si type_cloture="moderne") :
+            bardage          : "s1660" (16×60) | "s2060" (20×60) | "s2070b" (20×70 Brun) |
+                               "s2070g" (20×70 Gris) | "s2070n" (20×70 Noir) |
+                               "s21145" (21×145) | "s21130" (21×130 emboîtable) | "s4545" (45×45 claustra)
+            sens_bardage     : "vertical" | "horizontal"
+            recto_verso      : "rv_oui" (2 faces) | "rv_non" (1 face)
+            espacement_lames : "jointif" | "ajoure15" (1,5cm) | "ajoure45" (4,5cm, -10%)
+                               ⚠ ignoré si bardage="s21130" (emboîtable = espacement fixe)
+
+        Bardage classique (si type_cloture="classique") :
+            bardage          : "s27130" (27×130 Vert) | "s27130g" (27×130 Gris)
+                               ⚠ s27130g nécessite espacement_poteaux="2m"
+            type_poteaux     : "bois" | "metal"
+                               ⚠ "metal" limité à hauteur max 1.9m
+
+        Options communes :
+            espacement_poteaux : "2m" (rigidité) | "2m5" (économie, défaut)
+            fixation_sol       : "plots" (plots béton) | "pieds_h" (pieds galvanisés H) |
+                                 "pieds_u" (pieds galvanisés U)
+                                 ⚠ pieds_h/pieds_u uniquement avec type_poteaux="bois"
+            poteaux_supplementaires : nombre de poteaux en plus (0 = aucun)
+            finition_superieure : True pour ajouter la finition supérieure
+            isolation_phonique  : True (moderne + recto-verso uniquement)
+            bidon_goudron       : True (uniquement avec fixation_sol="plots")
+
+        client_* : coordonnées client
+        mode_livraison : "" | "retrait" | "livraison" (~99€)
+        produits_complementaires : JSON array (même format que les autres outils)
+        configurations_supplementaires : JSON array de configs supplémentaires
+
+    Returns:
+        JSON avec chemin du PDF et métadonnées.
+    """
+    return await _generer_direct("cloture_configurateur", {
+        "longueur": longueur, "hauteur": hauteur,
+        "type_cloture": type_cloture, "bardage": bardage,
+        "espacement_poteaux": espacement_poteaux, "sens_bardage": sens_bardage,
+        "recto_verso": recto_verso, "espacement_lames": espacement_lames,
+        "type_poteaux": type_poteaux, "fixation_sol": fixation_sol,
+        "poteaux_supplementaires": poteaux_supplementaires,
+        "finition_superieure": finition_superieure,
+        "isolation_phonique": isolation_phonique,
+        "bidon_goudron": bidon_goudron,
+        "client_nom": client_nom, "client_prenom": client_prenom,
+        "client_email": client_email, "client_telephone": client_telephone,
+        "client_adresse": client_adresse, "code_promo": code_promo,
+        "mode_livraison": mode_livraison,
+        "produits_complementaires": produits_complementaires,
         "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 

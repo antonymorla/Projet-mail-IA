@@ -730,14 +730,31 @@ async def _generer_devis_via_generateur(
     page.on("response", _on_response_pdf)
     try:
         async with page.expect_download(timeout=90000) as download_info:
-            # form.submit() bypasse les handlers JS (reCaptcha) et déclenche le POST direct vers admin-post.php
-            await page.evaluate("() => document.querySelector('#quote-form').submit()")
+            # Cliquer le bouton submit du formulaire (pas form.submit() qui bypasse les handlers JS/nonce)
+            submit_btn = page.locator('#quote-form button[type="submit"], #quote-form input[type="submit"], #quote-form .generate-quote-btn, #quote-form [name="generate_quote"]')
+            if await submit_btn.count() > 0:
+                await submit_btn.first.click()
+            else:
+                # Fallback : chercher tout bouton dans le formulaire
+                any_btn = page.locator('#quote-form button')
+                if await any_btn.count() > 0:
+                    await any_btn.first.click()
+                else:
+                    # Dernier recours : submit JS via le bouton
+                    await page.evaluate("""
+                        () => {
+                            const form = document.querySelector('#quote-form');
+                            const btn = form.querySelector('button, input[type="submit"]');
+                            if (btn) btn.click();
+                            else form.requestSubmit();  // requestSubmit() déclenche les handlers JS contrairement à submit()
+                        }
+                    """)
         download = await download_info.value
         await download.save_as(filepath)
     except Exception as e_dl:
-        # Headless mode : le download event peut ne pas se déclencher même si le PDF est reçu
+        # Fallback : le download event peut ne pas se déclencher même si le PDF est reçu
         try:
-            await asyncio.wait_for(_pdf_captured.wait(), timeout=10.0)
+            await asyncio.wait_for(_pdf_captured.wait(), timeout=15.0)
         except asyncio.TimeoutError:
             pass
         if _pdf_bytes:
@@ -2168,6 +2185,346 @@ async def generer_devis_cloture(
             raise
         finally:
             await browser.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+# NOUVEAU CONFIGURATEUR CLÔTURE (WAPF — productId=18994)
+# ═══════════════════════════════════════════════════════════════
+
+async def _wapf_click_radio(page, field_id_short: str, value: str, product_id: int = 18994, desc: str = ""):
+    """Clique sur un radio WAPF du configurateur clôture.
+
+    Le DOM contient des inputs radio avec id="wapf-{product_id}-{field_id_short}-{value}".
+    On clique sur le label associé (plus fiable visuellement).
+    """
+    radio_id = f"wapf-{product_id}-{field_id_short}-{value}"
+    # D'abord essayer de cliquer le label (visible, déclenche le changement WAPF)
+    label_sel = f'label[for="{radio_id}"]'
+    try:
+        label_el = page.locator(label_sel).first
+        if await label_el.count() > 0:
+            # Vérifier si le radio est déjà coché
+            is_checked = await page.evaluate(f"""
+                () => {{
+                    var r = document.getElementById('{radio_id}');
+                    return r ? r.checked : false;
+                }}
+            """)
+            if is_checked:
+                print(f"    ✓ {desc or value} (déjà sélectionné)")
+                return "already_checked"
+            await label_el.scroll_into_view_if_needed(timeout=3000)
+            await label_el.click(timeout=5000)
+            await page.wait_for_timeout(600)
+            print(f"    ✓ {desc or value}")
+            return "clicked"
+    except Exception:
+        pass
+
+    # Fallback : clic JS sur le label (ou l'input si pas de label)
+    result = await page.evaluate(f"""
+        () => {{
+            var r = document.getElementById('{radio_id}');
+            if (!r) return 'not_found';
+            if (r.checked) return 'already_checked';
+            // Cliquer le label associé (déclenche le WAPF listener complet)
+            var lbl = document.querySelector('label[for="{radio_id}"]');
+            if (lbl) {{
+                lbl.click();
+                return 'js_label_click';
+            }}
+            // Dernier recours : clic direct + events manuels
+            r.checked = true;
+            r.dispatchEvent(new Event('change', {{bubbles: true}}));
+            r.dispatchEvent(new Event('input', {{bubbles: true}}));
+            return 'js_fallback';
+        }}
+    """)
+    if result == "not_found":
+        raise ValueError(f"Radio WAPF introuvable : {radio_id} ({desc})")
+    await page.wait_for_timeout(600)
+    print(f"    ✓ {desc or value} ({result})")
+    return result
+
+
+async def _wapf_set_number(page, field_id_short: str, value, product_id: int = 18994, desc: str = ""):
+    """Définit un champ number WAPF du configurateur clôture."""
+    input_id = f"wapf-{product_id}-{field_id_short}"
+    result = await page.evaluate(f"""
+        () => {{
+            var inp = document.getElementById('{input_id}');
+            if (!inp) return 'not_found';
+            // Utiliser le setter natif React/Alpine pour déclencher les listeners
+            var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value').set;
+            nativeInputValueSetter.call(inp, '{value}');
+            inp.dispatchEvent(new Event('input', {{bubbles: true}}));
+            inp.dispatchEvent(new Event('change', {{bubbles: true}}));
+            return 'ok';
+        }}
+    """)
+    if result == "not_found":
+        raise ValueError(f"Input number WAPF introuvable : {input_id} ({desc})")
+    await page.wait_for_timeout(400)
+    print(f"    ✓ {desc or field_id_short} = {value}")
+    return result
+
+
+async def generer_devis_cloture_configurateur(
+    longueur: float = 5.0,
+    hauteur: float = 1.9,
+    type_cloture: str = "moderne",
+    bardage: str = "s2060",
+    espacement_poteaux: str = "2m5",
+    sens_bardage: str = "vertical",
+    recto_verso: str = "rv_non",
+    espacement_lames: str = "jointif",
+    type_poteaux: str = "bois",
+    fixation_sol: str = "plots",
+    poteaux_supplementaires: int = 0,
+    finition_superieure: bool = False,
+    isolation_phonique: bool = False,
+    bidon_goudron: bool = False,
+    client_nom: str = "",
+    client_prenom: str = "",
+    client_email: str = "",
+    client_telephone: str = "",
+    client_adresse: str = "",
+    code_promo: str = "",
+    mode_livraison: str = "",
+    produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
+    headless: bool = False,
+) -> tuple:
+    """Génère un devis clôture via le NOUVEAU configurateur WAPF sur cloturebois.fr.
+
+    Ce configurateur (productId=18994) remplace les anciens kits classique/moderne.
+    Il utilise des champs WAPF radio/number avec des dimensions libres.
+
+    Paramètres :
+        longueur            : longueur en mètres (min 2)
+        hauteur             : hauteur en mètres (0.3 à 2.5)
+        type_cloture        : "moderne" | "classique"
+        bardage             : slug du bardage
+            Moderne : "s1660"|"s2060"|"s2070b"|"s2070g"|"s2070n"|"s21145"|"s21130"|"s4545"
+            Classique : "s27130"|"s27130g"
+        espacement_poteaux  : "2m" | "2m5" (défaut 2m5)
+        sens_bardage        : "vertical"|"horizontal" (moderne uniquement)
+        recto_verso         : "rv_oui"|"rv_non" (moderne uniquement)
+        espacement_lames    : "jointif"|"ajoure15"|"ajoure45" (moderne, sauf 21x130)
+        type_poteaux        : "bois"|"metal" (classique uniquement)
+        fixation_sol        : "plots"|"pieds_h"|"pieds_u"
+                              ⚠ pieds_h/pieds_u uniquement avec type_poteaux="bois"
+        poteaux_supplementaires : 0 = non, >0 = quantité de poteaux en plus
+        finition_superieure : True pour ajouter la finition supérieure
+        isolation_phonique  : True (moderne + recto-verso uniquement)
+        bidon_goudron       : True (uniquement avec fixation plots béton)
+    """
+    start_time = time.time()
+    configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) and configurations_supplementaires != "[]" else []
+    if isinstance(configurations_supplementaires, list):
+        configs_sup = configurations_supplementaires
+
+    SITE_URL = "https://cloturebois.fr"
+    PRODUCT_URL = SITE_URL + "/produit/configurateur-cloture/"
+
+    print(f"\n{'='*60}")
+    print(f"  DEVIS CLÔTURE CONFIGURATEUR — cloturebois.fr")
+    print(f"  Client : {client_prenom} {client_nom}")
+    print(f"  {longueur}m × h{hauteur}m | {type_cloture} | bardage={bardage}")
+    if configs_sup:
+        print(f"  + {len(configs_sup)} configuration(s) supplémentaire(s)")
+    print(f"{'='*60}\n")
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=headless)
+        context = await browser.new_context(
+            viewport={"width": 1400, "height": 900},
+            locale="fr-FR",
+            accept_downloads=True,
+        )
+        page = await context.new_page()
+        try:
+            nb_items_panier = 0
+
+            # ── Configuration principale ───────────────────────────────
+            nb_items_panier += 1
+            await _configurer_et_ajouter_cloture_wapf(
+                page, SITE_URL, PRODUCT_URL,
+                longueur=longueur, hauteur=hauteur, type_cloture=type_cloture,
+                bardage=bardage, espacement_poteaux=espacement_poteaux,
+                sens_bardage=sens_bardage, recto_verso=recto_verso,
+                espacement_lames=espacement_lames, type_poteaux=type_poteaux,
+                fixation_sol=fixation_sol, poteaux_supplementaires=poteaux_supplementaires,
+                finition_superieure=finition_superieure, isolation_phonique=isolation_phonique,
+                bidon_goudron=bidon_goudron, nb_attendu=nb_items_panier,
+            )
+
+            # ── Configurations supplémentaires ─────────────────────────
+            for idx, cfg in enumerate(configs_sup):
+                print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configs_sup)} ───")
+                nb_items_panier += 1
+                await _configurer_et_ajouter_cloture_wapf(
+                    page, SITE_URL, PRODUCT_URL,
+                    longueur=cfg.get("longueur", 5),
+                    hauteur=cfg.get("hauteur", 1.9),
+                    type_cloture=cfg.get("type_cloture", "moderne"),
+                    bardage=cfg.get("bardage", "s2060"),
+                    espacement_poteaux=cfg.get("espacement_poteaux", "2m5"),
+                    sens_bardage=cfg.get("sens_bardage", "vertical"),
+                    recto_verso=cfg.get("recto_verso", "rv_non"),
+                    espacement_lames=cfg.get("espacement_lames", "jointif"),
+                    type_poteaux=cfg.get("type_poteaux", "bois"),
+                    fixation_sol=cfg.get("fixation_sol", "plots"),
+                    poteaux_supplementaires=cfg.get("poteaux_supplementaires", 0),
+                    finition_superieure=cfg.get("finition_superieure", False),
+                    isolation_phonique=cfg.get("isolation_phonique", False),
+                    bidon_goudron=cfg.get("bidon_goudron", False),
+                    nb_attendu=nb_items_panier,
+                )
+
+            # Produits complémentaires
+            produits_list = json.loads(produits_complementaires) if produits_complementaires and produits_complementaires != "[]" else []
+            if produits_list:
+                await _ajouter_produits_complementaires(page, produits_list, site_url=SITE_URL)
+
+            # Panier : code promo, livraison, date estimée
+            date_livraison = await _traiter_panier(page, SITE_URL, code_promo, mode_livraison)
+
+            # Générer le devis PDF
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            filepath = os.path.join(DOWNLOAD_DIR, f"devis_{client_nom}_{client_prenom}_{timestamp}.pdf")
+            filepath = await _generer_devis_via_generateur(
+                page, SITE_URL,
+                client_nom, client_prenom, client_email, client_telephone, client_adresse,
+                filepath,
+            )
+
+            elapsed = time.time() - start_time
+            print(f"\n  ✅ DEVIS CLÔTURE CONFIGURATEUR EN {elapsed:.1f}s — {filepath}")
+            return filepath, date_livraison
+
+        except Exception as e:
+            print(f"\n  ❌ Erreur clôture configurateur : {e}")
+            raise
+        finally:
+            await browser.close()
+
+
+async def _configurer_et_ajouter_cloture_wapf(
+    page, site_url: str, product_url: str,
+    longueur: float, hauteur: float, type_cloture: str,
+    bardage: str, espacement_poteaux: str,
+    sens_bardage: str, recto_verso: str, espacement_lames: str,
+    type_poteaux: str, fixation_sol: str,
+    poteaux_supplementaires: int,
+    finition_superieure: bool, isolation_phonique: bool, bidon_goudron: bool,
+    nb_attendu: int,
+):
+    """Configure une clôture via le nouveau configurateur WAPF et l'ajoute au panier."""
+    print(f"  ➜ {product_url}")
+    try:
+        await page.goto(product_url, wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        print("    ⚠ Timeout, on attend...")
+    await page.wait_for_timeout(4000)
+    await _fermer_popups(page)
+
+    # Attendre le formulaire WAPF
+    await page.wait_for_selector('.wapf-wrapper, .wapf-field-group', timeout=15000)
+    await page.wait_for_timeout(1000)
+
+    # ── 1. Dimensions (champs number) ──────────────────────────────
+    print(f"  ➜ Longueur : {longueur}m")
+    await _wapf_set_number(page, "aca8d3a", longueur, desc="Longueur")
+    print(f"  ➜ Hauteur : {hauteur}m")
+    await _wapf_set_number(page, "2f0b130", hauteur, desc="Hauteur")
+
+    # ── 2. Espacement entre poteaux ────────────────────────────────
+    print(f"  ➜ Espacement poteaux : {espacement_poteaux}")
+    await _wapf_click_radio(page, "f0eb1af", espacement_poteaux, desc="Espacement poteaux")
+
+    # ── 3. Type de clôture (branche principale) ────────────────────
+    print(f"  ➜ Type clôture : {type_cloture}")
+    await _wapf_click_radio(page, "36dea08", type_cloture, desc="Type clôture")
+    await page.wait_for_timeout(800)  # Attendre le re-render des sections conditionnelles
+
+    # ── 4. Bardage (dépend du type) ────────────────────────────────
+    if type_cloture == "moderne":
+        print(f"  ➜ Bardage moderne : {bardage}")
+        await _wapf_click_radio(page, "dc1abec", bardage, desc="Bardage moderne")
+        await page.wait_for_timeout(600)
+
+        # ── 5. Sens du bardage (moderne uniquement) ────────────────
+        print(f"  ➜ Sens bardage : {sens_bardage}")
+        await _wapf_click_radio(page, "22a767e", sens_bardage, desc="Sens bardage")
+
+        # ── 6. Recto-verso (moderne uniquement) ───────────────────
+        print(f"  ➜ Recto-verso : {recto_verso}")
+        await _wapf_click_radio(page, "f62ecb4", recto_verso, desc="Recto-verso")
+        await page.wait_for_timeout(400)
+
+        # ── 7. Espacement lames (moderne, sauf 21x130 = emboîtable) ─
+        if bardage != "s21130":
+            print(f"  ➜ Espacement lames : {espacement_lames}")
+            await _wapf_click_radio(page, "2388f97", espacement_lames, desc="Espacement lames")
+
+    elif type_cloture == "classique":
+        print(f"  ➜ Bardage classique : {bardage}")
+        await _wapf_click_radio(page, "114ca2c", bardage, desc="Bardage classique")
+        await page.wait_for_timeout(600)
+
+        # ── Type de poteaux (classique uniquement) ─────────────────
+        print(f"  ➜ Type poteaux : {type_poteaux}")
+        await _wapf_click_radio(page, "af5ead3", type_poteaux, desc="Type poteaux")
+        await page.wait_for_timeout(400)
+
+    # ── 8. Poteaux supplémentaires ─────────────────────────────────
+    if poteaux_supplementaires > 0:
+        print(f"  ➜ Poteaux supplémentaires : {poteaux_supplementaires}")
+        await _wapf_click_radio(page, "9d5a24e", "potsupp_oui", desc="Poteaux supp = Oui")
+        await page.wait_for_timeout(400)
+        await _wapf_set_number(page, "061724d", poteaux_supplementaires, desc="Qté poteaux supp")
+    else:
+        await _wapf_click_radio(page, "9d5a24e", "potsupp_non", desc="Poteaux supp = Non")
+
+    # ── 9. Fixation au sol ─────────────────────────────────────────
+    print(f"  ➜ Fixation sol : {fixation_sol}")
+    await _wapf_click_radio(page, "8ecfdb4", fixation_sol, desc="Fixation sol")
+
+    # ── 10. Finition supérieure ────────────────────────────────────
+    fin_val = "fin_oui" if finition_superieure else "fin_non"
+    print(f"  ➜ Finition supérieure : {'Oui' if finition_superieure else 'Non'}")
+    await _wapf_click_radio(page, "0a83262", fin_val, desc="Finition supérieure")
+
+    # ── 11. Isolation phonique (moderne + recto-verso uniquement) ──
+    if type_cloture == "moderne" and recto_verso == "rv_oui":
+        iso_val = "iso_oui" if isolation_phonique else "iso_non"
+        print(f"  ➜ Isolation phonique : {'Oui' if isolation_phonique else 'Non'}")
+        await _wapf_click_radio(page, "e20a2cf", iso_val, desc="Isolation phonique")
+
+    # ── 12. Bidon de goudron (si fixation plots béton) ─────────────
+    if fixation_sol == "plots":
+        gou_val = "gou_oui" if bidon_goudron else "gou_non"
+        print(f"  ➜ Bidon goudron : {'Oui' if bidon_goudron else 'Non'}")
+        await _wapf_click_radio(page, "ccd9619", gou_val, desc="Bidon goudron")
+
+    # ── Attendre stabilisation du prix ─────────────────────────────
+    await page.wait_for_timeout(2000)
+
+    # Lire le prix affiché
+    prix = await page.evaluate("""
+        () => {
+            // Chercher le prix dans le bloc prix sticky ou dans le résumé WAPF
+            var prixEl = document.querySelector('.blocprix .wapf-product-total, .wapf-product-total, .woocommerce-Price-amount');
+            return prixEl ? prixEl.textContent.trim() : null;
+        }
+    """)
+    print(f"  ✓ Prix : {prix or '—'}")
+
+    # ── Ajouter au panier ──────────────────────────────────────────
+    await _ajouter_au_panier_wc(page)
+    await _verifier_panier(page, site_url, nb_attendu=nb_attendu)
 
 
 # ═══════════════════════════════════════════════════════════════
