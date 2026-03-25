@@ -101,7 +101,8 @@ Corps: …
 | `generer_devis_pergola_bois` | Pergola bois (mapergolabois.fr) — `produits_uniquement=True` pour pièces détachées seules |
 | `generer_devis_terrasse_bois` | Terrasse bois — mode surface m² ou nb_lames/nb_lambourdes (configurateur WAPF) |
 | `generer_devis_terrasse_bois_detail` | Terrasse bois — **quantités EXACTES** (au détail, sans configurateur) |
-| `generer_devis_cloture_bois` | Kit clôture bois (cloturebois.fr) |
+| `generer_devis_cloture_configurateur` | **NOUVEAU** configurateur clôture WAPF (dimensions libres, +options) |
+| `generer_devis_cloture_bois` | ~~Ancien~~ Kit clôture classique/moderne (variations WC) — conservé en backup |
 | `lister_devis_generes` | Lister les PDF déjà générés |
 
 ### Date de livraison estimée
@@ -309,7 +310,47 @@ generer_devis_terrasse_bois(
 
 ---
 
-### `generer_devis_cloture_bois` — Clôture (cloturebois.fr)
+### `generer_devis_cloture_configurateur` — NOUVEAU Configurateur Clôture WAPF (cloturebois.fr)
+
+> **Utiliser cet outil en priorité** pour toutes les clôtures. Dimensions libres, plus d'options.
+
+```python
+generer_devis_cloture_configurateur(
+    longueur=10.0,              # mètres (min 2)
+    hauteur=1.9,                # mètres (0.3 à 2.5)
+    type_cloture="moderne",     # "moderne" | "classique"
+
+    # Bardage moderne :
+    bardage="s2060",            # "s1660"|"s2060"|"s2070b"|"s2070g"|"s2070n"|"s21145"|"s21130"|"s4545"
+    sens_bardage="vertical",    # "vertical"|"horizontal"
+    recto_verso="rv_non",       # "rv_oui" (2 faces)|"rv_non" (1 face)
+    espacement_lames="jointif", # "jointif"|"ajoure15"|"ajoure45" (ignoré si s21130)
+
+    # Bardage classique :
+    # bardage="s27130",         # "s27130"|"s27130g" (gris nécessite espacement 2m)
+    # type_poteaux="bois",      # "bois"|"metal" (metal limité à h=1.9m)
+
+    # Options communes :
+    espacement_poteaux="2m5",   # "2m"|"2m5"
+    fixation_sol="plots",       # "plots"|"pieds_h"|"pieds_u" (H/U = poteaux bois uniquement)
+    poteaux_supplementaires=0,  # 0 = non, >0 = quantité
+    finition_superieure=False,  # Finition supérieure chapeau
+    isolation_phonique=False,   # Moderne + recto-verso uniquement
+    bidon_goudron=False,        # Plots béton uniquement
+
+    # Client + options standard
+    client_nom="", client_prenom="", client_email="",
+    client_telephone="", client_adresse="",
+    code_promo="",              # ex: "LEROYMERLIN10"
+    mode_livraison="",          # "" | "retrait" | "livraison"
+    produits_complementaires='[]',
+    configurations_supplementaires='[]',
+)
+```
+
+---
+
+### `generer_devis_cloture_bois` — Ancien Kit Clôture (backup)
 
 ```python
 generer_devis_cloture_bois(

@@ -286,18 +286,47 @@ Surfaces fixes : **10 / 20 / 40 / 60 / 80 m²** — utiliser uniquement si le cl
 
 ### 5. Clôtures (Clôture Bois)
 
-**Classique** (H=1,9m) : longueur 4 à 40 ml
-**Moderne** (H=0,9/1,9/2,3m)
-> Prix → générer le devis via `generer_devis_cloture_bois`.
+**⚠ NOUVEAU CONFIGURATEUR** — utiliser `generer_devis_cloture_configurateur` (pas l'ancien `generer_devis_cloture_bois`).
 
-Options : bardage 20-45mm, couleurs Vert/Marron/Gris/Noir, horizontal/vertical, recto-verso, poteaux bois ou métal.
+Dimensions libres : longueur min 2m, hauteur 0.30m à 2.50m.
+Deux types : **Moderne** (cadre bois apparent) et **Classique** (lames dans rainures poteaux).
 
-**⚠ Logique pieds de poteau (clôture classique ET moderne) :**
-- `type_poteaux="90x90-h"` (poteaux bois 90×90) → déverrouille l'option `fixation_sol="pieds-galvanises-en-h"`
-- `type_poteaux="metal7016"` (poteaux métal RAL7016) → poteaux à **sceller directement** dans le béton → `fixation_sol="plots-beton"` uniquement
-- ⚠ **IMPORTANT** : si le client demande des "pieds galvanisés en H" → il faut passer **les deux paramètres** : `type_poteaux="90x90-h"` ET `fixation_sol="pieds-galvanises-en-h"`. Le `type_poteaux` seul ne suffit pas — il faut aussi changer `fixation_sol`.
+**Bardages disponibles :**
 
-**Multi-config clôture :** `configurations_supplementaires='[{"modele":"classique","longeur":"10",...}]'` pour ajouter une 2ème clôture au même panier/PDF.
+| Type | Slug | Description |
+|------|------|-------------|
+| Moderne | `s1660` | 16×60mm |
+| Moderne | `s2060` | 20×60mm |
+| Moderne | `s2070b` | 20×70mm Brun |
+| Moderne | `s2070g` | 20×70mm Gris |
+| Moderne | `s2070n` | 20×70mm Noir |
+| Moderne | `s21145` | 21×145mm |
+| Moderne | `s21130` | 21×130mm emboîtable (espacement fixe) |
+| Moderne | `s4545` | 45×45mm claustra |
+| Classique | `s27130` | 27×130mm Vert autoclave |
+| Classique | `s27130g` | 27×130mm Gris ⚠ nécessite espacement 2m |
+
+**Options :**
+- `espacement_poteaux` : `"2m"` (rigidité) ou `"2m5"` (économie, défaut)
+- `sens_bardage` : `"vertical"` / `"horizontal"` (moderne uniquement)
+- `recto_verso` : `"rv_oui"` (2 faces) / `"rv_non"` (1 face, moderne uniquement)
+- `espacement_lames` : `"jointif"` / `"ajoure15"` (1,5cm) / `"ajoure45"` (4,5cm, -10%) — moderne sauf s21130
+- `type_poteaux` : `"bois"` / `"metal"` (classique uniquement, métal limité à h=1.9m)
+- `fixation_sol` : `"plots"` (béton) / `"pieds_h"` (galvanisés H) / `"pieds_u"` (galvanisés U) — pieds H/U uniquement avec poteaux bois
+- `poteaux_supplementaires` : nombre (0 = aucun)
+- `finition_superieure` : True/False
+- `isolation_phonique` : True/False (moderne + recto-verso uniquement)
+- `bidon_goudron` : True/False (uniquement avec plots béton)
+
+**⚠ Règles de compatibilité :**
+- Bardage `s27130g` (gris classique) → **nécessite** `espacement_poteaux="2m"` (pas 2m5)
+- Poteaux `metal` → hauteur limitée à 1.9m, fixation `plots` uniquement
+- `pieds_h` / `pieds_u` → uniquement avec `type_poteaux="bois"`
+- `isolation_phonique` → uniquement si `type_cloture="moderne"` ET `recto_verso="rv_oui"`
+- `bidon_goudron` → uniquement si `fixation_sol="plots"`
+- `espacement_lames` → ignoré si `bardage="s21130"` (emboîtable = espacement fixe)
+
+**Multi-config clôture :** `configurations_supplementaires='[{"longueur":10,"hauteur":1.9,"type_cloture":"classique",...}]'`
 
 ---
 
@@ -317,7 +346,7 @@ Options : bardage 20-45mm, couleurs Vert/Marron/Gris/Noir, horizontal/vertical, 
 
 ### Livraison — sélection dans le panier
 
-Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois` et `generer_devis_cloture_bois` acceptent le paramètre `mode_livraison` :
+Les outils `generer_devis_pergola_bois`, `generer_devis_terrasse_bois`, `generer_devis_cloture_configurateur` et `generer_devis_cloture_bois` acceptent le paramètre `mode_livraison` :
 - `""` (défaut) : ne change pas la méthode, garde celle par défaut (livraison ~99€)
 - `"retrait"` : sélectionne "Retrait à l'atelier — Hameau des Auvillers 59480 Illies" (gratuit)
 - `"livraison"` : sélectionne "Livraison sur rendez-vous" (~99€)
