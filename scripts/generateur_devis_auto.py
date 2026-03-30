@@ -35,6 +35,7 @@ except ImportError:
     sys.exit(1)
 
 from utils_playwright import appliquer_code_promo as _appliquer_code_promo_utils
+from generateur_devis_3sites import _traiter_panier
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -96,10 +97,14 @@ SITES = {
 DOWNLOAD_DIR = os.path.expanduser("~/Downloads")
 
 # Largeur d'un module de mur studio (préfabriqué ossature bois).
-# Chaque menuiserie occupe exactement UN module de 1,10 m.
 # Les positions disponibles dans le configurateur WPC sont espacées de 1,10 m.
 # Deux menuiseries ne peuvent pas partager le même module sur un mur.
+# Point 0 (origine) = angle mur de face / mur de gauche ET angle mur de droite / mur du fond.
 MODULE_STUDIO = 1.10
+
+# Menuiseries qui occupent 2 modules consécutifs (2 × 1,10 m = 2,20 m).
+# Les autres menuiseries (PORTE VITREE, FENETRE SIMPLE) occupent 1 seul module.
+DOUBLE_MODULE_TYPES = {"BAIE VITREE", "FENETRE DOUBLE", "PORTE DOUBLE VITREE"}
 
 
 @dataclass
@@ -433,77 +438,22 @@ class GenerateurDevis:
         # Fermer les popups
         await self.fermer_popups()
 
-        # --- Configuration via clics WPC ---
-        # Helper JS pour sélectionner une option par data-text dans un groupe
-        async def select_option(group_text: str, option_text: str):
-            """Clique sur option_text dans le groupe group_text."""
-            result = await self.page.evaluate("""
-                (args) => {
-                    function findByText(parent, text) {
-                        var items = parent.querySelectorAll('li.wpc-control-item');
-                        for (var item of items) {
-                            if (item.getAttribute('data-text') === text) return item;
-                        }
-                        return null;
-                    }
-                    function clickItem(item) {
-                        var tw = item.querySelector('.wpc-layer-title-wrap');
-                        if (tw) tw.click();
-                        else item.click();
-                    }
-                    var allItems = document.querySelectorAll('li.wpc-control-item');
-                    var group = null;
-                    for (var item of allItems) {
-                        if (item.getAttribute('data-text') === args.groupText) {
-                            group = item;
-                            break;
-                        }
-                    }
-                    if (!group) return {error: 'group not found: ' + args.groupText};
-                    var option = findByText(group, args.optionText);
-                    if (!option) return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText};
-                    clickItem(option);
-                    return {ok: true};
-                }
-            """, {"groupText": group_text, "optionText": option_text})
-            if isinstance(result, dict) and result.get("error"):
-                print(f"    ⚠ {result['error']}")
-            await self.page.wait_for_timeout(300)
+        # --- Configuration via clics WPC (méthode universelle _wpc_select) ---
 
         # Bardage extérieur
         if config.bardage_exterieur:
             print(f"  ➜ Bardage extérieur : {config.bardage_exterieur}")
-            await select_option("Bardage EXTERIEUR", config.bardage_exterieur)
+            await self._wpc_select("Bardage EXTERIEUR", config.bardage_exterieur)
 
         # Isolation
         if config.isolation:
             print(f"  ➜ Isolation : {config.isolation}")
-            await select_option("ISOLATION", config.isolation)
+            await self._wpc_select("ISOLATION", config.isolation)
 
-        # Rehausse
+        # Rehausse (disponible uniquement avec RE2020)
         if config.rehausse:
             print(f"  ➜ Rehausse : OUI")
-            await self._click_by_data_text("Rehausse")
-            await self.page.wait_for_timeout(300)
-            # Cliquer le premier OUI visible
-            await self.page.evaluate("""
-                () => {
-                    var rehausse = null;
-                    var items = document.querySelectorAll('li.wpc-control-item');
-                    for (var item of items) {
-                        if (item.getAttribute('data-text') === 'Rehausse') { rehausse = item; break; }
-                    }
-                    if (!rehausse) return;
-                    var ouis = rehausse.querySelectorAll('li.wpc-control-item[data-text="OUI"]');
-                    for (var o of ouis) {
-                        if (!o.classList.contains('wpc-cl-hide-group')) {
-                            var tw = o.querySelector('.wpc-layer-title-wrap');
-                            if (tw) tw.click(); else o.click();
-                            return;
-                        }
-                    }
-                }
-            """)
+            await self._wpc_select("Rehausse", "OUI")
 
         # Menuiseries — positionnement intelligent par modules de 1,10 m
         # used_modules_per_wall : {mur_str: set(module_index)} — initialisé vide
@@ -519,27 +469,33 @@ class GenerateurDevis:
         # Bardage intérieur
         if config.bardage_interieur:
             print(f"  ➜ Bardage intérieur : {config.bardage_interieur}")
-            await select_option("BARDAGE INTERIEUR", config.bardage_interieur)
+            await self._wpc_select("BARDAGE INTERIEUR", config.bardage_interieur)
 
         # Plancher
         if config.plancher and config.plancher != "Sans plancher":
             print(f"  ➜ Plancher : {config.plancher}")
-            await select_option("Plancher ", config.plancher)
+            await self._wpc_select("Plancher ", config.plancher)
 
         # Finition plancher
         if config.finition_plancher:
             print(f"  ➜ Finition plancher : OUI")
-            await select_option("Finition Plancher", "OUI")
+            await self._wpc_select("Finition Plancher", "OUI")
 
-        # Terrasse
+        # Terrasse (groupe WPC = "Terrasse bois" ou "Terrasse")
         if config.terrasse:
             print(f"  ➜ Terrasse : {config.terrasse}")
-            await select_option("Terrasse", config.terrasse)
+            try:
+                await self._wpc_select("Terrasse bois", config.terrasse)
+            except ValueError:
+                await self._wpc_select("Terrasse", config.terrasse)
 
-        # Pergola
+        # Pergola (groupe WPC = "PERGOLA" ou "Pergola")
         if config.pergola:
             print(f"  ➜ Pergola : {config.pergola}")
-            await select_option("Pergola", config.pergola)
+            try:
+                await self._wpc_select("PERGOLA", config.pergola)
+            except ValueError:
+                await self._wpc_select("Pergola", config.pergola)
 
         # Vérification finale : s'assurer que tous les éléments sont bien sélectionnés
         await self._verifier_config_wpc(label="studio")
@@ -559,29 +515,32 @@ class GenerateurDevis:
     ) -> str:
         """Ajoute une menuiserie studio avec positionnement intelligent anti-chevauchement.
 
-        Chaque menuiserie occupe exactement un module de 1,10 m (MODULE_STUDIO).
-        Deux menuiseries sur le même mur ne peuvent pas partager le même module.
+        Chaque menuiserie occupe 1 ou 2 modules de 1,10 m (MODULE_STUDIO) :
+        - BAIE VITREE, FENETRE DOUBLE, PORTE DOUBLE VITREE → 2 modules (2,20 m)
+        - PORTE VITREE, FENETRE SIMPLE → 1 module (1,10 m)
+
+        Point 0 (origine) = angle mur de face / mur de gauche ET angle mur de droite / mur du fond.
+        Les offsets dans le configurateur sont des multiples de 1,10 m depuis le point 0.
 
         position_hint :
-          "auto" / "gauche"  → premier module libre (depuis l'angle origine du mur)
-          "droite"           → dernier module libre
-          "centre"           → module libre le plus proche du centre du mur
+          "auto" / "gauche"  → premier module(s) libre(s) (depuis l'angle origine du mur)
+          "droite"           → dernier module(s) libre(s)
+          "centre"           → module(s) libre(s) le(s) plus proche(s) du centre du mur
           "1,29" etc.        → offset exact souhaité (notation française) ; prend le
                                module libre le plus proche si non disponible
 
         Retourne l'offset sélectionné (ex: "1,29").
         Modifie used_modules_per_wall[mur] en place.
         """
-        # ── Étape 1 : Naviguer jusqu'au mur et lire toutes les positions disponibles ──
+        # ── Étape 1 : Ouvrir visuellement chaque niveau (type → matériau → mur) ──
+        # Scroll + clic Playwright hiérarchique pour que l'utilisateur voie les blocs s'ouvrir
+        # On utilise JS pour trouver le bon élément dans la hiérarchie (éviter les doublons data-text)
+        # puis Playwright scrollIntoView + click sur le title-wrap
         nav = await self.page.evaluate("""
             (args) => {
                 function isVisible(el) {
                     if (el.classList.contains('wpc-cl-hide-group')) return false;
                     return window.getComputedStyle(el).display !== 'none';
-                }
-                function clickItem(item) {
-                    var tw = item.querySelector('.wpc-layer-title-wrap');
-                    if (tw) tw.click(); else item.click();
                 }
                 function findVisibleChild(parent, text) {
                     for (var item of parent.querySelectorAll('li.wpc-control-item'))
@@ -589,19 +548,64 @@ class GenerateurDevis:
                             return item;
                     return null;
                 }
+                // Trouver type (racine)
                 var typeItem = null;
                 for (var item of document.querySelectorAll('li.wpc-control-item'))
                     if (item.getAttribute('data-text') === args.type) { typeItem = item; break; }
                 if (!typeItem) return {error: 'type not found: ' + args.type};
-                clickItem(typeItem);
-
+                // Trouver matériau dans type
                 var matItem = findVisibleChild(typeItem, args.materiau);
                 if (!matItem) return {error: 'materiau not found: ' + args.materiau + ' (BAIE VITREE et PORTE DOUBLE VITREE = ALU uniquement)'};
-                clickItem(matItem);
-
+                // Trouver mur dans matériau
                 var murItem = findVisibleChild(matItem, args.mur);
                 if (!murItem) return {error: 'mur not found: ' + args.mur};
-                clickItem(murItem);
+                // Retourner les UIDs pour scroll + clic Playwright
+                return {
+                    typeUid: typeItem.getAttribute('data-uid') || '',
+                    matUid: matItem.getAttribute('data-uid') || '',
+                    murUid: murItem.getAttribute('data-uid') || '',
+                };
+            }
+        """, {"type": type_menu, "materiau": materiau, "mur": mur})
+
+        if isinstance(nav, dict) and "error" in nav:
+            raise ValueError(f"Menuiserie studio: {nav['error']}")
+
+        # Scroll + clic Playwright sur chaque niveau pour ouvrir visuellement
+        for uid in [nav["typeUid"], nav["matUid"], nav["murUid"]]:
+            if not uid:
+                continue
+            selector = f'li.wpc-control-item[data-uid="{uid}"]'
+            try:
+                el = self.page.locator(selector).first
+                await el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{selector} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await el.click(timeout=3000)
+                await self.page.wait_for_timeout(400)
+            except PlaywrightTimeout:
+                # Fallback JS — cliquer directement
+                await self.page.evaluate("""
+                    (uid) => {
+                        var el = document.querySelector('[data-uid="' + uid + '"]');
+                        if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+                    }
+                """, uid)
+                await self.page.wait_for_timeout(400)
+
+        # Lire les positions disponibles sous le mur sélectionné
+        nav = await self.page.evaluate("""
+            (args) => {
+                function isVisible(el) {
+                    if (el.classList.contains('wpc-cl-hide-group')) return false;
+                    return window.getComputedStyle(el).display !== 'none';
+                }
+                var murItem = args.murUid
+                    ? document.querySelector('[data-uid="' + args.murUid + '"]')
+                    : null;
+                if (!murItem) return {error: 'mur not found by uid'};
 
                 var ul = murItem.querySelector(':scope > ul, :scope > .wpc-control-lists > ul');
                 if (!ul) return {positions: []};
@@ -611,7 +615,7 @@ class GenerateurDevis:
                         positions.push({text: li.getAttribute('data-text') || '', uid: li.getAttribute('data-uid') || ''});
                 return {positions: positions};
             }
-        """, {"type": type_menu, "materiau": materiau, "mur": mur})
+        """, {"murUid": nav["murUid"]})
         await self.page.wait_for_timeout(300)
 
         if isinstance(nav, dict) and "error" in nav:
@@ -625,16 +629,26 @@ class GenerateurDevis:
             return float(s.replace(",", "."))
 
         def module_idx(offset: float) -> int:
-            return int(offset / MODULE_STUDIO)
+            return int(round(offset / MODULE_STUDIO))
+
+        # Nombre de modules occupés par cette menuiserie (1 ou 2)
+        is_double = type_menu.upper() in DOUBLE_MODULE_TYPES
+        nb_modules = 2 if is_double else 1
 
         offsets = [(p["text"], p["uid"], parse_fr(p["text"])) for p in available]
         used_modules = used_modules_per_wall.get(mur, set())
-        free = [(t, u, o) for t, u, o in offsets if module_idx(o) not in used_modules]
+
+        def is_free(offset: float) -> bool:
+            """Vérifie que les nb_modules consécutifs sont libres."""
+            idx = module_idx(offset)
+            return all((idx + k) not in used_modules for k in range(nb_modules))
+
+        free = [(t, u, o) for t, u, o in offsets if is_free(o)]
 
         hint = (position_hint or "auto").strip().lower()
 
         if not free:
-            print(f"    ⚠ Tous les modules occupés sur {mur} pour {type_menu} — fallback premier")
+            print(f"    ⚠ Pas assez de modules consécutifs libres sur {mur} pour {type_menu} ({nb_modules} modules) — fallback premier")
             sel_text, sel_uid, sel_off = offsets[0]
         elif hint in ("auto", "gauche", "left", ""):
             sel_text, sel_uid, sel_off = free[0]
@@ -644,15 +658,15 @@ class GenerateurDevis:
             mid = (offsets[0][2] + offsets[-1][2]) / 2
             sel_text, sel_uid, sel_off = min(free, key=lambda p: abs(p[2] - mid))
         else:
-            # Position exacte demandée (ex: "1,29")
+            # Position exacte demandée (ex: "1,29" ou "3,3")
             exact = next(((t, u, o) for t, u, o in free if t == hint), None)
             if exact:
                 sel_text, sel_uid, sel_off = exact
             else:
                 # Chercher dans toutes les positions (même module occupé)
                 all_match = next(((t, u, o) for t, u, o in offsets if t == hint), None)
-                if all_match and module_idx(all_match[2]) in used_modules:
-                    print(f"    ⚠ Module pour '{hint}' déjà occupé — sélection forcée")
+                if all_match and not is_free(all_match[2]):
+                    print(f"    ⚠ Module(s) pour '{hint}' déjà occupé(s) — sélection forcée")
                     sel_text, sel_uid, sel_off = all_match
                 elif all_match:
                     sel_text, sel_uid, sel_off = all_match
@@ -684,9 +698,13 @@ class GenerateurDevis:
         if isinstance(click, dict) and click.get("error"):
             raise ValueError(f"Menuiserie studio click: {click['error']}")
 
-        used_modules_per_wall.setdefault(mur, set()).add(module_idx(sel_off))
+        # Enregistrer les modules occupés (1 ou 2 selon le type de menuiserie)
+        idx = module_idx(sel_off)
+        for k in range(nb_modules):
+            used_modules_per_wall.setdefault(mur, set()).add(idx + k)
         await self.page.wait_for_timeout(500)
-        print(f"    ✓ {type_menu} {materiau} > {mur} @ {sel_text} (hint={position_hint or 'auto'})")
+        modules_str = f"modules {idx}-{idx+1}" if is_double else f"module {idx}"
+        print(f"    ✓ {type_menu} {materiau} > {mur} @ {sel_text} ({modules_str}, hint={position_hint or 'auto'})")
         return sel_text
 
     async def ajouter_produit_woo(
@@ -1269,6 +1287,137 @@ class GenerateurDevis:
                 raise ValueError(f"Élément avec data-text '{text}' non trouvé")
         await self.page.wait_for_timeout(300)
 
+    async def _wpc_select(self, group_text: str, option_text: str):
+        """Méthode universelle pour sélectionner une option WPC dans un groupe.
+
+        Fonctionne pour TOUS les configurateurs (Abri + Studio) :
+        1. Vérifie d'abord si l'option est déjà sélectionnée (skip si oui)
+        2. Scrolle vers le groupe et l'ouvre visuellement (Playwright click = trusted + scroll)
+        3. Clique l'option enfant via JS item.click()
+        4. Gère les items dupliqués (wpc-cl-hide-group), les toggles, les accordions
+
+        Args:
+            group_text: data-text du groupe parent (ex: "Plancher ", "ISOLATION")
+            option_text: data-text de l'option à sélectionner (ex: "Plancher standard", "60mm")
+        """
+        # Étape 1 : Vérifier si l'option est déjà sélectionnée AVANT d'ouvrir le groupe
+        already = await self.page.evaluate("""
+            (args) => {
+                var allItems = document.querySelectorAll('li.wpc-control-item');
+                var group = null;
+                for (var item of allItems) {
+                    if (item.getAttribute('data-text') === args.groupText) { group = item; break; }
+                }
+                if (!group) return false;
+                var descendants = group.querySelectorAll('li.wpc-control-item');
+                for (var d of descendants) {
+                    if (d.getAttribute('data-text') === args.optionText && d.classList.contains('current')) {
+                        // Vérifier que c'est le bouton visible (pas un homonyme caché)
+                        var isHidden = d.classList.contains('wpc-cl-hide-group')
+                                    || d.classList.contains('wpc-cl-hide-layer')
+                                    || window.getComputedStyle(d).display === 'none';
+                        if (!isHidden) return true;
+                    }
+                }
+                return false;
+            }
+        """, {"groupText": group_text, "optionText": option_text})
+
+        if already:
+            print(f"    ✓ {option_text} (déjà sélectionné)")
+            return
+
+        # Étape 2 : Ouvrir le groupe visuellement (scroll + clic Playwright sur le title-wrap)
+        group_selector = f'li.wpc-control-item[data-text="{group_text}"]'
+        try:
+            group_el = self.page.locator(group_selector).first
+            await group_el.scroll_into_view_if_needed(timeout=3000)
+            # Cliquer le title-wrap pour ouvrir l'accordion
+            tw_selector = f'{group_selector} > .wpc-layer-title-wrap'
+            tw = self.page.locator(tw_selector)
+            if await tw.count() > 0:
+                await tw.first.click(timeout=3000)
+            else:
+                await group_el.click(timeout=3000)
+        except PlaywrightTimeout:
+            print(f"    ⚠ Groupe '{group_text}' non trouvé via Playwright — fallback JS")
+        await self.page.wait_for_timeout(500)
+
+        # Étape 3 : Trouver l'option visible dans le groupe → retourner son data-uid pour clic Playwright
+        result = await self.page.evaluate("""
+            (args) => {
+                var allItems = document.querySelectorAll('li.wpc-control-item');
+                var group = null;
+                for (var item of allItems) {
+                    if (item.getAttribute('data-text') === args.groupText) { group = item; break; }
+                }
+                if (!group) return {error: 'group not found: ' + args.groupText};
+
+                var option = null;
+                var descendants = group.querySelectorAll('li.wpc-control-item');
+                for (var d of descendants) {
+                    if (d.getAttribute('data-text') === args.optionText) {
+                        // Vérifier les 2 classes de masquage WPC + le display CSS
+                        var isHidden = d.classList.contains('wpc-cl-hide-group')
+                                    || d.classList.contains('wpc-cl-hide-layer')
+                                    || window.getComputedStyle(d).display === 'none';
+                        if (!isHidden) { option = d; break; }
+                        if (!option) option = d;
+                    }
+                }
+                if (!option) {
+                    var available = [];
+                    for (var d of descendants) {
+                        var dt = d.getAttribute('data-text');
+                        var dHidden = d.classList.contains('wpc-cl-hide-group')
+                                   || d.classList.contains('wpc-cl-hide-layer')
+                                   || window.getComputedStyle(d).display === 'none';
+                        if (dt && !dHidden) available.push(dt);
+                    }
+                    return {error: 'option not found: ' + args.optionText + ' in ' + args.groupText,
+                            available: available.slice(0, 10)};
+                }
+
+                if (option.classList.contains('current')) return {ok: true, already: true};
+                // Retourner l'uid pour clic Playwright (visible à l'écran)
+                return {ok: true, already: false, uid: option.getAttribute('data-uid') || ''};
+            }
+        """, {"groupText": group_text, "optionText": option_text})
+
+        if isinstance(result, dict) and result.get("error"):
+            avail = result.get("available", [])
+            raise ValueError(f"{result['error']}" + (f" — disponibles: {avail}" if avail else ""))
+
+        if result.get("already"):
+            print(f"    ✓ {option_text} (déjà sélectionné)")
+        else:
+            # Clic Playwright visible : scroll + clic trusted (l'utilisateur voit la sélection)
+            uid = result.get("uid", "")
+            if uid:
+                opt_selector = f'li.wpc-control-item[data-uid="{uid}"]'
+            else:
+                opt_selector = f'li.wpc-control-item[data-text="{option_text}"]'
+            try:
+                opt_el = self.page.locator(opt_selector).first
+                await opt_el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{opt_selector} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await opt_el.click(timeout=3000)
+            except PlaywrightTimeout:
+                # Fallback JS si Playwright ne trouve pas l'élément
+                await self.page.evaluate("""
+                    (optText) => {
+                        var items = document.querySelectorAll('li.wpc-control-item');
+                        for (var item of items) {
+                            if (item.getAttribute('data-text') === optText) { item.click(); return; }
+                        }
+                    }
+                """, option_text)
+            await self.page.wait_for_timeout(800)
+            print(f"    ✓ {option_text}")
+
     async def _ajouter_ouverture(self, type_ouverture: str, face: str, position: str = "Centre"):
         """Ajoute une ouverture sur une face à une position donnée.
 
@@ -1294,7 +1443,11 @@ class GenerateurDevis:
         IMPORTANT : La recherche de position est scopée à la face sélectionnée
         pour éviter de cliquer une position d'une autre face.
         """
-        # 1. Cliquer sur le type d'ouverture pour l'expandre
+        # 0. Ouvrir visuellement le groupe parent "OUVERTURES" (scroll + clic)
+        await self._click_by_data_text("OUVERTURES")
+        await self.page.wait_for_timeout(500)
+
+        # 1. Cliquer sur le type d'ouverture pour l'expandre (scroll visible)
         await self._click_by_data_text(type_ouverture)
         await self.page.wait_for_timeout(800)
 
@@ -1304,11 +1457,10 @@ class GenerateurDevis:
     async def _click_ouverture_face_and_position(self, type_ouverture: str, face: str, position: str):
         """Trouve la bonne face visible sous le type d'ouverture et clique face + position.
 
-        IMPORTANT: La position est recherchée uniquement DANS la face sélectionnée
-        (via data-uid), pas dans tout le type. Cela évite de sélectionner une
-        position d'une autre face qui porte le même nom (ex: "Centre" sous Face 1
-        au lieu de "Centre" sous Droite).
+        Utilise JS pour trouver les UIDs, puis Playwright pour les clics visibles (scroll + clic trusted).
+        La position est recherchée uniquement DANS la face sélectionnée (via data-uid).
         """
+        # Étape 1 : Trouver les UIDs de la face et de la position via JS
         result = await self.page.evaluate("""
             (args) => {
                 var typeText = args.typeText;
@@ -1317,100 +1469,104 @@ class GenerateurDevis:
 
                 function isWpcVisible(el) {
                     if (el.classList.contains('wpc-cl-hide-group')) return false;
-                    var display = window.getComputedStyle(el).display;
-                    return display !== 'none';
+                    return window.getComputedStyle(el).display !== 'none';
                 }
 
-                // 1. Trouver le type d'ouverture
                 var typeItem = document.querySelector('li.wpc-control-item[data-text="' + typeText + '"]');
                 if (!typeItem) return {error: 'type not found: ' + typeText};
 
-                // 2. Trouver toutes les faces avec ce nom sous ce type
                 var faces = typeItem.querySelectorAll('li.wpc-control-item[data-text="' + faceText + '"]');
                 var bestFace = null;
 
-                // Priorité 1 : face visible + contient la position demandée
                 for (var f = 0; f < faces.length; f++) {
                     if (!isWpcVisible(faces[f])) continue;
                     var posItems = faces[f].querySelectorAll('li.wpc-control-item[data-text="' + posText + '"]');
                     for (var p = 0; p < posItems.length; p++) {
-                        if (isWpcVisible(posItems[p])) {
-                            bestFace = faces[f];
-                            break;
-                        }
+                        if (isWpcVisible(posItems[p])) { bestFace = faces[f]; break; }
                     }
                     if (bestFace) break;
                 }
-
-                // Priorité 2 : face visible (même sans la position exacte visible)
                 if (!bestFace) {
                     for (var f = 0; f < faces.length; f++) {
-                        if (isWpcVisible(faces[f])) {
-                            bestFace = faces[f];
-                            break;
-                        }
+                        if (isWpcVisible(faces[f])) { bestFace = faces[f]; break; }
                     }
                 }
-
                 if (!bestFace) return {error: 'face not found: ' + faceText + ' under ' + typeText};
 
-                // 3. Cliquer sur la face pour l'expandre
-                var tw = bestFace.querySelector('.wpc-layer-title-wrap');
-                if (tw) tw.click();
-                else bestFace.click();
+                var faceUid = bestFace.getAttribute('data-uid') || '';
 
-                var faceUid = bestFace.getAttribute('data-uid');
-
-                // 4. Cliquer la position DANS cette face (scopé au bestFace)
+                // Trouver la position visible dans cette face
+                var posUid = '';
                 var posItems = bestFace.querySelectorAll('li.wpc-control-item[data-text="' + posText + '"]');
-                var clickedPos = null;
                 for (var p = 0; p < posItems.length; p++) {
-                    if (isWpcVisible(posItems[p])) {
-                        var ptw = posItems[p].querySelector('.wpc-layer-title-wrap');
-                        if (ptw) ptw.click();
-                        else posItems[p].click();
-                        clickedPos = posItems[p].getAttribute('data-uid');
-                        break;
-                    }
+                    if (isWpcVisible(posItems[p])) { posUid = posItems[p].getAttribute('data-uid') || ''; break; }
                 }
-
-                // Fallback position : premier item visible dans la face
-                if (!clickedPos) {
+                // Fallback : premier item visible
+                if (!posUid) {
                     var allPos = bestFace.querySelectorAll('li.wpc-control-item');
                     for (var a = 0; a < allPos.length; a++) {
                         if (isWpcVisible(allPos[a]) && allPos[a].getAttribute('data-text')) {
-                            var atw = allPos[a].querySelector('.wpc-layer-title-wrap');
-                            if (atw) atw.click();
-                            else allPos[a].click();
-                            clickedPos = allPos[a].getAttribute('data-uid');
+                            posUid = allPos[a].getAttribute('data-uid') || '';
                             break;
                         }
                     }
                 }
+                if (!posUid) return {error: 'position not found: ' + posText + ' in face ' + faceText};
 
-                if (!clickedPos) return {error: 'position not found: ' + posText + ' in face ' + faceText, faceUid: faceUid};
-
-                return {
-                    clicked: true,
-                    faceUid: faceUid,
-                    posUid: clickedPos,
-                    faceText: bestFace.getAttribute('data-text'),
-                    debug: 'face+pos clicked in single pass'
-                };
+                return {faceUid: faceUid, posUid: posUid, faceText: bestFace.getAttribute('data-text')};
             }
         """, {"typeText": type_ouverture, "faceText": face, "posText": position})
 
         if isinstance(result, dict) and result.get("error"):
             raise ValueError(f"Ouverture: {result['error']}")
 
+        face_text = result.get("faceText", face)
+
+        # Étape 2 : Clic Playwright sur la face (scroll visible + ouvre l'accordion)
+        face_uid = result.get("faceUid", "")
+        if face_uid:
+            face_sel = f'li.wpc-control-item[data-uid="{face_uid}"]'
+            try:
+                face_el = self.page.locator(face_sel).first
+                await face_el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{face_sel} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await face_el.click(timeout=3000)
+                await self.page.wait_for_timeout(400)
+            except PlaywrightTimeout:
+                await self.page.evaluate("""(uid) => {
+                    var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
+                    if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+                }""", face_uid)
+
+        # Étape 3 : Clic Playwright sur la position (scroll visible)
+        pos_uid = result.get("posUid", "")
+        if pos_uid:
+            pos_sel = f'li.wpc-control-item[data-uid="{pos_uid}"]'
+            try:
+                pos_el = self.page.locator(pos_sel).first
+                await pos_el.scroll_into_view_if_needed(timeout=3000)
+                tw = self.page.locator(f'{pos_sel} > .wpc-layer-title-wrap')
+                if await tw.count() > 0:
+                    await tw.first.click(timeout=3000)
+                else:
+                    await pos_el.click(timeout=3000)
+            except PlaywrightTimeout:
+                await self.page.evaluate("""(uid) => {
+                    var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
+                    if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+                }""", pos_uid)
+
         await self.page.wait_for_timeout(500)
-        face_text = result.get("faceText", face) if isinstance(result, dict) else face
         print(f"    ✓ Ouverture: {type_ouverture} > {face_text} > {position}")
 
     async def _click_visible_by_data_text(self, text: str, parent_text: str = ""):
         """Clique sur le premier élément VISIBLE avec ce data-text.
-        Utilisé pour extension de toiture et options (pas pour les ouvertures)."""
-        clicked = await self.page.evaluate("""
+        Utilisé pour extension de toiture, bac acier, etc.
+        Utilise JS pour trouver l'uid, puis Playwright pour le clic visible."""
+        uid = await self.page.evaluate("""
             (args) => {
                 var targetText = args.targetText;
                 var parentText = args.parentText;
@@ -1428,25 +1584,36 @@ class GenerateurDevis:
                 var items = searchRoot.querySelectorAll('li.wpc-control-item[data-text="' + targetText + '"]');
                 for (var i = 0; i < items.length; i++) {
                     if (items[i].offsetHeight > 0 || items[i].offsetParent !== null) {
-                        var tw = items[i].querySelector('.wpc-layer-title-wrap');
-                        if (tw) tw.click();
-                        else items[i].click();
-                        return true;
+                        return items[i].getAttribute('data-uid') || '';
                     }
                 }
-
-                // Fallback: cliquer le premier trouvé
-                if (items.length > 0) {
-                    var tw = items[0].querySelector('.wpc-layer-title-wrap');
-                    if (tw) tw.click();
-                    else items[0].click();
-                    return true;
-                }
-                return false;
+                // Fallback: premier trouvé
+                if (items.length > 0) return items[0].getAttribute('data-uid') || '';
+                return null;
             }
         """, {"targetText": text, "parentText": parent_text})
-        if not clicked:
+        if uid is None:
             raise ValueError(f"Élément visible data-text='{text}' non trouvé (parent: {parent_text})")
+
+        # Clic Playwright visible (scroll + clic trusted)
+        if uid:
+            selector = f'li.wpc-control-item[data-uid="{uid}"]'
+        else:
+            selector = f'li.wpc-control-item[data-text="{text}"]'
+        try:
+            el = self.page.locator(selector).first
+            await el.scroll_into_view_if_needed(timeout=3000)
+            tw = self.page.locator(f'{selector} > .wpc-layer-title-wrap')
+            if await tw.count() > 0:
+                await tw.first.click(timeout=3000)
+            else:
+                await el.click(timeout=3000)
+        except PlaywrightTimeout:
+            # Fallback JS
+            await self.page.evaluate("""(uid) => {
+                var el = document.querySelector('li.wpc-control-item[data-uid="' + uid + '"]');
+                if (el) { var tw = el.querySelector('.wpc-layer-title-wrap'); if (tw) tw.click(); else el.click(); }
+            }""", uid)
 
     async def _click_first_visible_image_in_group(self, group_text: str):
         """Clique sur le premier item IMAGE visible dans un groupe."""
@@ -1506,6 +1673,8 @@ async def generer_devis_abri(
     bac_acier: bool = False,
     produits_complementaires: list = None,
     code_promo: str = "",
+    produits_uniquement: bool = False,
+    configurations_supplementaires: list = None,
 ) -> str:
     """
     Fonction principale — génère un devis abri complet.
@@ -1526,6 +1695,15 @@ async def generer_devis_abri(
             },
             "description": "Planches 27×130mm 2m"  # Pour le log
         }]
+        produits_uniquement: True = sauter le configurateur, ajouter UNIQUEMENT
+            les produits_complementaires au panier. Utile pour les modèles préconçus
+            (Gamme Essentiel, Haut de Gamme) qui ne passent pas par le configurateur WPC.
+            Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
+        configurations_supplementaires: liste de configurations supplémentaires à ajouter
+            au même panier. Chaque élément est un dict avec les mêmes clés que la config
+            principale : {"largeur": "4,70M", "profondeur": "3,45m",
+            "ouvertures": [...], "extension_toiture": "", "plancher": False, "bac_acier": False}
+            Permet de mettre plusieurs abris personnalisés sur le même devis PDF.
 
     Retourne : chemin vers le fichier PDF du devis
 
@@ -1534,12 +1712,19 @@ async def generer_devis_abri(
     """
     start_time = time.time()
     produits_complementaires = produits_complementaires or []
+    configurations_supplementaires = configurations_supplementaires or []
     print(f"\n{'='*60}")
     print(f"  GÉNÉRATION DE DEVIS AUTOMATIQUE")
     print(f"  Client : {client_prenom} {client_nom}")
-    print(f"  Abri : Largeur {largeur} / Profondeur {profondeur}")
-    if produits_complementaires:
-        print(f"  + {len(produits_complementaires)} produit(s) complémentaire(s)")
+    if produits_uniquement:
+        print(f"  Mode : produits_uniquement (sans configurateur)")
+        print(f"  {len(produits_complementaires)} produit(s) à ajouter")
+    else:
+        print(f"  Abri : Largeur {largeur} / Profondeur {profondeur}")
+        if configurations_supplementaires:
+            print(f"  + {len(configurations_supplementaires)} configuration(s) supplémentaire(s)")
+        if produits_complementaires:
+            print(f"  + {len(produits_complementaires)} produit(s) complémentaire(s)")
     print(f"{'='*60}\n")
 
     gen = GenerateurDevis(site="abri", headless=headless)
@@ -1547,27 +1732,48 @@ async def generer_devis_abri(
     try:
         await gen.start()
 
-        config = ConfigAbri(
-            largeur=largeur,
-            profondeur=profondeur,
-            ouvertures=ouvertures,
-            extension_toiture=extension_toiture,
-            plancher=plancher,
-            bac_acier=bac_acier,
-        )
-        prix = await gen.configurer_abri(config)
+        nb_items_panier = 0
 
-        await gen.ajouter_au_panier()
-        # Page est maintenant sur /votre-panier/ après ajout
-        await gen.verifier_panier(nb_attendu=1)
+        # --- Mode produits_uniquement : sauter le configurateur ---
+        if not produits_uniquement:
+            config = ConfigAbri(
+                largeur=largeur,
+                profondeur=profondeur,
+                ouvertures=ouvertures,
+                extension_toiture=extension_toiture,
+                plancher=plancher,
+                bac_acier=bac_acier,
+            )
+            prix = await gen.configurer_abri(config)
+
+            await gen.ajouter_au_panier()
+            nb_items_panier += 1
+            await gen.verifier_panier(nb_attendu=nb_items_panier)
+
+            # --- Configurations supplémentaires (multi-abri sur même devis) ---
+            for idx, cfg_sup in enumerate(configurations_supplementaires):
+                print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configurations_supplementaires)} ───")
+                sup_config = ConfigAbri(
+                    largeur=cfg_sup.get("largeur", ""),
+                    profondeur=cfg_sup.get("profondeur", ""),
+                    ouvertures=cfg_sup.get("ouvertures", []),
+                    extension_toiture=cfg_sup.get("extension_toiture", ""),
+                    plancher=cfg_sup.get("plancher", False),
+                    bac_acier=cfg_sup.get("bac_acier", False),
+                )
+                prix_sup = await gen.configurer_abri(sup_config)
+                await gen.ajouter_au_panier()
+                nb_items_panier += 1
+                await gen.verifier_panier(nb_attendu=nb_items_panier)
 
         # Ajouter les produits complémentaires au même panier
         if produits_complementaires:
-            print(f"\n  ─── Produits complémentaires ({len(produits_complementaires)}) ───")
-            confirmed_count = 0
+            label = "Produits" if produits_uniquement else "Produits complémentaires"
+            print(f"\n  ─── {label} ({len(produits_complementaires)}) ───")
+            confirmed_count = nb_items_panier  # Tenir compte des items configurateur déjà au panier
             for prod in produits_complementaires:
                 desc = prod.get("description", prod.get("url", "?").split("/produit/")[-1].strip("/"))
-                print(f"\n  [{confirmed_count + 1}/{len(produits_complementaires)}] {desc}")
+                print(f"\n  [{confirmed_count - nb_items_panier + 1}/{len(produits_complementaires)}] {desc}")
                 confirmed = False
                 for attempt in range(2):
                     try:
@@ -1590,8 +1796,12 @@ async def generer_devis_abri(
                 else:
                     print(f"    ⚠ {desc} potentiellement absent après 2 tentatives")
 
-        # Appliquer le code promo dans le panier (si fourni)
-        await gen._appliquer_code_promo(code_promo)
+        # Panier : code promo + date de livraison estimée
+        panier_path = gen.site_config.get("panier", "/panier/")
+        date_livraison = await _traiter_panier(
+            gen.page, gen.base_url, code_promo, mode_livraison="",
+            panier_path=panier_path,
+        )
 
         client = Client(
             nom=client_nom,
@@ -1606,9 +1816,11 @@ async def generer_devis_abri(
         print(f"\n{'='*60}")
         print(f"  ✅ DEVIS GÉNÉRÉ EN {elapsed:.1f} SECONDES")
         print(f"  📄 Fichier : {filepath}")
+        if date_livraison:
+            print(f"  📦 Livraison estimée : {date_livraison}")
         print(f"{'='*60}\n")
 
-        return filepath
+        return filepath, date_livraison or ""
 
     except Exception as e:
         print(f"\n  ❌ Erreur : {e}")
@@ -1637,6 +1849,7 @@ async def generer_devis_studio(
     pergola: str = "",
     produits_complementaires: list = None,
     code_promo: str = "",
+    configurations_supplementaires: list = None,
 ) -> str:
     """
     Fonction principale — génère un devis studio complet.
@@ -1664,16 +1877,24 @@ async def generer_devis_studio(
             },
             "description": "Cloison 60€/ml"  # Pour le log
         }]
+        configurations_supplementaires: liste de configurations supplémentaires à ajouter
+            au même panier. Chaque élément est un dict avec les clés de ConfigStudio :
+            {"largeur": "3,3", "profondeur": "3,5", "menuiseries": [...],
+            "bardage_exterieur": "Gris", "isolation": "60mm", ...}
+            Permet de mettre plusieurs studios personnalisés sur le même devis PDF.
 
     Retourne : chemin vers le fichier PDF du devis
     """
     start_time = time.time()
     produits_complementaires = produits_complementaires or []
+    configurations_supplementaires = configurations_supplementaires or []
     dim_key = f"{largeur}x{profondeur}"
     print(f"\n{'='*60}")
     print(f"  GÉNÉRATION DE DEVIS STUDIO")
     print(f"  Client : {client_prenom} {client_nom}")
     print(f"  Studio : {dim_key}")
+    if configurations_supplementaires:
+        print(f"  + {len(configurations_supplementaires)} configuration(s) supplémentaire(s)")
     if produits_complementaires:
         print(f"  + {len(produits_complementaires)} produit(s) complémentaire(s)")
     print(f"{'='*60}\n")
@@ -1682,6 +1903,8 @@ async def generer_devis_studio(
 
     try:
         await gen.start()
+
+        nb_items_panier = 0
 
         config = ConfigStudio(
             largeur=largeur,
@@ -1699,16 +1922,37 @@ async def generer_devis_studio(
         prix = await gen.configurer_studio(config)
 
         await gen.ajouter_au_panier()
-        # Page est maintenant sur /panier/ après ajout
-        await gen.verifier_panier(nb_attendu=1)
+        nb_items_panier += 1
+        await gen.verifier_panier(nb_attendu=nb_items_panier)
+
+        # --- Configurations supplémentaires (multi-studio sur même devis) ---
+        for idx, cfg_sup in enumerate(configurations_supplementaires):
+            print(f"\n  ─── Configuration supplémentaire {idx + 1}/{len(configurations_supplementaires)} ───")
+            sup_config = ConfigStudio(
+                largeur=cfg_sup.get("largeur", ""),
+                profondeur=cfg_sup.get("profondeur", ""),
+                menuiseries=cfg_sup.get("menuiseries", []),
+                bardage_exterieur=cfg_sup.get("bardage_exterieur", "Gris"),
+                isolation=cfg_sup.get("isolation", "60mm"),
+                rehausse=cfg_sup.get("rehausse", False),
+                bardage_interieur=cfg_sup.get("bardage_interieur", "OSB"),
+                plancher=cfg_sup.get("plancher", "Sans plancher"),
+                finition_plancher=cfg_sup.get("finition_plancher", False),
+                terrasse=cfg_sup.get("terrasse", ""),
+                pergola=cfg_sup.get("pergola", ""),
+            )
+            prix_sup = await gen.configurer_studio(sup_config)
+            await gen.ajouter_au_panier()
+            nb_items_panier += 1
+            await gen.verifier_panier(nb_attendu=nb_items_panier)
 
         # Ajouter les produits complémentaires au même panier
         if produits_complementaires:
             print(f"\n  ─── Produits complémentaires ({len(produits_complementaires)}) ───")
-            confirmed_count = 0
+            confirmed_count = nb_items_panier  # Tenir compte des items configurateur déjà au panier
             for prod in produits_complementaires:
                 desc = prod.get("description", prod.get("url", "?").split("/produit/")[-1].strip("/"))
-                print(f"\n  [{confirmed_count + 1}/{len(produits_complementaires)}] {desc}")
+                print(f"\n  [{confirmed_count - nb_items_panier + 1}/{len(produits_complementaires)}] {desc}")
                 confirmed = False
                 for attempt in range(2):
                     try:
@@ -1731,8 +1975,12 @@ async def generer_devis_studio(
                 else:
                     print(f"    ⚠ {desc} potentiellement absent après 2 tentatives")
 
-        # Appliquer le code promo dans le panier (si fourni)
-        await gen._appliquer_code_promo(code_promo)
+        # Panier : code promo + date de livraison estimée
+        panier_path = gen.site_config.get("panier", "/panier/")
+        date_livraison = await _traiter_panier(
+            gen.page, gen.base_url, code_promo, mode_livraison="",
+            panier_path=panier_path,
+        )
 
         client = Client(
             nom=client_nom,
@@ -1747,9 +1995,11 @@ async def generer_devis_studio(
         print(f"\n{'='*60}")
         print(f"  ✅ DEVIS STUDIO GÉNÉRÉ EN {elapsed:.1f} SECONDES")
         print(f"  📄 Fichier : {filepath}")
+        if date_livraison:
+            print(f"  📦 Livraison estimée : {date_livraison}")
         print(f"{'='*60}\n")
 
-        return filepath
+        return filepath, date_livraison or ""
 
     except Exception as e:
         print(f"\n  ❌ Erreur : {e}")

@@ -36,17 +36,19 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 **Matériaux et construction**
 - **Bois** : Pin sylvestre autoclave classe 3, 28mm, madriers rainure-languette. Fabriqué à Lille, Destombes Bois (50 ans d'expérience). Bois d'origine Finlande/Suède, densité **550 kg/m³** (supérieure à l'épicéa).
 - **Portes** : épaisseur 45mm. Vitrage : verre 4mm (non polycarbonate).
-- **Toiture Origine** : toit plat (pente 2°), couverture bac acier ou feutre bitumé selon modèle.
-- **Toiture Essentiel** : toit à 2 pentes, couverture feutre bitumé.
-- **Fixation toiture** : vis inox sur pannes + planches de mur (voir notice fournie). Possibilité d'ajouter des accessoires (gouttières, panneaux solaires…) — ⚠ leur compatibilité n'est pas garantie par le fabricant.
+- **Toiture** : les 2 gammes ont un **toit plat** (pente bac acier 5%). Aucun modèle à 2 pans.
+  - **Origine** : bandeau droit multi-hauteur (2 à 3 planches selon profondeur) → cache la pente, aspect toit plat finition premium.
+  - **Essentiel** : 1 seule lame de bandeau qui suit la pente du bac acier → pente visible (bandeau incliné).
+- **Fixation toiture** : vis inox sur pannes + planches de mur (voir notice fournie).
+- **Gouttière** : nous ne la proposons pas en option, mais l'espace est prévu en bas de la pente du bac acier. Le client peut installer une gouttière PVC standard (disponible chez Leroy Merlin, Castorama…) en la fixant sur le bandeau ou sur le mur de l'abri. Réponse au client : rassurer, orienter vers la grande surface, mentionner que c'est simple à poser.
 - **Bac acier anti-condensation** : sur-toiture métallique qui évite la condensation à l'intérieur. Recommandé pour stockage d'outils, matériaux sensibles à l'humidité.
-- **Durée de vie** : 20 à 30 ans avec entretien régulier selon exposition.
+- **Durée de vie** : garantie 10 ans sur le traitement autoclave. Durée de vie variable selon exposition et entretien.
 - **Variations normales du bois** : tolérance dimensionnelle ±8mm (±5%). Noeuds, microfissures non traversantes = caractéristiques normales du bois, sans impact structurel.
 - ⚠ **L'abri de jardin n'est pas conçu pour l'isolation thermique** (usage stockage/atelier). Pour un espace de vie chauffé, voir les Studios de jardin.
 
 **Dimensions et hauteurs**
-- Gamme Origine : hauteur sous plafond ~2,05m, faîtage ~2,40m HT.
-- Gamme Essentiel : faîtage ~2,27m HT.
+- Gamme Origine : hauteur intérieure 2,08m.
+- Gamme Essentiel : hauteur intérieure 1,95m.
 - ⚠ Hauteur > 2,65m ou portée > 6m → orienter vers Destombes Bois directement.
 
 **Fondations**
@@ -111,20 +113,28 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Isolation 60mm** : standard, suffisant usage bureau/atelier tempéré.
 - **Isolation 100mm RE2020** : recommandé pour habitation toute l'année ou zone climatique froide.
 - **Matériaux d'isolation** : laine de bois ou laine minérale (selon modèle — préciser à la commande si préférence).
-- Bardage extérieur : Douglas, épicéa ou composite selon modèle. Couleurs : Brun, Gris, Noir.
+- Bardage extérieur : Douglas, épicéa ou composite selon modèle. Couleurs : Gris, Brun, Noir, Vert.
 - Bardage intérieur : OSB (standard) ou panneaux bois massif épicéa 3 plis (premium).
 
 **Dimensions et surface**
 - De 2,2×2,4m (5,2m²) à 8,8×5,7m (~49,9m²). **28 combinaisons L×P disponibles** — voir tableau complet dans ASSISTANT_COMMERCIAL.md. Pas de sur-mesure entre deux tailles standard → proposer la taille standard supérieure.
 - Pour une demande totalement hors catalogue → orienter vers **Abri Cerisier** (www.abri-cerisier.fr).
 - Chaque module : 1,10m de largeur (nombre de modules = largeur / 1,10).
-- **Hauteur hors tout** : 2,70m (sans rehausse) / 3,20m (avec rehausse).
-- **Hauteur sous plafond** : ~2,50m standard / ~3,00m avec rehausse (déduction structure plancher + plafond).
+- **Hauteur hors tout** : 2,70m (sans rehausse) / 3,20m (avec rehausse RE2020).
+- **Hauteur sous plafond** : ~2,50m standard / ~3,00m avec rehausse RE2020 (déduction structure plancher + plafond).
+- **Rehausse** : disponible **uniquement avec isolation RE2020** (100mm). Non disponible avec isolation standard 60mm. Ajoute ~50cm de hauteur sous plafond.
 
-**Plancher**
-- **Option plancher standard** : structure 145mm + OSB 18mm = **163mm total** (~16,3cm). La face supérieure du plancher est à environ 16cm au-dessus de la dalle béton.
-- **Option plancher renforcé** : section variable selon la profondeur du studio (demander à préciser la configuration — informer le client que la cote exacte sera confirmée par le bureau d'études).
-- Sans plancher : le studio repose directement sur la dalle béton (prévoir isolation par l'intérieur si besoin).
+**Plancher** (option, non inclus par défaut)
+- **Sans plancher** (par défaut) : le studio repose directement sur la dalle béton (prévoir isolation par l'intérieur si besoin).
+- **Plancher standard** : structure 145mm + OSB 18mm = **163mm total** (~16,3cm). La face supérieure du plancher est à environ 16cm au-dessus de la dalle béton.
+- **Plancher RE2020** : isolé renforcé, recommandé pour habitation toute l'année.
+- **Plancher porteur** : pour charges lourdes (meubles lourds, équipements).
+- **Finition plancher** : option revêtement de sol (OUI/NON).
+- ⚠ Pour le plancher renforcé/porteur : section variable selon la profondeur du studio → confirmer avec le bureau d'études.
+
+**Mezzanine**
+- Disponible **uniquement sur les modèles préconçus** du site studio-francais.fr.
+- Non disponible via le configurateur sur-mesure (`generer_devis`).
 
 **Menuiseries**
 - PORTE VITREE, FENETRE SIMPLE, FENETRE DOUBLE, BAIE VITREE, PORTE DOUBLE VITREE
@@ -216,7 +226,7 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - **Saturateur** — première application **6 mois minimum** après pose. Renouvellement **tous les 3 à 5 ans** selon l'aspect du bois (s'il a noirci ou grisé).
 - Nettoyer les lames de ventelles avec brosse douce annuellement.
 - **Neige et feuilles** : retirer régulièrement l'accumulation sur le platelage ou les ventelles (risque de déformation, pourriture accélérée).
-- ⚠ **Accessoires toiture** (panneaux solaires, tuiles, autre couverture) : techniquement possibles mais **non garantis par le fabricant** — responsabilité du client pour toute modification.
+- **Accessoires toiture** (panneaux solaires, autre couverture) : techniquement possibles mais non garantis par le fabricant — responsabilité du client.
 
 **Réglementation**
 - < 20m² (surface au sol) : déclaration préalable conseillée.
@@ -245,22 +255,12 @@ Tu es l'expert technique du **Groupe Abri Français**. Quand un commercial te so
 - 21mm × 145mm : léger, suffisant sur lambourdes serrées (espacement ≤ 40cm)
 - 27mm × 145mm : plus rigide, idéal grandes portées ou espacement ≤ 60cm
 
-**Longueurs de lames disponibles par essence**
-
-| Essence | Longueurs disponibles |
-|---------|----------------------|
-| Pin 21mm Autoclave Vert | 3,3m / 4,2m / 5,1m |
-| Pin 27mm Autoclave Vert | 2,4m / 2,75m / 3,3m / 3,9m / 4,2m / 4,5m / 4,8m / 5,1m |
-| Pin 27mm Autoclave Marron | 3m / 3,3m / 3,6m / 4,2m / 4,8m / 5,1m / 5,4m |
-| Frake / Jatoba / Cumaru | 1,25m / 1,85m / 2,15m / 3,05m / 3,65m |
-| Ipé / Padouk | 0,95m / 1,25m |
-
-⚠ Pin Autoclave Gris et Thermotraité : vérifier disponibilités sur le configurateur (longueurs variables).
+⚠ **Longueurs disponibles : toujours vérifier en temps réel via `rechercher_produits_detail(site="terrasse")` avant tout devis ou réponse au client — les longueurs varient selon le stock et peuvent changer.**
 
 **Lambourdes et plots**
-- **45×70mm** : légère, terrain plat standard — longueurs : 3m / 4,2m / 4,8m / 5,1m
-- **45×145mm** : renforcée, pilotis, zone humide, piscine — longueurs : 3m / 4,2m / 4,8m / 5,1m
-- **Niove 40×60mm** (exotique) : milieux très humides, bord de mer/piscine — longueurs : 1,55m / 1,85m / 2,15m / 3,05m / 3,65m
+- **45×70mm** : légère, terrain plat standard
+- **45×145mm** : renforcée, pilotis, zone humide, piscine
+- **Niove 40×60mm** (exotique) : milieux très humides, bord de mer/piscine
 - **Plots réglables** : de 2cm à 26cm selon dénivelé. Laisser minimum 5cm entre sol et lames.
 
 **Visserie**

@@ -53,6 +53,7 @@ try:
     from generateur_devis_3sites import (
         generer_devis_pergola, generer_devis_terrasse,
         generer_devis_cloture, generer_devis_terrasse_detail,
+        generer_devis_cloture_configurateur,
     )
     from generateur_devis_auto import generer_devis_abri, generer_devis_studio
     _GENERATORS_AVAILABLE = True
@@ -92,23 +93,26 @@ def _log_devis(filepath: str, type_devis: str, client_prenom: str, client_nom: s
         pass  # log non-bloquant
 
 
-async def _run_generator(type_devis: str, params: dict) -> str:
-    """Appelle directement la fonction de génération appropriée."""
+async def _run_generator(type_devis: str, params: dict) -> tuple:
+    """Appelle directement la fonction de génération appropriée.
+    Retourne (filepath, date_livraison)."""
     if type_devis == "pergola":
-        fp, _ = await generer_devis_pergola(**params)
+        fp, dl = await generer_devis_pergola(**params)
     elif type_devis == "terrasse":
-        fp, _ = await generer_devis_terrasse(**params)
+        fp, dl = await generer_devis_terrasse(**params)
     elif type_devis == "cloture":
-        fp, _ = await generer_devis_cloture(**params)
+        fp, dl = await generer_devis_cloture(**params)
+    elif type_devis == "cloture_configurateur":
+        fp, dl = await generer_devis_cloture_configurateur(**params)
     elif type_devis == "terrasse_detail":
-        fp, _ = await generer_devis_terrasse_detail(**params)
+        fp, dl = await generer_devis_terrasse_detail(**params)
     elif type_devis == "abri":
-        fp = await generer_devis_abri(**params)
+        fp, dl = await generer_devis_abri(**params)
     elif type_devis == "studio":
-        fp = await generer_devis_studio(**params)
+        fp, dl = await generer_devis_studio(**params)
     else:
         raise ValueError(f"Type de devis inconnu: {type_devis}")
-    return fp
+    return fp, dl or ""
 
 
 async def _generer_direct(type_devis: str, params: dict,
@@ -136,22 +140,45 @@ async def _generer_direct(type_devis: str, params: dict,
     _bg_task_counter += 1
     task_id = f"{type_devis}_{client_prenom}_{client_nom}_{_bg_task_counter}"
     _background_tasks[task_id] = task
-    task.add_done_callback(lambda t: _background_tasks.pop(task_id, None))
+
+    def _on_bg_done(t):
+        _background_tasks.pop(task_id, None)
+        # Si le task a terminé en arrière-plan (après timeout), loguer le résultat
+        try:
+            result = t.result()
+            filepath = result[0] if isinstance(result, tuple) else result
+            if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
+                _log_devis(filepath, type_devis, client_prenom, client_nom)
+                print(f"\n  ✅ DEVIS ARRIÈRE-PLAN TERMINÉ — {os.path.basename(filepath)} ({round(os.path.getsize(filepath)/1024, 1)} Ko)")
+                print(f"     📂 {filepath}")
+        except Exception:
+            pass
+
+    task.add_done_callback(_on_bg_done)
 
     try:
         # asyncio.shield empêche l'annulation du task interne quand wait_for expire
-        filepath = await asyncio.wait_for(asyncio.shield(task), timeout=55)
+        result = await asyncio.wait_for(asyncio.shield(task), timeout=55)
+        filepath, date_livraison = result if isinstance(result, tuple) else (result, "")
 
         if filepath and str(filepath).endswith(".pdf") and os.path.exists(filepath):
             size_kb = os.path.getsize(filepath) / 1024
             _log_devis(filepath, type_devis, client_prenom, client_nom)
-            return json.dumps({
+            resp = {
                 "success": True,
                 "filepath": filepath,
                 "filename": os.path.basename(filepath),
                 "size_kb": round(size_kb, 1),
-                "message": f"Devis {type_devis} généré pour {client_prenom} {client_nom}",
-            })
+                "message": (
+                    f"✅ Devis {type_devis} généré avec succès pour {client_prenom} {client_nom}. "
+                    f"PDF téléchargé : {os.path.basename(filepath)} ({round(size_kb, 1)} Ko) "
+                    f"dans ~/Downloads/"
+                ),
+            }
+            if date_livraison:
+                resp["date_livraison"] = date_livraison
+                resp["message"] += f" Livraison estimée : {date_livraison}."
+            return json.dumps(resp)
         return json.dumps({"success": False, "error": f"PDF non trouvé : {filepath!r}"})
 
     except asyncio.TimeoutError:
@@ -161,8 +188,9 @@ async def _generer_direct(type_devis: str, params: dict,
             "success": True,
             "status": "en_cours",
             "message": (
-                f"Génération démarrée en arrière-plan (prend ~2 min). "
-                f"Appelez lister_devis_generes dans 1-2 minutes pour récupérer le PDF de {nom}."
+                f"⏳ Génération en cours en arrière-plan (prend ~2 min). "
+                f"Le PDF sera automatiquement sauvegardé dans ~/Downloads/ dès qu'il sera prêt. "
+                f"Appelez lister_devis_generes dans 1-2 minutes pour vérifier que le PDF de {nom} est disponible."
             ),
         })
     except Exception as e:
@@ -536,17 +564,21 @@ def verifier_promotions_actives() -> str:
 
 @mcp.tool()
 async def generer_devis_pergola_bois(
-    largeur: str,
-    profondeur: str,
-    fixation: str,
-    ventelle: str,
+    largeur: str = "",
+    profondeur: str = "",
+    fixation: str = "",
+    ventelle: str = "",
     option: str = "non",
     poteau_lamelle_colle: bool = False,
     nb_poteaux_lamelle_colle: int = 0,
+    claustra_type: str = "",
+    nb_claustra: int = 0,
     sur_mesure: bool = False,
     largeur_hors_tout: str = "",
     profondeur_hors_tout: str = "",
     hauteur_hors_tout: str = "",
+    pente: str = "",
+    options_wapf: str = "{}",
     client_nom: str = "",
     client_prenom: str = "",
     client_email: str = "",
@@ -555,13 +587,18 @@ async def generer_devis_pergola_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
+    produits_uniquement: bool = False,
 ) -> str:
     """Génère un devis pergola bois sur mapergolabois.fr.
 
     Args:
         largeur              : "2m","3m","4m","5m","6m","7m","8m","9m","10m"
+                               (optionnel si produits_uniquement=True)
         profondeur           : "2m","3m","4m","5m"
+                               (optionnel si produits_uniquement=True)
         fixation             : "adossee" | "independante"
+                               (optionnel si produits_uniquement=True)
         ventelle             : "largeur" | "profondeur" | "retro" | "sans"
         option               : "non" | "platelage" | "voilage" | "bioclimatique" |
                                "carport" | "lattage" | "polycarbonate"
@@ -569,12 +606,23 @@ async def generer_devis_pergola_bois(
         poteau_lamelle_colle : True pour ajouter des poteaux en bois lamellé-collé
         nb_poteaux_lamelle_colle : Nombre de poteaux lamellé-collé (0 = auto-calculé depuis
                                la description de variation). Fournir si auto-calcul échoue.
+        claustra_type        : Type de claustra : "" (aucun) | "vertical" | "horizontal" |
+                               "lattage". Option native du configurateur WAPF (field-5219ffc).
+                               ⚠ NE PAS ajouter les claustras en produits_complementaires.
+                               Le bardage (panneau plein) est un produit séparé → utiliser produits_complementaires.
+        nb_claustra          : Nombre de modules claustra (1 module = 1m de large).
+                               Ex : pergola 4m → nb_claustra=4 pour remplir un côté.
         sur_mesure           : True pour activer la configuration sur-mesure (+199,90€)
                                Choisir largeur/profondeur = variation standard >= dimensions souhaitées
         largeur_hors_tout    : Largeur réelle hors-tout en mètres (ex: "7.60")
                                Obligatoire si sur_mesure=True
         profondeur_hors_tout : Profondeur réelle hors-tout en mètres (ex: "3.42")
         hauteur_hors_tout    : Hauteur hors-tout en mètres (max 3.07m, ex: "2.50")
+        pente                : Pente de toiture. "" (défaut 5%) | "5%" | "15%"
+                               ⚠ pente="15%" nécessite ventelle="largeur"
+        options_wapf         : JSON dict de champs WAPF supplémentaires à sélectionner.
+                               Format : {"field_id": "valeur"} ou {"field_id": {"type": "swatch", "value": "..."}}
+                               Permet de piloter n'importe quel champ WAPF non prévu explicitement.
         client_*             : coordonnées client
         mode_livraison       : "" (ne pas changer) | "retrait" (retrait atelier Illies)
                                | "livraison" (livraison à domicile, ~99€)
@@ -582,6 +630,14 @@ async def generer_devis_pergola_bois(
                                Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                                Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                           "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                               est un dict avec les mêmes clés : {"largeur": "5m", "profondeur": "3m",
+                               "fixation": "independante", "ventelle": "largeur", "option": "non", ...}
+                               Permet de mettre plusieurs pergolas sur le même devis PDF.
+        produits_uniquement  : True pour générer un devis avec UNIQUEMENT les
+                               produits_complementaires (sans configurer de pergola).
+                               Utile pour commandes de pièces détachées (polycarbonate, rails, etc.).
+                               Les paramètres largeur/profondeur/fixation/ventelle sont ignorés.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -591,13 +647,158 @@ async def generer_devis_pergola_bois(
         "ventelle": ventelle, "option": option,
         "poteau_lamelle_colle": poteau_lamelle_colle,
         "nb_poteaux_lamelle_colle": nb_poteaux_lamelle_colle,
+        "claustra_type": claustra_type, "nb_claustra": nb_claustra,
         "sur_mesure": sur_mesure, "largeur_hors_tout": largeur_hors_tout,
         "profondeur_hors_tout": profondeur_hors_tout, "hauteur_hors_tout": hauteur_hors_tout,
+        "pente": pente, "options_wapf": options_wapf,
         "client_nom": client_nom, "client_prenom": client_prenom,
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
+        "produits_uniquement": produits_uniquement,
     }, client_prenom, client_nom)
+
+
+@mcp.tool()
+async def lire_longueurs_terrasse(
+    essence: str,
+) -> str:
+    """Lit en temps réel les longueurs de lames disponibles pour une essence donnée.
+
+    Ouvre le configurateur WAPF de terrasseenbois.fr avec Playwright, sélectionne
+    l'essence et lit les options du dropdown longueur. Compare aussi avec les longueurs
+    disponibles au-détail via l'API WooCommerce.
+
+    ⚠ TOUJOURS appeler cet outil avant generer_devis_terrasse_bois ou
+    generer_devis_terrasse_bois_detail pour connaître les longueurs réellement
+    disponibles et choisir le bon outil.
+
+    Args:
+        essence : "PIN 21mm Autoclave Vert" | "PIN 27mm Autoclave Vert" |
+                  "PIN 27mm Autoclave Marron" | "PIN 27mm Autoclave Gris" |
+                  "PIN 27mm Thermotraité" | "FRAKE" | "JATOBA" | "CUMARU" |
+                  "PADOUK" | "IPE"
+
+    Returns:
+        JSON avec :
+        - longueurs_configurateur : longueurs disponibles dans le configurateur WAPF
+        - longueurs_detail        : longueurs disponibles au-détail (API WooCommerce)
+        - recommandation          : "configurateur" | "detail" | "les_deux"
+        - conseil                 : explication du choix recommandé
+    """
+    from generateur_devis_3sites import TERRASSE_ESSENCE_MAP
+    from playwright.async_api import async_playwright
+
+    ESSENCE_FIELD = "field_65c1e3eb8cfb0"
+    PRODUCT_URL = "https://terrasseenbois.fr/produit/configurateur-terrasse/"
+    SITE_URL = "https://www.terrasseenbois.fr"
+
+    if essence not in TERRASSE_ESSENCE_MAP:
+        return json.dumps({
+            "error": f"Essence '{essence}' inconnue.",
+            "essences_valides": list(TERRASSE_ESSENCE_MAP.keys()),
+        })
+
+    essence_val, longueur_field = TERRASSE_ESSENCE_MAP[essence]
+    fid = longueur_field.replace("field_", "")
+
+    # ── 1. Lire les longueurs WAPF via Playwright ──────────────────────────
+    longueurs_wapf = []
+    wapf_error = None
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(locale="fr-FR", viewport={"width": 1280, "height": 800})
+            page = await context.new_page()
+            await page.goto(PRODUCT_URL, wait_until="domcontentloaded", timeout=30000)
+
+            # Fermer les éventuels popups
+            try:
+                await page.click("button.cc-dismiss, button.cc-btn, .cookie-accept", timeout=3000)
+            except Exception:
+                pass
+
+            # Sélectionner l'essence
+            swatch_sel = f'.wapf-field-container:not(.wapf-hide) div.wapf-swatch label[aria-label="{essence}"]'
+            await page.wait_for_selector(swatch_sel, timeout=10000)
+            await page.click(swatch_sel)
+
+            # Attendre que le dropdown longueur soit visible
+            await page.wait_for_function(
+                f"!document.querySelector('.wapf-field-container.field-{fid}')?.classList.contains('wapf-hide')",
+                timeout=8000,
+            )
+
+            # Lire toutes les options du select longueur
+            longueurs_wapf = await page.evaluate(f"""
+                () => {{
+                    var sel = document.querySelector('select[name="wapf[{longueur_field}]"]');
+                    if (!sel) return [];
+                    return Array.from(sel.options)
+                        .filter(o => o.value !== '')
+                        .map(o => o.text.trim());
+                }}
+            """)
+            await browser.close()
+    except Exception as e:
+        wapf_error = str(e)
+
+    # ── 2. Lire les longueurs au-détail via API WooCommerce ────────────────
+    longueurs_detail = []
+    detail_error = None
+    try:
+        essence_search = essence.lower().replace("pin ", "pin ").split()[0]
+        # Mapper les noms d'essence vers les termes de recherche au-détail
+        search_map = {
+            "JATOBA": "jatoba", "CUMARU": "cumaru", "PADOUK": "padouk",
+            "IPE": "ipe", "FRAKE": "frake",
+            "PIN 21mm Autoclave Vert": "pin 21",
+            "PIN 27mm Autoclave Vert": "pin 27",
+            "PIN 27mm Autoclave Marron": "pin 27 marron",
+            "PIN 27mm Autoclave Gris": "pin 27 gris",
+            "PIN 27mm Thermotraité": "thermotraite",
+        }
+        term = search_map.get(essence, essence.lower().split()[0])
+        products = _woo_api_get(SITE_URL, "products", {"search": term, "per_page": 10})
+        for p in products:
+            for v in p.get("variations", []):
+                for a in v.get("attributes", []):
+                    name = a.get("name", "").lower()
+                    if "longueur" in name:
+                        val = a.get("value", "").strip()
+                        if val and val not in longueurs_detail:
+                            longueurs_detail.append(val)
+    except Exception as e:
+        detail_error = str(e)
+
+    # ── 3. Recommandation ──────────────────────────────────────────────────
+    if longueurs_wapf and longueurs_detail:
+        recommandation = "les_deux"
+        conseil = (
+            f"Le configurateur WAPF propose {len(longueurs_wapf)} longueur(s), "
+            f"le catalogue au-détail en propose {len(longueurs_detail)}. "
+            "Choisir selon la longueur souhaitée par le client."
+        )
+    elif longueurs_wapf:
+        recommandation = "configurateur"
+        conseil = "Utiliser generer_devis_terrasse_bois (configurateur WAPF)."
+    elif longueurs_detail:
+        recommandation = "detail"
+        conseil = "Utiliser generer_devis_terrasse_bois_detail (catalogue au-détail). Convertir m² en nb de pièces."
+    else:
+        recommandation = "inconnu"
+        conseil = "Impossible de lire les longueurs. Vérifier la connexion."
+
+    return json.dumps({
+        "essence": essence,
+        "longueurs_configurateur": longueurs_wapf,
+        "longueurs_detail": longueurs_detail,
+        "recommandation": recommandation,
+        "conseil": conseil,
+        "erreur_wapf": wapf_error,
+        "erreur_detail": detail_error,
+    }, ensure_ascii=False)
 
 
 @mcp.tool()
@@ -620,6 +821,7 @@ async def generer_devis_terrasse_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis terrasse bois sur terrasseenbois.fr (formulaire WAPF).
 
@@ -629,18 +831,16 @@ async def generer_devis_terrasse_bois(
             "PIN 27mm Autoclave Marron" | "PIN 27mm Autoclave Gris" |
             "PIN 27mm Thermotraité" | "FRAKE" | "JATOBA" | "CUMARU" |
             "PADOUK" | "IPE"
-        longueur : Longueur des lames (selon essence) :
-            IPE/PADOUK  : "0.95", "1.25"
-            CUMARU/JATOBA/FRAKE: "1.25", "1.85", "2.15", "3.05", "3.65"
-            PIN 21mm Vert  : "3.3", "4.2", "5.1"
-            PIN 27mm Vert  : "2.4", "2.75", "3.3", "3.9", "4.2", "4.5", "4.8", "5.1"
-            PIN 27mm Marron: "3", "3.3", "3.6", "4.2", "4.8", "5.1", "5.4"
-        quantite         : Nombre de m² (défaut 1). Ignoré si nb_lames ou nb_lambourdes fournis.
+        longueur : Longueur des lames en mètres (notation point, ex: "4", "3.65", "5.5").
+            ⚠ TOUJOURS appeler rechercher_produits_detail(site="terrasse") EN PREMIER
+            pour connaître les longueurs réellement disponibles en stock pour l'essence choisie.
+            Ne jamais supposer ou mémoriser les longueurs disponibles.
+        quantite         : Surface en m² (défaut 1). Ignoré si nb_lames ou nb_lambourdes fournis.
+                           ⚠ quantite = surface en m², PAS un nombre de lames ni de pièces.
         lambourdes       : "" (aucune) | "Pin autoclave Vert 45x70" |
                            "Pin autoclave Vert 45x145" | "Bois exotique Niove 40x60"
-        lambourdes_longueur : Longueur des lambourdes (dépend du type) :
-            Pin 45x70/45x145 : "3", "4.2", "4.8", "5.1"
-            Niove 40x60      : "1.55", "1.85", "2.15", "3.05", "3.65"
+        lambourdes_longueur : Longueur des lambourdes en mètres.
+            ⚠ Vérifier les longueurs disponibles via rechercher_produits_detail avant de renseigner.
         plots            : Hauteur des plots réglables :
             "2 à 4 cm" | "4 à 6 cm" | "6 à 9 cm" | "9 à 15 cm" |
             "15 à 26 cm" | "NON" (défaut)
@@ -659,6 +859,10 @@ async def generer_devis_terrasse_bois(
                            Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                            Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                       "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                           est un dict avec les mêmes clés : {"essence": "...", "longueur": "...",
+                           "quantite": N, "lambourdes": "...", ...}
+                           Permet de mettre plusieurs terrasses sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -672,6 +876,7 @@ async def generer_devis_terrasse_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -691,15 +896,21 @@ async def generer_devis_terrasse_bois_detail(
     Utile pour commander des quantités exactes de lames, lambourdes, plots et visserie
     directement depuis le catalogue au détail de terrasseenbois.fr.
 
+    ⚠ RÈGLE CRITIQUE — quantite = NOMBRE DE PIÈCES, jamais une surface en m².
+    Si le client demande 10 m² de lames Jatoba 4m :
+      → nb_lames = ceil(10 / (0.145 × 4)) = ceil(10 / 0.58) = 18 lames → quantite=18
+    Toujours calculer le nombre de pièces à partir de la surface avant d'appeler cet outil.
+
+    ⚠ TOUJOURS appeler rechercher_produits_detail(site="terrasse") EN PREMIER pour obtenir
+    les URLs exactes, variation_id et longueurs disponibles en stock.
+
     Args:
         produits : JSON array de produits à ajouter au panier.
-                   Utiliser d'abord rechercher_produits_detail(site="terrasse") pour obtenir
-                   url, variation_id et attribut_selects.
                    Format : [
                      {"url": "https://www.terrasseenbois.fr/produit/choisissez-vos-lames-de-terrasse-en-cumaru/",
-                      "variation_id": 89495, "quantite": 70,
+                      "variation_id": 89495, "quantite": 18,
                       "attribut_selects": {"attribute_pa_longueur_de_lame": "3-05-m"},
-                      "description": "70 lames Cumaru 3,05m"},
+                      "description": "18 lames Cumaru 3,05m (≈10m²)"},
                      {"url": "https://www.terrasseenbois.fr/produit/choisissez-vos-lambourdes-de-terrasse-exotique-niove-40x60-mm/",
                       "variation_id": 89624, "quantite": 25,
                       "attribut_selects": {"attribute_pa_longueur_de_lambourdes": "3-05-m"},
@@ -744,6 +955,7 @@ async def generer_devis_cloture_bois(
     code_promo: str = "",
     mode_livraison: str = "",
     produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis kit clôture bois sur cloturebois.fr.
 
@@ -754,8 +966,10 @@ async def generer_devis_cloture_bois(
             longeur      : "4" | "10" | "20" | "30" | "40" (mètres linéaires)
             hauteur      : "1-9" (= 1.9m, seule option disponible)
             bardage      : "27x130" | "27x130-gris"
-            fixation_sol : "plots-beton"
-            type_poteaux : "90x90-h" | "metal7016"
+            fixation_sol : "plots-beton" | "pieds-galvanises-en-h"
+                           ⚠ "pieds-galvanises-en-h" nécessite type_poteaux="90x90-h"
+            type_poteaux : "90x90-h" (poteaux bois → déverrouille pieds galvanisés en H)
+                         | "metal7016" (poteaux métal → plots-beton uniquement)
             longueur_lames: "2-m"
 
         Kit moderne (productId=17434) :
@@ -774,6 +988,10 @@ async def generer_devis_cloture_bois(
                          Utiliser d'abord rechercher_produits_detail pour obtenir url/variation_id.
                          Format : [{"url": "...", "variation_id": 123, "quantite": 2,
                                     "attribut_selects": {}, "description": "..."}]
+        configurations_supplementaires : JSON array de configs supplémentaires. Chaque élément
+                         est un dict avec les mêmes clés : {"modele": "moderne", "longeur": "10",
+                         "hauteur": "1-9", "bardage": "21x145", ...}
+                         Permet de mettre plusieurs clôtures sur le même devis PDF.
 
     Returns:
         JSON avec chemin du PDF et métadonnées.
@@ -787,6 +1005,94 @@ async def generer_devis_cloture_bois(
         "client_email": client_email, "client_telephone": client_telephone,
         "client_adresse": client_adresse, "code_promo": code_promo,
         "mode_livraison": mode_livraison, "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
+    }, client_prenom, client_nom)
+
+
+@mcp.tool()
+async def generer_devis_cloture_configurateur(
+    longueur: float,
+    hauteur: float,
+    type_cloture: str,
+    bardage: str,
+    espacement_poteaux: str = "2m5",
+    sens_bardage: str = "vertical",
+    recto_verso: str = "rv_non",
+    espacement_lames: str = "jointif",
+    type_poteaux: str = "bois",
+    fixation_sol: str = "plots",
+    poteaux_supplementaires: int = 0,
+    finition_superieure: bool = False,
+    isolation_phonique: bool = False,
+    bidon_goudron: bool = False,
+    client_nom: str = "",
+    client_prenom: str = "",
+    client_email: str = "",
+    client_telephone: str = "",
+    client_adresse: str = "",
+    code_promo: str = "",
+    mode_livraison: str = "",
+    produits_complementaires: str = "[]",
+    configurations_supplementaires: str = "[]",
+) -> str:
+    """Génère un devis via le NOUVEAU configurateur clôture WAPF sur cloturebois.fr.
+
+    Ce configurateur permet des dimensions libres et plus d'options que les anciens kits.
+
+    Args:
+        longueur             : longueur en mètres (min 2, ex: 10.0)
+        hauteur              : hauteur en mètres (0.3 à 2.5, ex: 1.9)
+        type_cloture         : "moderne" | "classique"
+
+        Bardage moderne (si type_cloture="moderne") :
+            bardage          : "s1660" (16×60) | "s2060" (20×60) | "s2070b" (20×70 Brun) |
+                               "s2070g" (20×70 Gris) | "s2070n" (20×70 Noir) |
+                               "s21145" (21×145) | "s21130" (21×130 emboîtable) | "s4545" (45×45 claustra)
+            sens_bardage     : "vertical" | "horizontal"
+            recto_verso      : "rv_oui" (2 faces) | "rv_non" (1 face)
+            espacement_lames : "jointif" | "ajoure15" (1,5cm) | "ajoure45" (4,5cm, -10%)
+                               ⚠ ignoré si bardage="s21130" (emboîtable = espacement fixe)
+
+        Bardage classique (si type_cloture="classique") :
+            bardage          : "s27130" (27×130 Vert) | "s27130g" (27×130 Gris)
+                               ⚠ s27130g nécessite espacement_poteaux="2m"
+            type_poteaux     : "bois" | "metal"
+                               ⚠ "metal" limité à hauteur max 1.9m
+
+        Options communes :
+            espacement_poteaux : "2m" (rigidité) | "2m5" (économie, défaut)
+            fixation_sol       : "plots" (plots béton) | "pieds_h" (pieds galvanisés H) |
+                                 "pieds_u" (pieds galvanisés U)
+                                 ⚠ pieds_h/pieds_u uniquement avec type_poteaux="bois"
+            poteaux_supplementaires : nombre de poteaux en plus (0 = aucun)
+            finition_superieure : True pour ajouter la finition supérieure
+            isolation_phonique  : True (moderne + recto-verso uniquement)
+            bidon_goudron       : True (uniquement avec fixation_sol="plots")
+
+        client_* : coordonnées client
+        mode_livraison : "" | "retrait" | "livraison" (~99€)
+        produits_complementaires : JSON array (même format que les autres outils)
+        configurations_supplementaires : JSON array de configs supplémentaires
+
+    Returns:
+        JSON avec chemin du PDF et métadonnées.
+    """
+    return await _generer_direct("cloture_configurateur", {
+        "longueur": longueur, "hauteur": hauteur,
+        "type_cloture": type_cloture, "bardage": bardage,
+        "espacement_poteaux": espacement_poteaux, "sens_bardage": sens_bardage,
+        "recto_verso": recto_verso, "espacement_lames": espacement_lames,
+        "type_poteaux": type_poteaux, "fixation_sol": fixation_sol,
+        "poteaux_supplementaires": poteaux_supplementaires,
+        "finition_superieure": finition_superieure,
+        "isolation_phonique": isolation_phonique,
+        "bidon_goudron": bidon_goudron,
+        "client_nom": client_nom, "client_prenom": client_prenom,
+        "client_email": client_email, "client_telephone": client_telephone,
+        "client_adresse": client_adresse, "code_promo": code_promo,
+        "mode_livraison": mode_livraison,
+        "produits_complementaires": produits_complementaires,
+        "configurations_supplementaires": configurations_supplementaires,
     }, client_prenom, client_nom)
 
 
@@ -814,6 +1120,8 @@ async def generer_devis(
     pergola: str = "",
     produits_complementaires: str = "[]",
     code_promo: str = "",
+    produits_uniquement: bool = False,
+    configurations_supplementaires: str = "[]",
 ) -> str:
     """Génère un devis PDF complet pour un produit configuré sur le site web.
 
@@ -881,8 +1189,28 @@ async def generer_devis(
             - 2 abris accolés    : configurer le 1er abri normalement, puis rechercher_produits_detail(site="abri",
                                    recherche="[dimensions 2ème abri]") pour trouver le modèle préconçu du 2ème
                                    et l'ajouter ici → les 2 abris apparaissent sur le même devis PDF
-            - Gamme Essentiel    : NON génératable par ce configurateur. Utiliser rechercher_produits_detail(
-                                   site="abri", recherche="essentiel") → renvoyer le lien produit au client
+            - Gamme Essentiel    : utiliser produits_uniquement=True + rechercher_produits_detail(site="abri",
+                                   recherche="essentiel [options]") → trouver url + variation_id → passer
+                                   en produits_complementaires. Le PDF ne contiendra QUE le modèle préconçu.
+        produits_uniquement: (ABRI uniquement) True pour générer un devis avec UNIQUEMENT les
+            produits_complementaires, SANS passer par le configurateur WPC. Utilisé pour les
+            modèles préconçus (Gamme Essentiel, Haut de Gamme) qui sont des produits WooCommerce
+            simples. Les paramètres largeur/profondeur/ouvertures sont ignorés dans ce mode.
+            ⚠ Nécessite au moins 1 produit dans produits_complementaires.
+        configurations_supplementaires: JSON array de configurations supplémentaires à ajouter
+            au MÊME devis PDF. Chaque élément est un dict avec les mêmes clés que la config
+            principale. Permet de mettre plusieurs produits personnalisés (ex: 2 abris Gamme Origine)
+            sur le même devis.
+
+            ABRI : [{"largeur": "4,70M", "profondeur": "3,45m",
+                     "ouvertures": [{"type": "...", "face": "...", "position": "..."}],
+                     "extension_toiture": "Gauche 3,5 M", "plancher": false, "bac_acier": true}]
+            STUDIO : [{"largeur": "3,3", "profondeur": "3,5",
+                       "menuiseries": [...], "bardage_exterieur": "Gris", ...}]
+
+            Le script configure le premier produit, l'ajoute au panier, puis navigue à nouveau
+            vers le configurateur pour chaque config supplémentaire. Les produits_complementaires
+            sont ajoutés après tous les produits configurés.
 
     Returns:
         JSON avec le chemin du PDF généré et les métadonnées.
@@ -894,6 +1222,14 @@ async def generer_devis(
             produits_list = []
     except (json.JSONDecodeError, TypeError):
         produits_list = []
+
+    # Parser configurations_supplementaires
+    try:
+        configs_sup = json.loads(configurations_supplementaires) if isinstance(configurations_supplementaires, str) else configurations_supplementaires
+        if not isinstance(configs_sup, list):
+            configs_sup = []
+    except (json.JSONDecodeError, TypeError):
+        configs_sup = []
 
     try:
         if site == "studio":
@@ -925,6 +1261,7 @@ async def generer_devis(
                 "pergola": pergola,
                 "produits_complementaires": produits_list,
                 "code_promo": code_promo,
+                "configurations_supplementaires": configs_sup,
             }
 
         else:  # abri
@@ -954,6 +1291,8 @@ async def generer_devis(
                 "bac_acier": bac_acier,
                 "produits_complementaires": produits_list,
                 "code_promo": code_promo,
+                "produits_uniquement": produits_uniquement,
+                "configurations_supplementaires": configs_sup,
             }
 
         return await _generer_direct(site, params, client_prenom, client_nom)
@@ -984,7 +1323,7 @@ def lister_sites() -> str:
             "nom": "Abri de jardin bois — Gamme Origine (toit plat)",
             "url": "https://www.xn--abri-franais-sdb.fr",
             "statut": "fonctionnel",
-            "note_gammes": "⚠ Ce configurateur génère UNIQUEMENT la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). La Gamme Essentiel (toit 2 pentes, 1190-2120€, promo LEROYMERLIN5 -5%) est UNIQUEMENT en modèles préconçus — utiliser rechercher_produits_detail(site='abri', recherche='essentiel') pour trouver ces modèles.",
+            "note_gammes": "Ce configurateur génère la Gamme Origine (toit plat, 1600-6120€, promo LEROYMERLIN10 -10%). Pour la Gamme Essentiel (toit 2 pentes, 1190-2120€, promo LEROYMERLIN5 -5%) : utiliser produits_uniquement=True + rechercher_produits_detail(site='abri', recherche='essentiel [options]') → passer le résultat en produits_complementaires. Le PDF ne contiendra que le modèle préconçu.",
             "dimensions": {
                 "largeurs": ["2,15M", "2,65M", "3,45M", "4,20M", "4,35M",
                              "4,70M", "5,20M", "5,50M", "6,00M", "6,80M",
@@ -1125,8 +1464,9 @@ def lister_sites() -> str:
                 "bardage":       ["27x130","27x130-gris"],
                 "type_poteaux":  ["90x90-h","metal7016"],
                 "longueur_lames":["2-m"],
-                "fixation_sol":  ["plots-beton"],
+                "fixation_sol":  ["plots-beton","pieds-galvanises-en-h"],
             },
+            "note_fixation": "pieds-galvanises-en-h nécessite type_poteaux=90x90-h",
             "prix_depart": "729,90 €",
         },
         "cloture_moderne": {
@@ -1196,12 +1536,23 @@ def lister_devis_generes() -> str:
         if len(devis) >= 30:
             break
 
-    return json.dumps({
+    # Tâches en arrière-plan encore en cours
+    en_cours = [tid for tid, t in _background_tasks.items() if not t.done()]
+
+    result = {
         "devis": devis[:20],
         "total": len(devis),
         "dossier": download_dir,
-        "log_json": _DEVIS_LOG_FILE,
-    }, ensure_ascii=False)
+    }
+    if en_cours:
+        result["en_cours"] = en_cours
+        result["message"] = f"⏳ {len(en_cours)} devis encore en cours de génération : {', '.join(en_cours)}"
+    elif devis:
+        result["message"] = f"✅ {len(devis)} devis trouvé(s). Le plus récent : {devis[0].get('filename', '?')} ({devis[0].get('date', '?')})"
+    else:
+        result["message"] = "Aucun devis trouvé dans ~/Downloads/"
+
+    return json.dumps(result, ensure_ascii=False)
 
 
 # ═══════════════════════════════════════════════════════════════
