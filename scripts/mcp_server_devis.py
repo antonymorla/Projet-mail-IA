@@ -690,18 +690,16 @@ async def generer_devis_terrasse_bois(
             "PIN 27mm Autoclave Marron" | "PIN 27mm Autoclave Gris" |
             "PIN 27mm Thermotraité" | "FRAKE" | "JATOBA" | "CUMARU" |
             "PADOUK" | "IPE"
-        longueur : Longueur des lames (selon essence) :
-            IPE/PADOUK  : "0.95", "1.25"
-            CUMARU/JATOBA/FRAKE: "1.25", "1.85", "2.15", "3.05", "3.65"
-            PIN 21mm Vert  : "3.3", "4.2", "5.1"
-            PIN 27mm Vert  : "2.4", "2.75", "3.3", "3.9", "4.2", "4.5", "4.8", "5.1"
-            PIN 27mm Marron: "3", "3.3", "3.6", "4.2", "4.8", "5.1", "5.4"
-        quantite         : Nombre de m² (défaut 1). Ignoré si nb_lames ou nb_lambourdes fournis.
+        longueur : Longueur des lames en mètres (notation point, ex: "4", "3.65", "5.5").
+            ⚠ TOUJOURS appeler rechercher_produits_detail(site="terrasse") EN PREMIER
+            pour connaître les longueurs réellement disponibles en stock pour l'essence choisie.
+            Ne jamais supposer ou mémoriser les longueurs disponibles.
+        quantite         : Surface en m² (défaut 1). Ignoré si nb_lames ou nb_lambourdes fournis.
+                           ⚠ quantite = surface en m², PAS un nombre de lames ni de pièces.
         lambourdes       : "" (aucune) | "Pin autoclave Vert 45x70" |
                            "Pin autoclave Vert 45x145" | "Bois exotique Niove 40x60"
-        lambourdes_longueur : Longueur des lambourdes (dépend du type) :
-            Pin 45x70/45x145 : "3", "4.2", "4.8", "5.1"
-            Niove 40x60      : "1.55", "1.85", "2.15", "3.05", "3.65"
+        lambourdes_longueur : Longueur des lambourdes en mètres.
+            ⚠ Vérifier les longueurs disponibles via rechercher_produits_detail avant de renseigner.
         plots            : Hauteur des plots réglables :
             "2 à 4 cm" | "4 à 6 cm" | "6 à 9 cm" | "9 à 15 cm" |
             "15 à 26 cm" | "NON" (défaut)
@@ -757,15 +755,21 @@ async def generer_devis_terrasse_bois_detail(
     Utile pour commander des quantités exactes de lames, lambourdes, plots et visserie
     directement depuis le catalogue au détail de terrasseenbois.fr.
 
+    ⚠ RÈGLE CRITIQUE — quantite = NOMBRE DE PIÈCES, jamais une surface en m².
+    Si le client demande 10 m² de lames Jatoba 4m :
+      → nb_lames = ceil(10 / (0.145 × 4)) = ceil(10 / 0.58) = 18 lames → quantite=18
+    Toujours calculer le nombre de pièces à partir de la surface avant d'appeler cet outil.
+
+    ⚠ TOUJOURS appeler rechercher_produits_detail(site="terrasse") EN PREMIER pour obtenir
+    les URLs exactes, variation_id et longueurs disponibles en stock.
+
     Args:
         produits : JSON array de produits à ajouter au panier.
-                   Utiliser d'abord rechercher_produits_detail(site="terrasse") pour obtenir
-                   url, variation_id et attribut_selects.
                    Format : [
                      {"url": "https://www.terrasseenbois.fr/produit/choisissez-vos-lames-de-terrasse-en-cumaru/",
-                      "variation_id": 89495, "quantite": 70,
+                      "variation_id": 89495, "quantite": 18,
                       "attribut_selects": {"attribute_pa_longueur_de_lame": "3-05-m"},
-                      "description": "70 lames Cumaru 3,05m"},
+                      "description": "18 lames Cumaru 3,05m (≈10m²)"},
                      {"url": "https://www.terrasseenbois.fr/produit/choisissez-vos-lambourdes-de-terrasse-exotique-niove-40x60-mm/",
                       "variation_id": 89624, "quantite": 25,
                       "attribut_selects": {"attribute_pa_longueur_de_lambourdes": "3-05-m"},

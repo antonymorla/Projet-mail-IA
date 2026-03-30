@@ -82,7 +82,7 @@ Pipeline : [Marque]
 | **Client veut 2 produits identiques (2 studios, 2 pergolas…)** | ✅ `configurations_supplementaires` pour ajouter une 2ème config au même panier/PDF |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
 | **Terrasse — client donne nb_lames seulement** | ✅ `rechercher_produits_detail(site="terrasse")` pour obtenir les longueurs dispo → calculer `m²=ceil(nb_lames×0.145×longueur_choisie)` → `generer_devis_terrasse_bois(quantite=m²)` |
-| **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes) → `generer_devis_terrasse_bois_detail` |
+| **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes + longueurs dispo) → calculer `nb_lames=ceil(m²/(0.145×longueur))` → `generer_devis_terrasse_bois_detail` ⚠ `quantite` = nb de pièces, JAMAIS des m² |
 | **Terrasse — devis comparatif essences différentes** | ✅ `rechercher_produits_detail(site="terrasse")` pour chaque essence → recalculer nb_lames selon longueurs dispo réelles |
 | **Pergola — pièces détachées uniquement (polycarbonate, rails…)** | ✅ `rechercher_produits_detail(site="pergola")` → `generer_devis_pergola_bois(produits_uniquement=True, produits_complementaires=[...])` |
 | **Régénérer un devis existant** (lien expiré, code promo KO…) | ✅ Reproduire exactement le même devis avec les mêmes produits/quantités. Utiliser `rechercher_produits_detail` pour retrouver les variation_id à jour |
@@ -274,9 +274,15 @@ generer_devis_terrasse_bois(
 → Le PDF inclura lames + lambourdes + plots. **Ne pas chercher les plots au-détail séparément.**
 
 **Quand utiliser `rechercher_produits_detail(site="terrasse")` :**
-→ Uniquement pour trouver le **prix unitaire** d'un produit à communiquer dans un email (ex : client veut savoir combien coûte 1 plot, 1 lame Cumaru…).
-→ ⚠ Lames Pin (21mm, 27mm) **non disponibles** au-détail — toujours passer par le configurateur.
+→ **TOUJOURS EN PREMIER** avant tout devis terrasse — pour obtenir les longueurs réellement disponibles en stock et les URLs/variation_id exacts.
+→ Pour trouver le prix unitaire d'un produit à communiquer dans un email.
+→ ⚠ Lames Pin (21mm, 27mm) **non disponibles** au-détail — toujours passer par le configurateur WAPF.
 → ⚠ `produits_complementaires` sur terrasse : ajoutés au panier WC mais **absents du PDF** — ne pas utiliser pour plots, visserie ou lames.
+
+**⚠ `generer_devis_terrasse_bois_detail` — règle critique :**
+`quantite` = **nombre de pièces** (lames, lambourdes, plots…), **jamais une surface en m²**.
+Si client demande 10m² de lames Jatoba 4m → `quantite = ceil(10 / (0.145 × 4)) = 18 lames`.
+Toujours convertir la surface en nombre de pièces avant d'appeler cet outil.
 
 #### Kits terrasse préconçus (WooCommerce)
 Surfaces fixes : **10 / 20 / 40 / 60 / 80 m²** — utiliser uniquement si le client veut exactement ces surfaces.
