@@ -685,6 +685,13 @@ async def _generer_devis_via_generateur(
 
     await page.wait_for_selector('#quote-form', timeout=10000)
 
+    # Fallbacks si champs manquants (le formulaire WQG exige tous les champs)
+    client_email    = client_email    or "test@test.fr"
+    client_nom      = client_nom      or " "
+    client_prenom   = client_prenom   or " "
+    client_telephone= client_telephone or " "
+    client_adresse  = client_adresse  or " "
+
     print(f"  ➜ Remplissage formulaire client")
     await page.locator('#quote-name').fill(client_nom)
     await page.locator('#quote-surname').fill(client_prenom)
