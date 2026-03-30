@@ -72,9 +72,10 @@ Corps: …
 | Config complète (dimensions + options connues) | ✅ `verifier_promotions_actives` → `generer_devis` + email B2 court |
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
 | Client veut 2 abris accolés sur le même devis | ✅ `generer_devis` 1er abri + `rechercher_produits_detail` 2ème → `produits_complementaires` |
-| **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser finitions non incluses |
-| **Terrasse — client donne nb_lames (pas les accessoires)** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
-| **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` → `generer_devis_terrasse_bois_detail` (quantités exactes) |
+| **Terrasse — toute demande** | ✅ `lire_longueurs_terrasse(essence)` EN PREMIER → choisir configurateur ou détail selon longueur dispo |
+| **Terrasse — longueur dispo dans WAPF** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` |
+| **Terrasse — longueur dispo au-détail seulement** | ✅ `generer_devis_terrasse_bois_detail` — `quantite` = nb pièces (jamais m²) |
+| **Terrasse — client donne nb_lames** | ✅ `lire_longueurs_terrasse` → calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois` |
 | **Pergola — pièces détachées (polycarbonate, rails…)** | ✅ `rechercher_produits_detail(site="pergola")` → `generer_devis_pergola_bois(produits_uniquement=True, produits_complementaires=[...])` |
 | Client avec budget serré pour un abri | ✉ Proposer Gamme Essentiel (renvoyer vers le site — non génératable) |
 | Infos manquantes | ✉ Email B — demander les compléments |
@@ -96,11 +97,12 @@ Corps: …
 | Outil | Usage |
 |-------|-------|
 | `verifier_promotions_actives` | **Appeler EN PREMIER** — scrape les 5 sites, retourne codes promo + remises actives |
+| `lire_longueurs_terrasse` | **TERRASSE — appeler EN PREMIER** — lit les longueurs dispo dans le configurateur WAPF ET au-détail, recommande l'outil à utiliser |
 | `rechercher_produits_detail` | **Catalogue live** — trouver produit par nom, obtenir variation_id + stock |
 | `generer_devis` | Abri ou Studio (WPC Booster, images de config dans PDF) |
 | `generer_devis_pergola_bois` | Pergola bois (mapergolabois.fr) — `produits_uniquement=True` pour pièces détachées seules |
 | `generer_devis_terrasse_bois` | Terrasse bois — mode surface m² ou nb_lames/nb_lambourdes (configurateur WAPF) |
-| `generer_devis_terrasse_bois_detail` | Terrasse bois — **quantités EXACTES** (au détail, sans configurateur) |
+| `generer_devis_terrasse_bois_detail` | Terrasse bois — **quantités EXACTES** (au détail, sans configurateur) — `quantite` = nb pièces |
 | `generer_devis_cloture_configurateur` | **NOUVEAU** configurateur clôture WAPF (dimensions libres, +options) |
 | `generer_devis_cloture_bois` | ~~Ancien~~ Kit clôture classique/moderne (variations WC) — conservé en backup |
 | `lister_devis_generes` | Lister les PDF déjà générés |

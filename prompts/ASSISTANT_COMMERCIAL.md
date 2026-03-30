@@ -80,10 +80,11 @@ Pipeline : [Marque]
 | Config + produit complémentaire mentionné (cloison, bac acier…) | ✅ `rechercher_produits_detail` → `generer_devis` avec `produits_complementaires` |
 | Client veut 2 abris accolés sur le même devis | ✅ `generer_devis` pour le 1er + `rechercher_produits_detail` pour le 2ème → `produits_complementaires` |
 | **Client veut 2 produits identiques (2 studios, 2 pergolas…)** | ✅ `configurations_supplementaires` pour ajouter une 2ème config au même panier/PDF |
-| **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
-| **Terrasse — client donne nb_lames seulement** | ✅ `rechercher_produits_detail(site="terrasse")` pour obtenir les longueurs dispo → calculer `m²=ceil(nb_lames×0.145×longueur_choisie)` → `generer_devis_terrasse_bois(quantite=m²)` |
-| **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes + longueurs dispo) → calculer `nb_lames=ceil(m²/(0.145×longueur))` → `generer_devis_terrasse_bois_detail` ⚠ `quantite` = nb de pièces, JAMAIS des m² |
-| **Terrasse — devis comparatif essences différentes** | ✅ `rechercher_produits_detail(site="terrasse")` pour chaque essence → recalculer nb_lames selon longueurs dispo réelles |
+| **Terrasse — TOUTE demande** | ✅ `lire_longueurs_terrasse(essence)` EN PREMIER → retourne longueurs dispo WAPF + détail + recommandation |
+| **Terrasse — longueur dispo dans WAPF** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
+| **Terrasse — longueur dispo au-détail seulement** | ✅ `rechercher_produits_detail` (URLs + variation_id) → `generer_devis_terrasse_bois_detail` ⚠ `quantite` = nb pièces : `ceil(m²/(0.145×longueur))` |
+| **Terrasse — client donne nb_lames** | ✅ `lire_longueurs_terrasse` → calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois` |
+| **Terrasse — devis comparatif essences différentes** | ✅ `lire_longueurs_terrasse` pour chaque essence → recalculer selon longueurs dispo réelles |
 | **Pergola — pièces détachées uniquement (polycarbonate, rails…)** | ✅ `rechercher_produits_detail(site="pergola")` → `generer_devis_pergola_bois(produits_uniquement=True, produits_complementaires=[...])` |
 | **Régénérer un devis existant** (lien expiré, code promo KO…) | ✅ Reproduire exactement le même devis avec les mêmes produits/quantités. Utiliser `rechercher_produits_detail` pour retrouver les variation_id à jour |
 | Client avec budget serré pour un abri | ✅ `generer_devis(site="abri", produits_uniquement=True)` pour Gamme Essentiel (rechercher via `rechercher_produits_detail(site="abri", recherche="essentiel")`) |

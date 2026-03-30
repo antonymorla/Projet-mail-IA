@@ -661,6 +661,147 @@ async def generer_devis_pergola_bois(
 
 
 @mcp.tool()
+async def lire_longueurs_terrasse(
+    essence: str,
+) -> str:
+    """Lit en temps réel les longueurs de lames disponibles pour une essence donnée.
+
+    Ouvre le configurateur WAPF de terrasseenbois.fr avec Playwright, sélectionne
+    l'essence et lit les options du dropdown longueur. Compare aussi avec les longueurs
+    disponibles au-détail via l'API WooCommerce.
+
+    ⚠ TOUJOURS appeler cet outil avant generer_devis_terrasse_bois ou
+    generer_devis_terrasse_bois_detail pour connaître les longueurs réellement
+    disponibles et choisir le bon outil.
+
+    Args:
+        essence : "PIN 21mm Autoclave Vert" | "PIN 27mm Autoclave Vert" |
+                  "PIN 27mm Autoclave Marron" | "PIN 27mm Autoclave Gris" |
+                  "PIN 27mm Thermotraité" | "FRAKE" | "JATOBA" | "CUMARU" |
+                  "PADOUK" | "IPE"
+
+    Returns:
+        JSON avec :
+        - longueurs_configurateur : longueurs disponibles dans le configurateur WAPF
+        - longueurs_detail        : longueurs disponibles au-détail (API WooCommerce)
+        - recommandation          : "configurateur" | "detail" | "les_deux"
+        - conseil                 : explication du choix recommandé
+    """
+    from generateur_devis_3sites import TERRASSE_ESSENCE_MAP
+    from playwright.async_api import async_playwright
+
+    ESSENCE_FIELD = "field_65c1e3eb8cfb0"
+    PRODUCT_URL = "https://terrasseenbois.fr/produit/configurateur-terrasse/"
+    SITE_URL = "https://www.terrasseenbois.fr"
+
+    if essence not in TERRASSE_ESSENCE_MAP:
+        return json.dumps({
+            "error": f"Essence '{essence}' inconnue.",
+            "essences_valides": list(TERRASSE_ESSENCE_MAP.keys()),
+        })
+
+    essence_val, longueur_field = TERRASSE_ESSENCE_MAP[essence]
+    fid = longueur_field.replace("field_", "")
+
+    # ── 1. Lire les longueurs WAPF via Playwright ──────────────────────────
+    longueurs_wapf = []
+    wapf_error = None
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(locale="fr-FR", viewport={"width": 1280, "height": 800})
+            page = await context.new_page()
+            await page.goto(PRODUCT_URL, wait_until="domcontentloaded", timeout=30000)
+
+            # Fermer les éventuels popups
+            try:
+                await page.click("button.cc-dismiss, button.cc-btn, .cookie-accept", timeout=3000)
+            except Exception:
+                pass
+
+            # Sélectionner l'essence
+            swatch_sel = f'.wapf-field-container:not(.wapf-hide) div.wapf-swatch label[aria-label="{essence}"]'
+            await page.wait_for_selector(swatch_sel, timeout=10000)
+            await page.click(swatch_sel)
+
+            # Attendre que le dropdown longueur soit visible
+            await page.wait_for_function(
+                f"!document.querySelector('.wapf-field-container.field-{fid}')?.classList.contains('wapf-hide')",
+                timeout=8000,
+            )
+
+            # Lire toutes les options du select longueur
+            longueurs_wapf = await page.evaluate(f"""
+                () => {{
+                    var sel = document.querySelector('select[name="wapf[{longueur_field}]"]');
+                    if (!sel) return [];
+                    return Array.from(sel.options)
+                        .filter(o => o.value !== '')
+                        .map(o => o.text.trim());
+                }}
+            """)
+            await browser.close()
+    except Exception as e:
+        wapf_error = str(e)
+
+    # ── 2. Lire les longueurs au-détail via API WooCommerce ────────────────
+    longueurs_detail = []
+    detail_error = None
+    try:
+        essence_search = essence.lower().replace("pin ", "pin ").split()[0]
+        # Mapper les noms d'essence vers les termes de recherche au-détail
+        search_map = {
+            "JATOBA": "jatoba", "CUMARU": "cumaru", "PADOUK": "padouk",
+            "IPE": "ipe", "FRAKE": "frake",
+            "PIN 21mm Autoclave Vert": "pin 21",
+            "PIN 27mm Autoclave Vert": "pin 27",
+            "PIN 27mm Autoclave Marron": "pin 27 marron",
+            "PIN 27mm Autoclave Gris": "pin 27 gris",
+            "PIN 27mm Thermotraité": "thermotraite",
+        }
+        term = search_map.get(essence, essence.lower().split()[0])
+        products = _woo_api_get(SITE_URL, "products", {"search": term, "per_page": 10})
+        for p in products:
+            for v in p.get("variations", []):
+                for a in v.get("attributes", []):
+                    name = a.get("name", "").lower()
+                    if "longueur" in name:
+                        val = a.get("value", "").strip()
+                        if val and val not in longueurs_detail:
+                            longueurs_detail.append(val)
+    except Exception as e:
+        detail_error = str(e)
+
+    # ── 3. Recommandation ──────────────────────────────────────────────────
+    if longueurs_wapf and longueurs_detail:
+        recommandation = "les_deux"
+        conseil = (
+            f"Le configurateur WAPF propose {len(longueurs_wapf)} longueur(s), "
+            f"le catalogue au-détail en propose {len(longueurs_detail)}. "
+            "Choisir selon la longueur souhaitée par le client."
+        )
+    elif longueurs_wapf:
+        recommandation = "configurateur"
+        conseil = "Utiliser generer_devis_terrasse_bois (configurateur WAPF)."
+    elif longueurs_detail:
+        recommandation = "detail"
+        conseil = "Utiliser generer_devis_terrasse_bois_detail (catalogue au-détail). Convertir m² en nb de pièces."
+    else:
+        recommandation = "inconnu"
+        conseil = "Impossible de lire les longueurs. Vérifier la connexion."
+
+    return json.dumps({
+        "essence": essence,
+        "longueurs_configurateur": longueurs_wapf,
+        "longueurs_detail": longueurs_detail,
+        "recommandation": recommandation,
+        "conseil": conseil,
+        "erreur_wapf": wapf_error,
+        "erreur_detail": detail_error,
+    }, ensure_ascii=False)
+
+
+@mcp.tool()
 async def generer_devis_terrasse_bois(
     essence: str,
     longueur: str,
