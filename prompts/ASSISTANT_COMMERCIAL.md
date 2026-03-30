@@ -81,9 +81,9 @@ Pipeline : [Marque]
 | Client veut 2 abris accolés sur le même devis | ✅ `generer_devis` pour le 1er + `rechercher_produits_detail` pour le 2ème → `produits_complementaires` |
 | **Client veut 2 produits identiques (2 studios, 2 pergolas…)** | ✅ `configurations_supplementaires` pour ajouter une 2ème config au même panier/PDF |
 | **Terrasse — client donne surface en m²** | ✅ `generer_devis_terrasse_bois(quantite=surface×1.10)` — email : préciser que finitions non incluses |
-| **Terrasse — client donne nb_lames seulement** | ✅ Calculer `m²=ceil(nb_lames×0.145×longueur)` → `generer_devis_terrasse_bois(quantite=m²)` |
+| **Terrasse — client donne nb_lames seulement** | ✅ `rechercher_produits_detail(site="terrasse")` pour obtenir les longueurs dispo → calculer `m²=ceil(nb_lames×0.145×longueur_choisie)` → `generer_devis_terrasse_bois(quantite=m²)` |
 | **Terrasse — client donne tout en quantités exactes** | ✅ `rechercher_produits_detail` (URLs exactes) → `generer_devis_terrasse_bois_detail` |
-| **Terrasse — devis comparatif essences différentes** | ✅ Recalculer nb_lames selon longueurs dispo de chaque essence (longueurs ≠ entre Pin et exotiques) |
+| **Terrasse — devis comparatif essences différentes** | ✅ `rechercher_produits_detail(site="terrasse")` pour chaque essence → recalculer nb_lames selon longueurs dispo réelles |
 | **Pergola — pièces détachées uniquement (polycarbonate, rails…)** | ✅ `rechercher_produits_detail(site="pergola")` → `generer_devis_pergola_bois(produits_uniquement=True, produits_complementaires=[...])` |
 | **Régénérer un devis existant** (lien expiré, code promo KO…) | ✅ Reproduire exactement le même devis avec les mêmes produits/quantités. Utiliser `rechercher_produits_detail` pour retrouver les variation_id à jour |
 | Client avec budget serré pour un abri | ✅ `generer_devis(site="abri", produits_uniquement=True)` pour Gamme Essentiel (rechercher via `rechercher_produits_detail(site="abri", recherche="essentiel")`) |
