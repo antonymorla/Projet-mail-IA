@@ -704,6 +704,12 @@ Les largeurs et profondeurs ne sont pas librement combinables. Le configurateur 
 - Profondeurs : 2,15 / 2,65 / 3,45 / 4,45 / 5,45 m (et autres selon catalogue)
 - ⚠ Toutes les combinaisons ne sont pas disponibles → tester via `generer_devis` ou `lister_sites`.
 
+**⚠ Dimensions hors catalogue — règle impérative :**
+Quand un client demande une dimension qui n'existe pas dans le catalogue standard :
+1. Proposer la dimension standard la plus proche (inférieure ou égale à l'espace disponible)
+2. **Toujours mentionner Abri Cerisier** (www.abri-cerisier.fr) comme solution sur-mesure exact
+→ Ne jamais simplement dire "impossible" sans proposer cette alternative.
+
 ---
 
 ### PERGOLAS — contraintes terrain
